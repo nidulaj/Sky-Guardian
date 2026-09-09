@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: ankane/pgvector:v0.5.1
+    container_name: skyguardian-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-skyguardian}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skyguardian_secret_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-skyguardiandb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-skyguardian} -d ${POSTGRES_DB:-skyguardiandb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: skyguardian-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-skyguardian}:${POSTGRES_PASSWORD:-skyguardian_secret_pass}@postgres:5432/${POSTGRES_DB:-skyguardiandb}
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_key_skyguardian_ai_2026_super_secure_32bytes}
+      - LLM_PROVIDER=${LLM_PROVIDER:-mock}
+      - LLM_MODEL=${LLM_MODEL:-gemini-1.5-flash}
+      - LLM_API_KEY=${LLM_API_KEY:-mock_key}
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-mock_key}
+      - FLIGHT_PROVIDER=${FLIGHT_PROVIDER:-mock}
+      - WEATHER_PROVIDER=${WEATHER_PROVIDER:-mock}
+      - USE_MOCK_FLIGHTS=${USE_MOCK_FLIGHTS:-true}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: skyguardian-frontend
+    restart: always
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_APP_NAME=SkyGuardian AI
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

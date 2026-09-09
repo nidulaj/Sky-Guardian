@@ -1,0 +1,35 @@
+# SkyGuardian AI - Trusted Domain Allowlist for RAG / Tavily Information Retrieval
+
+trusted_airlines:
+  - srilankan.com
+  - malaysiaairlines.com
+  - singaporeair.com
+  - qantas.com
+  - emirates.com
+  - qatarairways.com
+  - cathaypacific.com
+  - ana.co.jp
+  - jal.co.jp
+
+trusted_airports:
+  - airport-cmb.lk
+  - malaysiaairports.com.my
+  - changiairport.com
+  - narita-airport.jp
+  - haneda-airport.jp
+
+aviation_authorities:
+  - caasl.gov.lk
+  - caam.gov.my
+  - faa.gov
+  - easa.europa.eu
+  - iata.org
+  - icao.int
+
+untrusted_keywords:
+  - blog
+  - forum
+  - reddit
+  - quora
+  - tripadvisor
+  - travelhacks

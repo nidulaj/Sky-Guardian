@@ -1,0 +1,14 @@
+# SkyGuardian AI - Alternative Flight Ranking Configuration
+
+ranking_weights:
+  arrival_quality: 0.35
+  connection_safety: 0.25
+  travel_duration: 0.15
+  stops: 0.10
+  disruption_risk: 0.10
+  cost: 0.05
+
+filters:
+  max_allowed_stops: 2
+  min_connection_margin_minutes: 45
+  exclude_overnight_layovers_if_direct_available: true
