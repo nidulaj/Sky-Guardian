@@ -4,16 +4,18 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { analyzeJourney } from '@/lib/api/client';
 import { JourneyAnalysisResponse, FlightLegInput } from '@/types/journey';
+import { FlightResult } from '@/types/flight';
 import FloatingNavbar from '@/components/ui/FloatingNavbar';
 import JourneyScene from '@/components/three/JourneyScene';
 import RiskRadarMeter from '@/components/journey/RiskRadarMeter';
 import AgentWorkflowProgress from '@/components/journey/AgentWorkflowProgress';
 import ExplainabilityDrawer from '@/components/journey/ExplainabilityDrawer';
+import FlightStatusCard from '@/components/journey/FlightStatusCard';
+import ConnectionCard from '@/components/journey/ConnectionCard';
 import {
   Shield,
   Plane,
   AlertCircle,
-  Clock,
   CheckCircle2,
   ExternalLink,
   Plus,
@@ -23,6 +25,14 @@ import {
   ArrowRight,
   Info
 } from 'lucide-react';
+
+// Transfer airport label, matching ConnectionResult.airport in the Connection Agent
+function connectionAirport(flights: FlightResult[]): string | undefined {
+  const arrivesAt = flights[0]?.destination;
+  const departsFrom = flights[1]?.origin;
+  if (arrivesAt && departsFrom && arrivesAt !== departsFrom) return `${arrivesAt}/${departsFrom}`;
+  return arrivesAt || departsFrom || undefined;
+}
 
 export default function NewJourneyPage() {
   const [legs, setLegs] = useState<FlightLegInput[]>([
@@ -239,34 +249,23 @@ export default function NewJourneyPage() {
                   weatherScore={result.risk.weather_score}
                 />
 
-                {/* Connection Transfer Card */}
-                {result.connection && (
-                  <div className="p-6 rounded-2xl hud-card border border-red-500/30 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center space-x-2 text-xs font-mono font-bold text-slate-400">
-                        <Clock className="w-4 h-4 text-red-400" />
-                        <span>KUALA LUMPUR (KLIA) TRANSFER FEASIBILITY</span>
-                      </div>
-                      <span className="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/40">
-                        {result.connection.status}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 text-center font-mono">
-                      <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                        <span className="block text-[10px] text-slate-500">AVAILABLE</span>
-                        <span className="text-lg font-bold text-red-400">{result.connection.available_minutes} mins</span>
-                      </div>
-                      <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                        <span className="block text-[10px] text-slate-500">REQUIRED MCT</span>
-                        <span className="text-lg font-bold text-slate-200">{result.connection.minimum_required_minutes} mins</span>
-                      </div>
-                      <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                        <span className="block text-[10px] text-slate-500">BUFFER DEFICIT</span>
-                        <span className="text-lg font-bold text-red-400">{result.connection.buffer_minutes} mins</span>
-                      </div>
-                    </div>
+                {/* Flight Status Cards (Flight Agent) */}
+                {result.flight_statuses.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {result.flight_statuses.map((flight, idx) => (
+                      <FlightStatusCard key={idx} flight={flight} />
+                    ))}
                   </div>
+                )}
+
+                {/* Connection Card (Connection Agent) */}
+                {result.connection && (
+                  <ConnectionCard
+                    connection={result.connection}
+                    airport={connectionAirport(result.flight_statuses)}
+                    inboundFlight={result.flight_statuses[0]?.flight_number}
+                    outboundFlight={result.flight_statuses[1]?.flight_number}
+                  />
                 )}
 
                 {/* Recovery Recommendation */}
