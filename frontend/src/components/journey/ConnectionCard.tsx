@@ -1,36 +1,17 @@
-'use client';
-
 import React from 'react';
-import { Clock, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import Badge from '@/components/ui/Badge';
 import { ConnectionSummary } from '@/types/journey';
 import { ConnectionStatus } from '@/types/flight';
 import { formatMinutes } from '@/lib/flightTime';
 
-const STATUS_STYLES: Record<ConnectionStatus, { chip: string; border: string; accent: string; bar: string }> = {
-  SAFE: {
-    chip: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
-    border: 'border-emerald-500/30', accent: 'text-emerald-400', bar: 'bg-emerald-500',
-  },
-  MODERATE_RISK: {
-    chip: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-    border: 'border-amber-500/30', accent: 'text-amber-300', bar: 'bg-amber-400',
-  },
-  HIGH_RISK: {
-    chip: 'bg-orange-500/20 text-orange-300 border-orange-500/40',
-    border: 'border-orange-500/30', accent: 'text-orange-300', bar: 'bg-orange-400',
-  },
-  LIKELY_MISSED: {
-    chip: 'bg-red-500/20 text-red-400 border-red-500/40',
-    border: 'border-red-500/30', accent: 'text-red-400', bar: 'bg-red-500',
-  },
-  MISSED: {
-    chip: 'bg-red-500/20 text-red-400 border-red-500/40',
-    border: 'border-red-500/40', accent: 'text-red-400', bar: 'bg-red-600',
-  },
-  UNKNOWN: {
-    chip: 'bg-slate-800 text-slate-300 border-slate-700',
-    border: 'border-slate-800 border-dashed', accent: 'text-slate-400', bar: 'bg-slate-600',
-  },
+const STATUS_STYLES: Record<ConnectionStatus, { border: string; accent: string; bar: string }> = {
+  SAFE: { border: 'border-ink/10', accent: 'text-status-safe', bar: 'bg-status-safe' },
+  MODERATE_RISK: { border: 'border-status-caution/40', accent: 'text-status-caution', bar: 'bg-status-caution' },
+  HIGH_RISK: { border: 'border-status-high/40', accent: 'text-status-high', bar: 'bg-status-high' },
+  LIKELY_MISSED: { border: 'border-status-danger/40', accent: 'text-status-danger', bar: 'bg-status-danger' },
+  MISSED: { border: 'border-status-danger/50', accent: 'text-status-danger', bar: 'bg-status-danger' },
+  UNKNOWN: { border: 'border-dashed border-ink/25', accent: 'text-ink-muted', bar: 'bg-status-unknown' },
 };
 
 const STATUS_TEXT: Record<ConnectionStatus, string> = {
@@ -74,83 +55,83 @@ interface ConnectionCardProps {
   outboundFlight?: string | null;
 }
 
+function Stat({ label, value, tone = 'text-ink' }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="min-w-0 bg-sand-50 px-3 py-3 sm:px-4">
+      <dt className="eyebrow">{label}</dt>
+      <dd className={`display mt-2 text-2xl sm:text-4xl tabular-nums ${tone}`}>{value}</dd>
+    </div>
+  );
+}
+
 export default function ConnectionCard({ connection, airport, inboundFlight, outboundFlight }: ConnectionCardProps) {
   const status = (connection.status in STATUS_STYLES ? connection.status : 'UNKNOWN') as ConnectionStatus;
   const style = STATUS_STYLES[status];
   const known = status !== 'UNKNOWN' && !connection.reason_codes.some((c) => c.endsWith('_CANCELLED') || c === 'INBOUND_FLIGHT_DIVERTED');
   const available = connection.available_minutes;
   const required = connection.minimum_required_minutes;
+  const short = connection.buffer_minutes < 0;
 
   // Bar scale: the MCT marker sits at 50% of the bar, so twice the MCT fills it
   const scale = Math.max(required * 2, 1);
   const fill = Math.min(Math.max(available / scale, 0), 1) * 100;
 
   return (
-    <div className={`p-6 rounded-2xl hud-card border ${style.border} space-y-4`}>
-      <div className="flex justify-between items-start gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center space-x-2 text-xs font-mono font-bold text-slate-400 uppercase">
-            <Clock className={`w-4 h-4 ${style.accent}`} />
-            <span>{airport ? `${airport} connection` : 'Connection'}</span>
-          </div>
+    <article className={`rounded-3xl border bg-sand-50 p-5 sm:p-6 ${style.border}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="eyebrow">Connection</p>
+          <h3 className="display mt-1 text-3xl text-ink">{airport ? `Transfer at ${airport}` : 'Your transfer'}</h3>
           {(inboundFlight || outboundFlight) && (
-            <div className="flex items-center space-x-2 text-[11px] font-mono text-slate-500">
+            <p className="mt-1 flex items-center gap-2 font-mono text-sm text-ink-soft">
               <span>{inboundFlight || '—'}</span>
-              <ArrowRight className="w-3 h-3" />
+              <ArrowRight className="h-3.5 w-3.5" aria-label="then" />
               <span>{outboundFlight || '—'}</span>
-            </div>
+            </p>
           )}
         </div>
-        <span className={`px-2.5 py-0.5 rounded text-xs font-mono font-bold border ${style.chip}`}>
-          {status.replace(/_/g, ' ')}
-        </span>
+        <Badge status={status} />
       </div>
 
-      <p className="text-sm text-slate-300">{statusText(status, connection.reason_codes)}</p>
+      <p className={`mt-4 text-base font-medium ${style.accent}`}>{statusText(status, connection.reason_codes)}</p>
 
       {known && (
         <>
-          <div className="grid grid-cols-3 gap-3 text-center font-mono">
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-              <span className="block text-[10px] text-slate-500">AVAILABLE</span>
-              <span className={`text-lg font-bold ${style.accent}`}>{formatMinutes(available)}</span>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-              <span className="block text-[10px] text-slate-500">REQUIRED</span>
-              <span className="text-lg font-bold text-slate-200">{formatMinutes(required)}</span>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-              <span className="block text-[10px] text-slate-500">{connection.buffer_minutes < 0 ? 'SHORT BY' : 'SPARE'}</span>
-              <span className={`text-lg font-bold ${connection.buffer_minutes < 0 ? 'text-red-400' : 'text-slate-200'}`}>
-                {formatMinutes(Math.abs(connection.buffer_minutes))}
+          <dl className="mt-5 grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-ink/10 bg-ink/10">
+            <Stat label="You have" value={formatMinutes(available)} tone={style.accent} />
+            <Stat label="Minimum" value={formatMinutes(required)} />
+            <Stat
+              label={short ? 'Short by' : 'Spare'}
+              value={formatMinutes(Math.abs(connection.buffer_minutes))}
+              tone={short ? 'text-status-danger' : 'text-ink'}
+            />
+          </dl>
+
+          <div className="mt-5 pb-6">
+            <div
+              className="relative h-2.5 rounded-full bg-sand-300"
+              role="img"
+              aria-label={`${available} minutes available, ${required} minutes required`}
+            >
+              <div className={`h-2.5 rounded-full ${style.bar}`} style={{ width: `${fill}%` }} />
+              <div className="absolute -top-1.5 left-1/2 w-0.5 -translate-x-1/2 bg-ink" style={{ height: '1.375rem' }} aria-hidden="true" />
+              <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-sm text-ink-muted" aria-hidden="true">
+                Minimum {formatMinutes(required)}
               </span>
             </div>
-          </div>
-
-          <div
-            className="relative h-2 rounded-full bg-slate-800"
-            role="img"
-            aria-label={`${available} minutes available, ${required} minutes required`}
-          >
-            <div className={`h-2 rounded-full ${style.bar}`} style={{ width: `${fill}%` }} />
-            <div className="absolute top-[-4px] left-1/2 w-0.5 h-4 bg-slate-300" />
-            <span className="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] font-mono text-slate-500">MCT</span>
           </div>
         </>
       )}
 
       {connection.reason_codes.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 pt-3">
+        <ul className="mt-4 flex flex-wrap gap-2" aria-label="Reasons">
           {connection.reason_codes.map((code) => (
-            <span
-              key={code}
-              className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-slate-900 border border-slate-800 text-slate-400"
-            >
+            <li key={code} className="rounded-full bg-sand-200 px-3 py-1 text-sm text-ink-soft">
               {REASON_TEXT[code] ?? code.replace(/_/g, ' ').toLowerCase()}
-            </span>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-    </div>
+    </article>
   );
 }

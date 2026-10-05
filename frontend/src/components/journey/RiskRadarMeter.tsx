@@ -1,101 +1,118 @@
-'use client';
-
 import React from 'react';
-import { ShieldAlert, AlertTriangle, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
+import Badge, { statusLabel } from '@/components/ui/Badge';
+import type { RiskLevel } from '@/types/journey';
 
 interface RiskRadarMeterProps {
   score: number;
-  level: 'LOW' | 'MODERATE' | 'HIGH' | 'VERY_HIGH';
-  flightScore?: number;
-  connScore?: number;
-  weatherScore?: number;
+  level: RiskLevel;
+  flightScore: number;
+  connScore: number;
+  weatherScore: number;
 }
 
-export default function RiskRadarMeter({
-  score = 79,
-  level = 'HIGH',
-  flightScore = 80,
-  connScore = 90,
-  weatherScore = 60,
-}: RiskRadarMeterProps) {
+/** Weights used by the backend Risk agent (backend/app/agents/risk_agent.py). */
+export const RISK_PARTS = [
+  { key: 'flight', label: 'Flight status', weight: 0.4, help: 'Delays, cancellations or diversions on any leg.' },
+  { key: 'connection', label: 'Connection', weight: 0.35, help: 'How much transfer time you have against the minimum.' },
+  { key: 'weather', label: 'Weather', weight: 0.25, help: 'Conditions at the airports on your route.' },
+] as const;
 
-  const getLevelBadge = () => {
-    switch (level) {
-      case 'VERY_HIGH':
-      case 'HIGH':
-        return 'bg-red-500/20 text-red-400 border-red-500/40 glow-red';
-      case 'MODERATE':
-        return 'bg-amber-500/20 text-amber-400 border-amber-500/40 glow-amber';
-      default:
-        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
-    }
-  };
+// Level bands used by the Risk agent: <30 low, <60 moderate, <80 high, otherwise very high.
+const BANDS = [
+  { from: 0, to: 30, label: 'Low', cls: 'bg-status-safe-bg' },
+  { from: 30, to: 60, label: 'Moderate', cls: 'bg-status-caution-bg' },
+  { from: 60, to: 80, label: 'High', cls: 'bg-status-high-bg' },
+  { from: 80, to: 100, label: 'Very high', cls: 'bg-status-danger-bg' },
+];
+
+const clamp = (n: number) => Math.min(Math.max(n, 0), 100);
+
+export function partTone(value: number) {
+  if (value >= 80) return 'bg-status-danger';
+  if (value >= 60) return 'bg-status-high';
+  if (value >= 30) return 'bg-status-caution';
+  return 'bg-status-safe';
+}
+
+export default function RiskRadarMeter({ score, level, flightScore, connScore, weatherScore }: RiskRadarMeterProps) {
+  const values = { flight: flightScore, connection: connScore, weather: weatherScore };
+  const pointer = clamp(score);
 
   return (
-    <div className="p-6 rounded-2xl hud-card border border-slate-800 space-y-6 relative overflow-hidden">
-      {/* Background Radar Sweeper */}
-      <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full border border-sky-500/10 pointer-events-none opacity-40 animate-pulse-slow" />
-
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center space-x-2 text-xs font-mono text-slate-400 font-bold uppercase">
-            <ShieldAlert className="w-4 h-4 text-amber-400" />
-            <span>Estimated Journey Disruption Risk</span>
-          </div>
-          <div className="flex items-baseline space-x-3">
-            <span className="text-4xl md:text-5xl font-extrabold font-mono tracking-tight text-amber-400">
-              {score}
-              <span className="text-xl text-slate-500 font-normal"> / 100</span>
-            </span>
-            <span className={`px-3 py-1 rounded-full text-xs font-bold font-mono border ${getLevelBadge()}`}>
-              {level} RISK
-            </span>
-          </div>
-        </div>
-
-        <div className="text-xs text-slate-400 bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-1">
-          <div className="flex items-center space-x-1.5 text-slate-300 font-semibold">
-            <Info className="w-3.5 h-3.5 text-sky-400" />
-            <span>Decision-Support Score</span>
-          </div>
-          <p className="text-[11px] text-slate-500 leading-snug">
-            Deterministic weighted analysis. Not a statistical probability.
+    <div className="surface-raised p-5 sm:p-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Journey risk estimate</p>
+          <p className="mt-3 flex items-baseline gap-2">
+            <span className="display text-7xl sm:text-8xl text-ink tabular-nums">{Math.round(score)}</span>
+            <span className="text-2xl text-ink-muted">/ 100</span>
           </p>
         </div>
+        <Badge status={level} label={`${statusLabel(level)} risk`} className="text-xs px-3 py-1.5" />
       </div>
 
-      {/* Segmented Risk Breakdown Bars */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-800/80">
-        <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
-          <div className="flex justify-between text-xs font-mono">
-            <span className="text-slate-400">Flight Status (40%)</span>
-            <span className="text-amber-400 font-bold">{flightScore}/100</span>
+      {/* Scale with level bands */}
+      <div className="mt-6" role="img" aria-label={`Score ${Math.round(score)} out of 100, in the ${statusLabel(level).toLowerCase()} band`}>
+        <div className="relative">
+          <div className="flex h-3 overflow-hidden rounded-full">
+            {BANDS.map((b) => (
+              <span key={b.label} className={b.cls} style={{ width: `${b.to - b.from}%` }} />
+            ))}
           </div>
-          <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
-            <div className="h-full bg-amber-400 rounded-full" style={{ width: `${flightScore}%` }} />
-          </div>
+          <span
+            className="absolute -top-1.5 h-6 w-1 -translate-x-1/2 rounded-full bg-ink ring-2 ring-sand-50"
+            style={{ left: `${pointer}%` }}
+            aria-hidden="true"
+          />
         </div>
-
-        <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
-          <div className="flex justify-between text-xs font-mono">
-            <span className="text-slate-400">Connection (35%)</span>
-            <span className="text-red-400 font-bold">{connScore}/100</span>
-          </div>
-          <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
-            <div className="h-full bg-red-400 rounded-full" style={{ width: `${connScore}%` }} />
-          </div>
-        </div>
-
-        <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
-          <div className="flex justify-between text-xs font-mono">
-            <span className="text-slate-400">Weather (25%)</span>
-            <span className="text-sky-400 font-bold">{weatherScore}/100</span>
-          </div>
-          <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
-            <div className="h-full bg-sky-400 rounded-full" style={{ width: `${weatherScore}%` }} />
-          </div>
+        <div className="mt-2 flex text-sm text-ink-muted" aria-hidden="true">
+          {BANDS.map((b) => (
+            <span key={b.label} style={{ width: `${b.to - b.from}%` }} className="truncate pr-1">
+              {b.label}
+            </span>
+          ))}
         </div>
       </div>
+
+      {/* Weighted parts */}
+      <div className="mt-7 border-t border-ink/10 pt-6">
+        <p className="eyebrow">How the score is built</p>
+        <ul className="mt-4 grid gap-5 sm:grid-cols-3 sm:gap-6">
+          {RISK_PARTS.map((part) => {
+            const value = clamp(values[part.key]);
+            return (
+              <li key={part.key} className="min-w-0">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-base font-medium text-ink">{part.label}</span>
+                  <span className="font-mono text-sm text-ink-muted">{Math.round(part.weight * 100)}%</span>
+                </div>
+                <div
+                  className="mt-2 h-2 rounded-full bg-sand-300"
+                  role="img"
+                  aria-label={`${part.label}: ${Math.round(value)} out of 100, weight ${Math.round(part.weight * 100)} percent`}
+                >
+                  <div className={`h-2 rounded-full ${partTone(value)}`} style={{ width: `${value}%` }} />
+                </div>
+                <p className="mt-2 text-sm text-ink-soft">
+                  <span className="font-medium text-ink tabular-nums">{Math.round(value)}/100</span>
+                  {' · adds '}
+                  <span className="tabular-nums">{(value * part.weight).toFixed(1)}</span> pts
+                </p>
+                <p className="mt-1 text-sm text-ink-muted leading-snug">{part.help}</p>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <p className="mt-6 flex gap-2.5 rounded-2xl bg-sand-100 px-4 py-3 text-sm text-ink-soft leading-relaxed">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" />
+        <span>
+          This is a weighted estimate, not a probability: a score of {Math.round(score)} does not mean a {Math.round(score)}% chance of
+          disruption. Use it to decide how closely to watch your trip.
+        </span>
+      </p>
     </div>
   );
 }

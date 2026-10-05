@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -8,30 +8,37 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   helperText?: string;
 }
 
-export default function Input({
-  label,
-  error,
-  helperText,
-  className = '',
-  ...props
-}: InputProps) {
+export default function Input({ label, error, helperText, className = '', id, ...props }: InputProps) {
+  const autoId = useId();
+  const inputId = id ?? autoId;
+  const describedBy = error ? `${inputId}-error` : helperText ? `${inputId}-help` : undefined;
+
   return (
-    <div className="space-y-1.5 w-full">
+    <div className="space-y-2 w-full">
       {label && (
-        <label className="block text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+        <label htmlFor={inputId} className="eyebrow block">
           {label}
         </label>
       )}
       <input
-        className={`w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border text-sm font-mono text-white placeholder:text-slate-600 transition-all focus:outline-none focus:ring-2 focus:ring-sky-500/50 ${
-          error
-            ? 'border-red-500/80 focus:border-red-500'
-            : 'border-slate-800 focus:border-sky-500/80'
+        id={inputId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        className={`w-full h-12 px-4 rounded-xl bg-sand-50 border text-base text-ink placeholder:text-ink-faint transition-colors focus:outline-none focus:border-ink ${
+          error ? 'border-status-danger' : 'border-ink/15 hover:border-ink/30'
         } ${className}`}
         {...props}
       />
-      {error && <p className="text-[11px] font-mono text-red-400">{error}</p>}
-      {helperText && !error && <p className="text-[11px] font-mono text-slate-500">{helperText}</p>}
+      {error && (
+        <p id={`${inputId}-error`} className="text-sm text-status-danger">
+          {error}
+        </p>
+      )}
+      {helperText && !error && (
+        <p id={`${inputId}-help`} className="text-sm text-ink-muted">
+          {helperText}
+        </p>
+      )}
     </div>
   );
 }
