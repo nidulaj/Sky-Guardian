@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -7,24 +5,17 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
 }
 
-export default function Card({
-  variant = 'default',
-  children,
-  className = '',
-  ...props
-}: CardProps) {
-  const baseStyle = 'rounded-2xl transition-all duration-300 p-6 relative overflow-hidden';
+const VARIANTS = {
+  default: 'bg-sand-100 border border-ink/10',
+  elevated: 'bg-sand-50 border border-ink/10 shadow-[0_1px_0_rgba(26,23,20,0.04),0_18px_40px_-24px_rgba(26,23,20,0.35)]',
+  active: 'bg-sand-50 border border-coral/60',
+  warning: 'bg-status-caution-bg/60 border border-status-caution/25',
+  danger: 'bg-status-danger-bg/60 border border-status-danger/25',
+};
 
-  const variantStyles = {
-    default: 'hud-card border border-slate-800',
-    elevated: 'bg-slate-900/90 backdrop-blur-md border border-slate-800 shadow-2xl shadow-slate-950/80',
-    active: 'bg-slate-900/95 border border-sky-500/40 shadow-xl shadow-sky-500/10 glow-cyan',
-    warning: 'bg-slate-950/90 border border-amber-500/40 shadow-xl shadow-amber-500/10 glow-amber',
-    danger: 'bg-slate-950/90 border border-red-500/40 shadow-xl shadow-red-500/10 glow-red',
-  };
-
+export default function Card({ variant = 'default', children, className = '', ...props }: CardProps) {
   return (
-    <div className={`${baseStyle} ${variantStyles[variant]} ${className}`} {...props}>
+    <div className={`rounded-3xl p-6 ${VARIANTS[variant]} ${className}`} {...props}>
       {children}
     </div>
   );

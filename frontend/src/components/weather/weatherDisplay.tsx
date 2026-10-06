@@ -25,6 +25,28 @@ import { AirportWeatherResult, WeatherRiskLevel } from '@/types/weather';
 // Shared by the Home page WeatherAgentCard and the Journey page JourneyWeatherPanel.
 
 /**
+ * The weather views are a dark "instrument" display. They bring their own solid dark
+ * surface so they render the same on any page theme (the site itself is light).
+ */
+export const WEATHER_PANEL_CLASS = 'rounded-4xl border border-slate-800 bg-[#0b1528] text-slate-100 shadow-xl shadow-ink/20';
+
+const PANEL_BUTTON =
+  'inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-mono font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 disabled:opacity-50 disabled:pointer-events-none';
+
+/** Button styled for the dark weather panel. */
+export function PanelButton({
+  variant = 'outline',
+  className = '',
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'outline' | 'ghost' }) {
+  const look =
+    variant === 'outline'
+      ? 'border border-sky-500/40 text-sky-300 hover:bg-sky-500/10'
+      : 'text-amber-200 hover:bg-white/5';
+  return <button type="button" className={`${PANEL_BUTTON} ${look} ${className}`} {...props} />;
+}
+
+/**
  * Status colours for the four weather risk levels (good / warning / serious / critical).
  * Always shown together with the level text and an icon, never colour alone.
  */

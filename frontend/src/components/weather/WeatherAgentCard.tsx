@@ -2,9 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { CloudRain, Eye, Wind, Gauge, Droplets, RefreshCw, AlertTriangle, MapPin, Clock, Search } from 'lucide-react';
-import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
 import { getWeatherAirports } from '@/lib/api/weather';
 import { Airport, AirportWeatherResult } from '@/types/weather';
 import { useAirportWeather, WEATHER_REFRESH_INTERVAL_MS } from './useAirportWeather';
@@ -14,6 +12,8 @@ import {
   formatValue,
   HeroStat,
   HourDetails,
+  PanelButton,
+  WEATHER_PANEL_CLASS,
   HourlyTile,
   RiskGauge,
   RiskLevelBadge,
@@ -155,7 +155,7 @@ export default function WeatherAgentCard({
   const airportLabel = selected ? `${selected.name}, ${selected.city}` : airport;
 
   return (
-    <Card className="space-y-6" data-testid="weather-agent-card">
+    <div className={`${WEATHER_PANEL_CLASS} p-5 sm:p-7 space-y-6`} data-testid="weather-agent-card">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
@@ -190,10 +190,10 @@ export default function WeatherAgentCard({
               ))}
             </select>
           </div>
-          <Button variant="outline" size="sm" onClick={refresh} disabled={loading} aria-label="Refresh weather">
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+          <PanelButton onClick={refresh} disabled={loading} aria-label="Refresh weather">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
-          </Button>
+          </PanelButton>
         </div>
       </div>
 
@@ -204,9 +204,9 @@ export default function WeatherAgentCard({
             <AlertTriangle className="w-4 h-4" />
             <span>Weather data temporarily unavailable.</span>
           </span>
-          <Button variant="ghost" size="sm" onClick={refresh}>
+          <PanelButton variant="ghost" onClick={refresh}>
             Retry
-          </Button>
+          </PanelButton>
         </div>
       ) : !data ? (
         <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-400 font-mono" role="status">
@@ -232,6 +232,6 @@ export default function WeatherAgentCard({
         </div>
         {lastUpdated && !error && <span>Last updated {lastUpdated.toLocaleTimeString()}</span>}
       </div>
-    </Card>
+    </div>
   );
 }

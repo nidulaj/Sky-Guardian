@@ -9,6 +9,7 @@ import {
   formatValue,
   HeroStat,
   RiskGauge,
+  WEATHER_PANEL_CLASS,
   RiskLevelBadge,
   WeatherIcon,
 } from '@/components/weather/weatherDisplay';
@@ -114,7 +115,7 @@ function AirportWeather({ w }: { w: AirportWeatherResult }) {
 
 export default function JourneyWeatherPanel({ weather }: JourneyWeatherPanelProps) {
   return (
-    <div className="p-6 rounded-2xl hud-card border border-slate-800 space-y-4" data-testid="journey-weather-panel">
+    <div className={`${WEATHER_PANEL_CLASS} p-5 sm:p-6 space-y-4`} data-testid="journey-weather-panel">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
           <CloudRain className="w-4 h-4 text-sky-400" />

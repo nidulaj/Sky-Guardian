@@ -97,8 +97,10 @@ function sentLegs(fetchMock: ReturnType<typeof mockAnalyze>) {
   return JSON.parse(String(init?.body)).legs as { travel_date: string }[];
 }
 
+const dateInput = (i: number) => document.getElementById(`leg-${i}-travel_date`) as HTMLInputElement;
+
 async function runAnalysis() {
-  fireEvent.click(screen.getByRole('button', { name: /Run Disruption Telemetry/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Check my journey/ }));
   return screen.findByTestId('journey-weather-panel');
 }
 
@@ -108,8 +110,8 @@ describe('Journey page travel date', () => {
     render(<NewJourneyPage />);
 
     const today = todayISODate();
-    expect(screen.getByLabelText('Travel Date', { selector: '#travel-date-0' })).toHaveValue(today);
-    expect(screen.getByLabelText('Travel Date', { selector: '#travel-date-1' })).toHaveValue(today);
+    expect(dateInput(0)).toHaveValue(today);
+    expect(dateInput(1)).toHaveValue(today);
 
     await runAnalysis();
     expect(sentLegs(fetchMock).map((l) => l.travel_date)).toEqual([today, today]);
@@ -119,8 +121,8 @@ describe('Journey page travel date', () => {
     const fetchMock = mockAnalyze(true);
     render(<NewJourneyPage />);
 
-    fireEvent.change(screen.getByLabelText('Travel Date', { selector: '#travel-date-0' }), { target: { value: '2026-10-10' } });
-    fireEvent.change(screen.getByLabelText('Travel Date', { selector: '#travel-date-1' }), { target: { value: '2026-10-11' } });
+    fireEvent.change(dateInput(0), { target: { value: '2026-10-10' } });
+    fireEvent.change(dateInput(1), { target: { value: '2026-10-11' } });
 
     await runAnalysis();
     expect(sentLegs(fetchMock).map((l) => l.travel_date)).toEqual(['2026-10-10', '2026-10-11']);
@@ -129,9 +131,9 @@ describe('Journey page travel date', () => {
   it('new legs copy the previous leg date instead of a hardcoded one', () => {
     mockAnalyze(true);
     render(<NewJourneyPage />);
-    fireEvent.change(screen.getByLabelText('Travel Date', { selector: '#travel-date-1' }), { target: { value: '2026-10-12' } });
-    fireEvent.click(screen.getByRole('button', { name: /Add Connecting Flight Leg/ }));
-    expect(screen.getByLabelText('Travel Date', { selector: '#travel-date-2' })).toHaveValue('2026-10-12');
+    fireEvent.change(dateInput(1), { target: { value: '2026-10-12' } });
+    fireEvent.click(screen.getByRole('button', { name: /Add a connecting flight/ }));
+    expect(dateInput(2)).toHaveValue('2026-10-12');
   });
 });
 

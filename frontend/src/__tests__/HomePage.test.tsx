@@ -10,11 +10,11 @@ describe('Home page Weather Agent integration', () => {
     render(<LandingPage />);
 
     // Existing sections are still present.
-    expect(screen.getByText('Seven specialized agents. One explainable recommendation.')).toBeInTheDocument();
-    expect(screen.getByText('Unhallucinated Journey Risk Telemetry')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Seven specialists/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /A score you can/ })).toBeInTheDocument();
 
     // New live Weather Agent section, defaulting to CMB.
-    expect(screen.getByText('LIVE WEATHER AGENT')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Airport weather, scored hourly/ })).toBeInTheDocument();
     const card = screen.getByTestId('weather-agent-card');
     expect(within(card).getByText('WEATHER AGENT')).toBeInTheDocument();
     expect(await within(card).findByTestId('weather-condition')).toHaveTextContent('Moderate rain');
@@ -25,6 +25,6 @@ describe('Home page Weather Agent integration', () => {
     mockWeatherBackend(() => ({ status: 503, body: {} }));
     render(<LandingPage />);
     expect(await screen.findByText('Weather data temporarily unavailable.')).toBeInTheDocument();
-    expect(screen.getByText('Unhallucinated Journey Risk Telemetry')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /A score you can/ })).toBeInTheDocument();
   });
 });
