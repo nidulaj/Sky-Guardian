@@ -15,18 +15,18 @@ export default function SiteFooter() {
         </div>
         <div className="space-y-3">
           <p className="eyebrow">Product</p>
-          <ul className="space-y-2 text-sm">
-            <li><Link href="/journeys/new" className="text-ink-soft hover:text-ink">Check a journey</Link></li>
-            <li><Link href="/dashboard" className="text-ink-soft hover:text-ink">Dashboard</Link></li>
-            <li><Link href="/history" className="text-ink-soft hover:text-ink">History</Link></li>
+          <ul className="text-sm">
+            <li><Link href="/journeys/new" className="inline-block py-2.5 text-ink-soft hover:text-ink">Check a journey</Link></li>
+            <li><Link href="/dashboard" className="inline-block py-2.5 text-ink-soft hover:text-ink">Dashboard</Link></li>
+            <li><Link href="/history" className="inline-block py-2.5 text-ink-soft hover:text-ink">History</Link></li>
           </ul>
         </div>
         <div className="space-y-3">
           <p className="eyebrow">Learn</p>
-          <ul className="space-y-2 text-sm">
-            <li><Link href="/#how-it-works" className="text-ink-soft hover:text-ink">How it works</Link></li>
-            <li><Link href="/#risk-engine" className="text-ink-soft hover:text-ink">Risk engine</Link></li>
-            <li><Link href="/#responsible-ai" className="text-ink-soft hover:text-ink">Responsible AI</Link></li>
+          <ul className="text-sm">
+            <li><Link href="/#how-it-works" className="inline-block py-2.5 text-ink-soft hover:text-ink">How it works</Link></li>
+            <li><Link href="/#risk-engine" className="inline-block py-2.5 text-ink-soft hover:text-ink">Risk engine</Link></li>
+            <li><Link href="/#responsible-ai" className="inline-block py-2.5 text-ink-soft hover:text-ink">Responsible AI</Link></li>
           </ul>
         </div>
       </div>

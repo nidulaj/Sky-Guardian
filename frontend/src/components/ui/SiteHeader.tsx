@@ -63,7 +63,7 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
       <div className="mx-auto flex h-16 sm:h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
         <Wordmark light={overlay} />
 
-        <nav aria-label="Main" className="hidden lg:flex items-center gap-8">
+        <nav aria-label="Main" className="hidden xl:flex items-center gap-8">
           {links.map((link) => {
             const active = pathname === link.href;
             return (
@@ -71,7 +71,7 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
                 key={link.href}
                 href={link.href}
                 aria-current={active ? 'page' : undefined}
-                className={`font-mono text-[11px] uppercase tracking-label transition-colors ${
+                className={`inline-flex min-h-11 items-center font-mono text-[11px] uppercase tracking-label transition-colors ${
                   active ? (overlay ? 'text-white' : 'text-ink underline underline-offset-8 decoration-coral') : linkTone
                 }`}
               >
@@ -81,13 +81,13 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
           })}
         </nav>
 
-        <div className="hidden lg:flex items-center gap-6">
-          <Link href="/login" className={`font-mono text-[11px] uppercase tracking-label ${linkTone}`}>
+        <div className="hidden xl:flex items-center gap-6">
+          <Link href="/login" className={`inline-flex min-h-11 items-center font-mono text-[11px] uppercase tracking-label ${linkTone}`}>
             Sign in
           </Link>
           <Link
             href="/journeys/new"
-            className={`inline-flex h-10 items-center gap-2 rounded-full px-5 text-sm font-medium transition-colors ${
+            className={`inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-medium transition-colors ${
               overlay ? 'bg-white text-ink hover:bg-sand-100' : 'bg-ink text-sand-50 hover:bg-ink-soft'
             }`}
           >
@@ -102,7 +102,7 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
           aria-expanded={open}
           aria-controls="mobile-menu"
           aria-label={open ? 'Close menu' : 'Open menu'}
-          className={`lg:hidden inline-flex h-10 w-10 items-center justify-center rounded-full border ${
+          className={`xl:hidden inline-flex h-11 w-11 items-center justify-center rounded-full border ${
             overlay ? 'border-white/40 text-white' : 'border-ink/20 text-ink'
           }`}
         >
@@ -111,7 +111,7 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
       </div>
 
       {open && (
-        <div id="mobile-menu" className="lg:hidden border-t border-ink/10 bg-sand-50 text-ink shadow-xl">
+        <div id="mobile-menu" className="xl:hidden border-t border-ink/10 bg-sand-50 text-ink shadow-xl">
           <nav aria-label="Mobile" className="mx-auto flex max-w-7xl flex-col px-5 py-4">
             {[...APP_LINKS, ...MARKETING_LINKS].map((link) => (
               <Link
