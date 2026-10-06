@@ -308,8 +308,10 @@ async def test_open_meteo_null_values_become_missing_data():
 @pytest.mark.asyncio
 async def test_open_meteo_target_time_outside_forecast():
     provider = provider_for(json_handler(open_meteo_payload(hours=24)))
-    with pytest.raises(ForecastTimeUnavailable):
+    with pytest.raises(ForecastTimeUnavailable, match="beyond the 16-day forecast range"):
         await provider.get_observation(CMB, datetime(2026, 11, 30, 0, 0, tzinfo=timezone.utc))
+    with pytest.raises(ForecastTimeUnavailable, match="Forecast unavailable for selected travel date: 2026-09-15 .* is in the past"):
+        await provider.get_observation(CMB, datetime(2026, 9, 15, 10, 0, tzinfo=timezone.utc))
     with pytest.raises(ForecastTimeUnavailable):
         await provider.get_observation(CMB, datetime(2026, 10, 6, 6, 0))  # naive
 
@@ -407,9 +409,10 @@ async def test_weather_agent_provider_failure_keeps_risk_agent_working():
     assert all(w["status"] == "unavailable" for w in state.weather_results)
     assert any("Could not reach Open-Meteo" in w for w in res.warnings)
 
-    # The Risk Agent still runs and falls back to its default weather score.
+    # The Risk Agent still runs and reports weather as missing instead of inventing a score.
     await RiskAgent().execute(state)
-    assert state.risk_analysis["weather_score"] == 15
+    assert state.risk_analysis["weather_score"] is None
+    assert state.risk_analysis["components"]["weather"]["status"] == "missing"
 
 
 def test_repo_risk_config_loads():

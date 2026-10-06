@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
+from app.schemas.risk import RiskComponent
 
 class FlightLegInput(BaseModel):
     flight_number: str = Field(..., example="UL001", description="Airline IATA/ICAO flight code")
@@ -29,7 +30,16 @@ class RiskSummary(BaseModel):
     is_probability: bool = False
     flight_score: float
     connection_score: float
-    weather_score: float
+    # None = no usable weather data; see components["weather"].status / reason.
+    weather_score: Optional[float] = None
+    status: Literal["complete", "partial"] = "complete"
+    confidence: Optional[float] = Field(None, ge=0, le=1)
+    confidence_label: Optional[Literal["high", "medium", "low", "unknown"]] = None
+    components: Dict[str, RiskComponent] = {}
+    weights: Dict[str, float] = {}
+    effective_weights: Dict[str, float] = {}
+    missing_data: List[str] = []
+    uncertainty: List[str] = []
 
 class ConnectionSummary(BaseModel):
     available_minutes: int

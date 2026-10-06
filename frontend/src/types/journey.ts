@@ -1,3 +1,5 @@
+import { AirportWeatherResult } from '@/types/weather';
+
 export interface FlightLegInput {
   flight_number: string;
   travel_date: string;
@@ -5,13 +7,34 @@ export interface FlightLegInput {
   destination: string;
 }
 
+export type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'VERY_HIGH';
+
+// Mirrors backend/app/schemas/risk.py RiskComponent.
+export interface RiskComponent {
+  status: 'available' | 'missing' | 'not_applicable';
+  score: number | null;
+  level: RiskLevel | null;
+  confidence: number;
+  reason: string | null;
+  details: Record<string, any>;
+}
+
 export interface RiskSummary {
   score: number;
-  level: 'LOW' | 'MODERATE' | 'HIGH' | 'VERY_HIGH';
+  level: RiskLevel;
   is_probability: boolean;
   flight_score: number;
   connection_score: number;
-  weather_score: number;
+  /** null when no weather data was available — never a default score. */
+  weather_score: number | null;
+  status?: 'complete' | 'partial';
+  confidence?: number | null;
+  confidence_label?: 'high' | 'medium' | 'low' | 'unknown' | null;
+  components?: Record<string, RiskComponent>;
+  weights?: Record<string, number>;
+  effective_weights?: Record<string, number>;
+  missing_data?: string[];
+  uncertainty?: string[];
 }
 
 export interface ConnectionSummary {
@@ -30,7 +53,7 @@ export interface JourneyAnalysisResponse {
   primary_issue: string;
   connection?: ConnectionSummary;
   flight_statuses: any[];
-  weather_conditions: any[];
+  weather_conditions: AirportWeatherResult[];
   policy_evidence: any[];
   alternatives: any[];
   recommendation: string;

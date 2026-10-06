@@ -8,7 +8,14 @@ interface RiskRadarMeterProps {
   level: 'LOW' | 'MODERATE' | 'HIGH' | 'VERY_HIGH';
   flightScore?: number;
   connScore?: number;
-  weatherScore?: number;
+  /** null = weather data missing: shown as "Unavailable", never as a score. */
+  weatherScore?: number | null;
+  weatherUnavailableReason?: string | null;
+  /** 0-1 overall confidence from the Risk Agent, with its high/medium/low label. */
+  confidence?: number | null;
+  confidenceLabel?: string | null;
+  /** Risk Agent uncertainty notes (missing data, possible score range). */
+  notes?: string[];
 }
 
 export default function RiskRadarMeter({
@@ -17,7 +24,12 @@ export default function RiskRadarMeter({
   flightScore = 80,
   connScore = 90,
   weatherScore = 60,
+  weatherUnavailableReason = null,
+  confidence = null,
+  confidenceLabel = null,
+  notes = [],
 }: RiskRadarMeterProps) {
+  const weatherMissing = weatherScore === null;
 
   const getLevelBadge = () => {
     switch (level) {
@@ -86,16 +98,48 @@ export default function RiskRadarMeter({
           </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+        <div
+          className={`p-3 rounded-xl bg-slate-950/60 border space-y-2 ${weatherMissing ? 'border-amber-500/40' : 'border-slate-800/80'}`}
+          data-testid="risk-weather-component"
+        >
           <div className="flex justify-between text-xs font-mono">
             <span className="text-slate-400">Weather (25%)</span>
-            <span className="text-sky-400 font-bold">{weatherScore}/100</span>
+            {weatherMissing ? (
+              <span className="text-amber-300 font-bold">Unavailable</span>
+            ) : (
+              <span className="text-sky-400 font-bold">{weatherScore}/100</span>
+            )}
           </div>
-          <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
-            <div className="h-full bg-sky-400 rounded-full" style={{ width: `${weatherScore}%` }} />
-          </div>
+          {weatherMissing ? (
+            <p className="text-[11px] text-slate-500 leading-snug">
+              {weatherUnavailableReason || 'No weather data for this journey.'}
+            </p>
+          ) : (
+            <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
+              <div className="h-full bg-sky-400 rounded-full" style={{ width: `${weatherScore}%` }} />
+            </div>
+          )}
         </div>
       </div>
+
+      {(confidence !== null || notes.length > 0) && (
+        <div className="space-y-1.5 text-[11px] font-mono" data-testid="risk-confidence">
+          {confidence !== null && (
+            <div className="text-slate-400">
+              Confidence:{' '}
+              <span className={`font-bold ${confidence >= 0.8 ? 'text-emerald-400' : 'text-amber-300'}`}>
+                {(confidenceLabel || '').toUpperCase()} ({Math.round(confidence * 100)}%)
+              </span>
+            </div>
+          )}
+          {notes.map((note) => (
+            <div key={note} className="flex items-start space-x-1.5 text-amber-300/90">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>{note}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

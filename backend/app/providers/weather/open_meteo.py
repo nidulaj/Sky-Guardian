@@ -85,9 +85,13 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
 
         index = self._nearest_hour(forecast.times, target)
         if index is None:
+            local = target.astimezone(forecast.times[0].tzinfo).strftime("%Y-%m-%d %H:%M")
+            if target < forecast.times[0]:
+                detail = "is in the past"
+            else:
+                detail = f"is beyond the {FORECAST_DAYS}-day forecast range"
             raise ForecastTimeUnavailable(
-                f"No Open-Meteo forecast for {airport.code} at {target.isoformat()} "
-                f"(forecasts cover about {FORECAST_DAYS} days ahead)."
+                f"Forecast unavailable for selected travel date: {local} local time at {airport.code} {detail}."
             )
         return self._to_observation(airport, forecast, index, retrieved_at)
 

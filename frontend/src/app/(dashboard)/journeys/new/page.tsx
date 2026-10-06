@@ -9,6 +9,8 @@ import JourneyScene from '@/components/three/JourneyScene';
 import RiskRadarMeter from '@/components/journey/RiskRadarMeter';
 import AgentWorkflowProgress from '@/components/journey/AgentWorkflowProgress';
 import ExplainabilityDrawer from '@/components/journey/ExplainabilityDrawer';
+import JourneyWeatherPanel from '@/components/journey/JourneyWeatherPanel';
+import { todayISODate } from '@/lib/date';
 import {
   Shield,
   Plane,
@@ -25,9 +27,10 @@ import {
 } from 'lucide-react';
 
 export default function NewJourneyPage() {
-  const [legs, setLegs] = useState<FlightLegInput[]>([
-    { flight_number: 'UL001', travel_date: '2026-09-15', origin: 'CMB', destination: 'KUL' },
-    { flight_number: 'XX123', travel_date: '2026-09-15', origin: 'KUL', destination: 'NRT' },
+  const [today] = useState(todayISODate);
+  const [legs, setLegs] = useState<FlightLegInput[]>(() => [
+    { flight_number: 'UL001', travel_date: today, origin: 'CMB', destination: 'KUL' },
+    { flight_number: 'XX123', travel_date: today, origin: 'KUL', destination: 'NRT' },
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -52,9 +55,11 @@ export default function NewJourneyPage() {
 
   const addLeg = () => {
     const lastDest = legs.length > 0 ? legs[legs.length - 1].destination : '';
+    // A connecting leg usually departs the same day as the previous one.
+    const lastDate = legs.length > 0 ? legs[legs.length - 1].travel_date : today;
     setLegs([
       ...legs,
-      { flight_number: '', travel_date: '2026-09-15', origin: lastDest, destination: '' }
+      { flight_number: '', travel_date: lastDate, origin: lastDest, destination: '' }
     ]);
   };
 
@@ -119,19 +124,38 @@ export default function NewJourneyPage() {
                         )}
                       </div>
 
-                      <div>
-                        <label className="block text-[11px] font-mono text-slate-400 mb-1">Flight Number</label>
-                        <input
-                          type="text"
-                          value={leg.flight_number}
-                          onChange={(e) => {
-                            const newLegs = [...legs];
-                            newLegs[index].flight_number = e.target.value;
-                            setLegs(newLegs);
-                          }}
-                          className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-sm font-mono text-white focus:border-sky-500 focus:outline-none"
-                          placeholder="e.g. UL001"
-                        />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-mono text-slate-400 mb-1">Flight Number</label>
+                          <input
+                            type="text"
+                            value={leg.flight_number}
+                            onChange={(e) => {
+                              const newLegs = [...legs];
+                              newLegs[index].flight_number = e.target.value;
+                              setLegs(newLegs);
+                            }}
+                            className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-sm font-mono text-white focus:border-sky-500 focus:outline-none"
+                            placeholder="e.g. UL001"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor={`travel-date-${index}`} className="block text-[11px] font-mono text-slate-400 mb-1">
+                            Travel Date
+                          </label>
+                          <input
+                            id={`travel-date-${index}`}
+                            type="date"
+                            required
+                            min={today}
+                            value={leg.travel_date}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setLegs((prev) => prev.map((l, i) => (i === index ? { ...l, travel_date: value } : l)));
+                            }}
+                            className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-sm font-mono text-white focus:border-sky-500 focus:outline-none [color-scheme:dark]"
+                          />
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
@@ -237,7 +261,14 @@ export default function NewJourneyPage() {
                   flightScore={result.risk.flight_score}
                   connScore={result.risk.connection_score}
                   weatherScore={result.risk.weather_score}
+                  weatherUnavailableReason={result.risk.components?.weather?.reason}
+                  confidence={result.risk.confidence}
+                  confidenceLabel={result.risk.confidence_label}
+                  notes={result.risk.uncertainty}
                 />
+
+                {/* Per-airport weather from the Weather Agent */}
+                <JourneyWeatherPanel weather={result.weather_conditions} />
 
                 {/* Connection Transfer Card */}
                 {result.connection && (
