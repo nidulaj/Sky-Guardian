@@ -30,8 +30,15 @@ class Settings(BaseSettings):
     FLIGHT_API_KEY: Optional[str] = "mock_key"
     USE_MOCK_FLIGHTS: bool = True
 
+    # Options: mock (deterministic demo data), open_meteo (live forecast, no API key needed)
     WEATHER_PROVIDER: str = "mock"
     WEATHER_API_KEY: Optional[str] = "mock_key"
+    OPEN_METEO_BASE_URL: str = "https://api.open-meteo.com/v1/forecast"
+    WEATHER_TIMEOUT_SECONDS: float = 8.0
+    WEATHER_CACHE_TTL_SECONDS: int = 600
+
+    # None = <repo>/config/risk.yaml (built-in defaults when that file is absent)
+    RISK_CONFIG_PATH: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

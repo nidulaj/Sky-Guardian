@@ -1,6 +1,6 @@
 import { FlightLegInput, JourneyAnalysisResponse } from '@/types/journey';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE_URL =process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function analyzeJourney(legs: FlightLegInput[], language = 'en'): Promise<JourneyAnalysisResponse> {
   const response = await fetch(`${API_BASE_URL}/api/journeys/analyze`, {

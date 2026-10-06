@@ -6,7 +6,9 @@
 "dev": "next dev",
 "build": "next build",
 "start": "next start",
-"lint": "next lint"
+"lint": "next lint",
+"test": "vitest run",
+"test:watch": "vitest"
 },
 "dependencies": {
 "next": "^14.2.5",
@@ -20,12 +22,18 @@
 "@hookform/resolvers": "^3.9.0"
 },
 "devDependencies": {
+"@testing-library/dom": "^10.4.2",
+"@testing-library/jest-dom": "^6.9.1",
+"@testing-library/react": "^16.3.3",
 "@types/node": "^20.14.9",
 "@types/react": "^18.3.3",
 "@types/react-dom": "^18.3.0",
+"@vitejs/plugin-react": "^4.7.0",
 "autoprefixer": "^10.4.19",
+"jsdom": "^25.0.1",
 "postcss": "^8.4.38",
 "tailwindcss": "^3.4.4",
-"typescript": "^5.5.2"
+"typescript": "^5.5.2",
+"vitest": "^2.1.9"
 }
 }

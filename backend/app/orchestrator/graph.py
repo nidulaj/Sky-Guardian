@@ -70,7 +70,7 @@ class SupervisorOrchestrator:
         # Populate source metadata
         state.sources = [
             {"name": "MockFlightProvider", "type": "Aviation Data", "verified": True},
-            {"name": "MockWeatherProvider", "type": "Weather Forecast", "verified": True},
+            {"name": self.weather_agent.provider.name, "type": "Weather Forecast", "verified": True},
             {"name": "SriLankan Airlines Conditions of Carriage", "type": "Policy Document", "verified": True},
             {"name": "Malaysia Airlines Customer Commitment", "type": "Policy Document", "verified": True}
         ]

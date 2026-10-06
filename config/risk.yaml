@@ -1,21 +1,23 @@
 # SkyGuardian AI - Risk Calculation Configuration
+#
+# Validated by backend/app/risk/config.py (RiskConfig): unknown keys are rejected,
+# and any section left out uses the built-in defaults defined in that file
+# (flight delay bands, connection margins, weather thresholds, confidence factors).
 
 weights:
-  flight_weight: 0.40
-  connection_weight: 0.35
-  weather_weight: 0.25
+  flight: 0.40
+  connection: 0.35
+  weather: 0.25
 
-thresholds:
+# Inclusive upper bound of each level; scores above high_max (up to 100) are VERY_HIGH.
+levels:
   low_max: 29
   moderate_max: 59
   high_max: 79
-  very_high_max: 100
 
 triggers:
   recovery_trigger_threshold: 60
-  policy_search_threshold: 50
 
-confidence_ratings:
-  full_data: "high"
-  missing_weather: "medium"
-  missing_flight_detail: "low"
+# Settings from the previous version of this file that RiskConfig does not read yet:
+#   triggers.policy_search_threshold: 50
+#   confidence_ratings: full_data=high, missing_weather=medium, missing_flight_detail=low

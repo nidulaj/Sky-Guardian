@@ -8,6 +8,7 @@ import RiskRadarMeter from '@/components/journey/RiskRadarMeter';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import WeatherAgentCard from '@/components/weather/WeatherAgentCard';
 import {
   Shield,
   Plane,
@@ -230,6 +231,25 @@ export default function LandingPage() {
               </p>
             </Card>
           </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* SECTION 3B: LIVE WEATHER AGENT */}
+      {/* ============================================================ */}
+      <section id="weather" className="py-24 px-6 border-t border-slate-900">
+        <div className="max-w-5xl mx-auto space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <span className="text-xs font-mono font-bold text-sky-400 uppercase tracking-widest">
+              LIVE WEATHER AGENT
+            </span>
+            <h2 className="text-3xl font-extrabold text-white">Airport Weather Risk, Scored Hourly</h2>
+            <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
+              The Weather Agent retrieves the hourly airport forecast and scores visibility, wind, gusts, precipitation and thunderstorms with the same deterministic rules the Risk Agent uses.
+            </p>
+          </div>
+
+          <WeatherAgentCard defaultAirport="CMB" />
         </div>
       </section>
 
