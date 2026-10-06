@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { CloudRain, Eye, Wind, Gauge, Droplets, RefreshCw, AlertTriangle, MapPin, Clock, Search } from 'lucide-react';
+import { AlertTriangle, MapPin, Clock, RefreshCw } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 import { getWeatherAirports } from '@/lib/api/weather';
 import { Airport, AirportWeatherResult } from '@/types/weather';
 import { useAirportWeather, WEATHER_REFRESH_INTERVAL_MS } from './useAirportWeather';
@@ -12,11 +13,10 @@ import {
   formatValue,
   HeroStat,
   HourDetails,
-  PanelButton,
-  WEATHER_PANEL_CLASS,
   HourlyTile,
   RiskGauge,
   RiskLevelBadge,
+  StatGrid,
   WeatherIcon,
 } from './weatherDisplay';
 
@@ -30,32 +30,31 @@ interface WeatherAgentCardProps {
 function CurrentConditions({ data }: { data: AirportWeatherResult }) {
   const obs = data.observation;
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-sky-400/20 bg-gradient-to-br from-sky-500/20 via-slate-900/80 to-slate-950 p-6 sm:p-7 flex flex-col justify-between gap-6 min-h-[17rem]">
-      <div className="absolute -right-10 -top-10 w-56 h-56 rounded-full bg-sky-400/10 blur-3xl pointer-events-none" />
-
-      <div className="relative flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <div className="text-6xl sm:text-7xl font-bold tracking-tight text-white leading-none" data-testid="weather-temperature">
+    <div className="flex h-full flex-col justify-between gap-6 rounded-3xl bg-mist-soft p-5 sm:p-7">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="eyebrow text-ink-soft">Now at the airport</p>
+          <p className="display mt-3 text-7xl text-ink sm:text-8xl tabular-nums" data-testid="weather-temperature">
             {formatTemperature(obs?.temperature_c)}
-            <span className="text-3xl sm:text-4xl font-semibold text-slate-300 align-top">C</span>
-          </div>
-          <div className="text-xl font-medium text-slate-200" data-testid="weather-condition">
+            <span className="align-top text-3xl text-ink-soft sm:text-4xl">C</span>
+          </p>
+          <p className="accent mt-2 text-3xl text-ink sm:text-4xl" data-testid="weather-condition">
             {obs?.condition_text ?? 'Condition unavailable'}
-          </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pt-1">
-            <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+          </p>
+          <p className="mt-3 flex items-center gap-1.5 text-sm text-ink-soft">
+            <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>Forecast for {formatForecastTime(obs?.forecast_time)}</span>
-          </div>
+          </p>
         </div>
-        <WeatherIcon code={obs?.weather_code} iso={obs?.forecast_time} className="w-20 h-20 sm:w-24 sm:h-24 drop-shadow-[0_0_25px_rgba(56,189,248,0.25)] shrink-0" />
+        <WeatherIcon code={obs?.weather_code} iso={obs?.forecast_time} className="h-20 w-20 shrink-0 sm:h-24 sm:w-24" />
       </div>
 
-      <div className="relative grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-white/10">
-        <HeroStat icon={Eye} label="Visibility" value={formatValue(obs?.visibility_km, 'km')} />
-        <HeroStat icon={Wind} label="Wind" value={formatValue(obs?.wind_speed_kt, 'kn')} />
-        <HeroStat icon={Gauge} label="Gusts" value={formatValue(obs?.wind_gust_kt, 'kn')} />
-        <HeroStat icon={Droplets} label="Precipitation" value={formatValue(obs?.precipitation_mm_per_hr, 'mm/h')} />
-      </div>
+      <StatGrid>
+        <HeroStat label="Visibility" value={formatValue(obs?.visibility_km, 'km')} />
+        <HeroStat label="Wind" value={formatValue(obs?.wind_speed_kt, 'kn')} />
+        <HeroStat label="Gusts" value={formatValue(obs?.wind_gust_kt, 'kn')} />
+        <HeroStat label="Precip." value={formatValue(obs?.precipitation_mm_per_hr, 'mm/h')} />
+      </StatGrid>
     </div>
   );
 }
@@ -66,23 +65,23 @@ function RiskWidget({ data }: { data: AirportWeatherResult }) {
   const missing = data.missing_data.map((m) => m.replace(/^weather\./, ''));
 
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-300">Weather risk</span>
+    <div className="flex flex-col gap-5 rounded-3xl border border-ink/10 bg-sand-100 p-5 sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <p className="eyebrow">Weather risk</p>
         <RiskLevelBadge level={level} testId="weather-risk-level" />
       </div>
 
       <RiskGauge score={score} level={level} testId="weather-risk-score" />
 
-      <div className="space-y-1.5">
-        <span className="text-[11px] text-slate-400">Risk factors</span>
+      <div className="border-t border-ink/10 pt-4">
+        <p className="eyebrow">Risk factors</p>
         {score === 0 ? (
-          <p className="text-xs text-slate-300">No significant weather hazards at this hour.</p>
+          <p className="mt-2 text-base text-ink-soft">No significant weather hazards at this hour.</p>
         ) : (
-          <ul className="space-y-1" data-testid="weather-risk-factors">
+          <ul className="mt-2 space-y-1.5" data-testid="weather-risk-factors">
             {data.conditions.map((c) => (
-              <li key={c} className="flex items-start gap-1.5 text-xs text-slate-200">
-                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-400" aria-hidden="true" />
+              <li key={c} className="flex items-start gap-2 text-base text-ink">
+                <AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-status-caution" aria-hidden="true" />
                 <span>{c}</span>
               </li>
             ))}
@@ -90,11 +89,11 @@ function RiskWidget({ data }: { data: AirportWeatherResult }) {
         )}
       </div>
 
-      <div className="mt-auto pt-3 border-t border-slate-800 space-y-1 text-[11px] text-slate-500">
-        <div>Confidence {Math.round(data.confidence * 100)}%</div>
-        {missing.length > 0 && <div>Not provided by source: {missing.join(', ')}</div>}
+      <div className="mt-auto space-y-1 border-t border-ink/10 pt-4 text-sm text-ink-muted">
+        <p>Confidence {Math.round(data.confidence * 100)}%</p>
+        {missing.length > 0 && <p>Not provided by source: {missing.join(', ')}</p>}
         {data.warnings.map((w) => (
-          <div key={w} className="text-amber-300/80">{w}</div>
+          <p key={w} className="text-status-caution">{w}</p>
         ))}
       </div>
     </div>
@@ -106,9 +105,9 @@ function HourlyForecast({ hourly }: { hourly: AirportWeatherResult[] | null }) {
   const selected = hourly?.[Math.min(active, hourly.length - 1)];
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-200">Hourly forecast</span>
-        <span className="hidden sm:inline text-[11px] text-slate-500">Bar = weather risk per hour · select an hour for details</span>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="eyebrow">Hourly forecast</p>
+        <p className="hidden text-sm text-ink-muted sm:block">Bar = weather risk per hour · select an hour for details</p>
       </div>
       {hourly && hourly.length > 0 ? (
         <>
@@ -126,7 +125,7 @@ function HourlyForecast({ hourly }: { hourly: AirportWeatherResult[] | null }) {
           {selected && <HourDetails hour={selected} />}
         </>
       ) : (
-        <p className="text-xs text-slate-500">Hourly forecast unavailable.</p>
+        <p className="text-base text-ink-soft">Hourly forecast unavailable.</p>
       )}
     </div>
   );
@@ -155,66 +154,59 @@ export default function WeatherAgentCard({
   const airportLabel = selected ? `${selected.name}, ${selected.city}` : airport;
 
   return (
-    <div className={`${WEATHER_PANEL_CLASS} p-5 sm:p-7 space-y-6`} data-testid="weather-agent-card">
+    <div className="surface-raised space-y-6 p-5 sm:p-8" data-testid="weather-agent-card">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
-            <CloudRain className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-white tracking-wide">WEATHER AGENT</h3>
-            <div className="flex items-center space-x-1.5 text-xs text-slate-400">
-              <MapPin className="w-3.5 h-3.5" />
-              <span>{airportLabel}</span>
-            </div>
-          </div>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div className="min-w-0">
+          <p className="eyebrow">Weather agent</p>
+          <h3 className="display mt-2 text-4xl text-ink sm:text-5xl">{airport}</h3>
+          <p className="mt-1 flex items-center gap-1.5 text-base text-ink-soft">
+            <MapPin className="h-4 w-4 shrink-0 text-coral" aria-hidden="true" />
+            <span>{airportLabel}</span>
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
-            <label htmlFor="weather-airport" className="sr-only">
-              Airport
-            </label>
-            <select
-              id="weather-airport"
-              value={airport}
-              onChange={(e) => setAirport(e.target.value)}
-              className="appearance-none bg-slate-950 border border-slate-800 rounded-full pl-8 pr-4 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/50"
-            >
-              {options.map((a) => (
-                <option key={a.code} value={a.code}>
-                  {a.code}{a.city ? ` — ${a.city}` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-          <PanelButton onClick={refresh} disabled={loading} aria-label="Refresh weather">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="weather-airport" className="sr-only">
+            Airport
+          </label>
+          <select
+            id="weather-airport"
+            value={airport}
+            onChange={(e) => setAirport(e.target.value)}
+            className="h-11 rounded-full border border-ink/15 bg-sand-50 px-4 font-mono text-sm text-ink transition-colors hover:border-ink/30 focus:border-ink focus:outline-none"
+          >
+            {options.map((a) => (
+              <option key={a.code} value={a.code}>
+                {a.code}{a.city ? ` — ${a.city}` : ''}
+              </option>
+            ))}
+          </select>
+          <Button variant="secondary" onClick={refresh} disabled={loading} aria-label="Refresh weather">
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
             <span>Refresh</span>
-          </PanelButton>
+          </Button>
         </div>
       </div>
 
       {/* Body */}
       {error ? (
-        <div className="p-4 rounded-xl bg-slate-950 border border-amber-500/40 text-sm text-amber-300 flex items-center justify-between gap-4" role="alert">
-          <span className="flex items-center space-x-2">
-            <AlertTriangle className="w-4 h-4" />
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-status-danger/30 bg-status-danger-bg p-5">
+          <span className="flex items-center gap-2 text-base text-ink">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-status-danger" aria-hidden="true" />
             <span>Weather data temporarily unavailable.</span>
           </span>
-          <PanelButton variant="ghost" onClick={refresh}>
+          <Button variant="secondary" size="sm" onClick={refresh}>
             Retry
-          </PanelButton>
+          </Button>
         </div>
       ) : !data ? (
-        <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-400 font-mono" role="status">
+        <div role="status" className="rounded-3xl border border-dashed border-ink/20 p-6 text-base text-ink-soft">
           Loading weather data...
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <CurrentConditions data={data} />
             </div>
@@ -225,7 +217,7 @@ export default function WeatherAgentCard({
       )}
 
       {/* Footer */}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink/10 pt-4 text-sm text-ink-muted">
         <div className="flex items-center gap-2">
           <span>Source: {data?.source ?? '—'}</span>
           {data?.is_mock && <Badge status="DEMO_DATA" label="Demo Data" />}

@@ -21,7 +21,7 @@ describe('WeatherAgentCard', () => {
     expect(screen.getByText('14 kn')).toBeInTheDocument();
     expect(screen.getByText('31 kn')).toBeInTheDocument();
     expect(screen.getByText('0.3 mm/h')).toBeInTheDocument();
-    expect(screen.getByTestId('weather-risk-level')).toHaveTextContent('MODERATE');
+    expect(screen.getByTestId('weather-risk-level')).toHaveTextContent('Moderate risk');
     expect(screen.getByTestId('weather-risk-score')).toHaveTextContent('45/100');
     expect(screen.getByText('Reduced visibility (4.2 km)')).toBeInTheDocument();
     expect(screen.getByText('Strong wind (sustained 14 kt, gusts 31 kt)')).toBeInTheDocument();

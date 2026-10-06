@@ -2,7 +2,6 @@
 
 import React from 'react';
 import {
-  AlertTriangle,
   Cloud,
   CloudDrizzle,
   CloudFog,
@@ -15,81 +14,25 @@ import {
   CloudSun,
   Cloudy,
   Moon,
-  ShieldAlert,
-  ShieldCheck,
   Snowflake,
   Sun,
 } from 'lucide-react';
+import Badge, { statusLabel } from '@/components/ui/Badge';
 import { AirportWeatherResult, WeatherRiskLevel } from '@/types/weather';
 
 // Shared by the Home page WeatherAgentCard and the Journey page JourneyWeatherPanel.
+// Styling follows frontend/DESIGN.md: sand surfaces, ink text, hairlines, status-* tones.
 
-/**
- * The weather views are a dark "instrument" display. They bring their own solid dark
- * surface so they render the same on any page theme (the site itself is light).
- */
-export const WEATHER_PANEL_CLASS = 'rounded-4xl border border-slate-800 bg-[#0b1528] text-slate-100 shadow-xl shadow-ink/20';
-
-const PANEL_BUTTON =
-  'inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-mono font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 disabled:opacity-50 disabled:pointer-events-none';
-
-/** Button styled for the dark weather panel. */
-export function PanelButton({
-  variant = 'outline',
-  className = '',
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'outline' | 'ghost' }) {
-  const look =
-    variant === 'outline'
-      ? 'border border-sky-500/40 text-sky-300 hover:bg-sky-500/10'
-      : 'text-amber-200 hover:bg-white/5';
-  return <button type="button" className={`${PANEL_BUTTON} ${look} ${className}`} {...props} />;
-}
-
-/**
- * Status colours for the four weather risk levels (good / warning / serious / critical).
- * Always shown together with the level text and an icon, never colour alone.
- */
-export const LEVEL_STYLES: Record<
-  WeatherRiskLevel,
-  { badge: string; bar: string; track: string; text: string; stroke: string }
-> = {
-  LOW: {
-    badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
-    bar: 'bg-emerald-400',
-    track: 'bg-emerald-400/15',
-    text: 'text-emerald-300',
-    stroke: '#34d399',
-  },
-  MODERATE: {
-    badge: 'bg-amber-500/15 text-amber-300 border-amber-500/40',
-    bar: 'bg-amber-400',
-    track: 'bg-amber-400/15',
-    text: 'text-amber-300',
-    stroke: '#fbbf24',
-  },
-  HIGH: {
-    badge: 'bg-orange-500/15 text-orange-300 border-orange-500/40',
-    bar: 'bg-orange-500',
-    track: 'bg-orange-500/15',
-    text: 'text-orange-300',
-    stroke: '#f97316',
-  },
-  VERY_HIGH: {
-    badge: 'bg-red-500/15 text-red-300 border-red-500/40',
-    bar: 'bg-red-500',
-    track: 'bg-red-500/15',
-    text: 'text-red-300',
-    stroke: '#ef4444',
-  },
+/** Status tones for the four weather risk levels; always shown with the level text too. */
+export const LEVEL_STYLES: Record<WeatherRiskLevel, { bar: string; text: string; stroke: string }> = {
+  LOW: { bar: 'bg-status-safe', text: 'text-status-safe', stroke: '#2F6B4F' },
+  MODERATE: { bar: 'bg-status-caution', text: 'text-status-caution', stroke: '#8A5A12' },
+  HIGH: { bar: 'bg-status-high', text: 'text-status-high', stroke: '#A4461A' },
+  VERY_HIGH: { bar: 'bg-status-danger', text: 'text-status-danger', stroke: '#B8321C' },
 };
 
-const LEVEL_ICONS: Record<WeatherRiskLevel, React.ElementType> = {
-  LOW: ShieldCheck,
-  MODERATE: AlertTriangle,
-  HIGH: ShieldAlert,
-  VERY_HIGH: ShieldAlert,
-};
+/** sand-300: the unfilled track of bars and the gauge. */
+const TRACK = '#DFD7C9';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const ISO_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})?$/;
@@ -143,87 +86,75 @@ export function WeatherIcon({
   const hour = localHour(iso);
   const night = hour !== null && (hour < 6 || hour >= 18);
   let Icon: React.ElementType = Cloud;
-  let color = 'text-slate-300';
+  let color = 'text-ink-soft';
 
   if (code === null || code === undefined) {
-    Icon = Cloud;
-    color = 'text-slate-500';
+    color = 'text-ink-faint';
   } else if (code === 0 || code === 1) {
     Icon = night ? Moon : Sun;
-    color = night ? 'text-slate-200' : 'text-amber-300';
+    color = night ? 'text-ink-soft' : 'text-coral';
   } else if (code === 2) {
     Icon = night ? CloudMoon : CloudSun;
-    color = night ? 'text-slate-200' : 'text-amber-200';
+    color = night ? 'text-ink-soft' : 'text-coral';
   } else if (code === 3) {
     Icon = Cloudy;
   } else if (code === 45 || code === 48) {
     Icon = CloudFog;
   } else if (code >= 51 && code <= 57) {
     Icon = CloudDrizzle;
-    color = 'text-sky-300';
+    color = 'text-mist-deep';
   } else if (code === 65 || code === 82) {
     Icon = CloudRainWind;
-    color = 'text-sky-300';
+    color = 'text-mist-deep';
   } else if ((code >= 61 && code <= 67) || (code >= 80 && code <= 81)) {
     Icon = CloudRain;
-    color = 'text-sky-300';
+    color = 'text-mist-deep';
   } else if (code === 75 || code === 86) {
     Icon = Snowflake;
-    color = 'text-sky-100';
+    color = 'text-mist-deep';
   } else if ((code >= 71 && code <= 77) || code === 85) {
     Icon = CloudSnow;
-    color = 'text-sky-100';
+    color = 'text-mist-deep';
   } else if (code === 96 || code === 99) {
     Icon = CloudHail;
-    color = 'text-violet-300';
+    color = 'text-status-high';
   } else if (code === 95) {
     Icon = CloudLightning;
-    color = 'text-violet-300';
+    color = 'text-status-high';
   }
-  return <Icon className={`${className} ${color}`} aria-hidden="true" />;
+  return <Icon className={`${className} ${color}`} strokeWidth={1.5} aria-hidden="true" />;
 }
 
-export function Metric({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+/** Label-over-value cell for the hairline stat grid (same pattern as FlightStatusCard times). */
+export function HeroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-      <div className="flex items-center space-x-1.5 text-[11px] font-mono text-slate-500 uppercase">
-        <Icon className="w-3.5 h-3.5 text-sky-400" />
-        <span>{label}</span>
-      </div>
-      <div className="text-base font-bold text-white font-mono">{value}</div>
+    <div className="min-w-0 bg-sand-50 px-3 py-3 sm:px-4">
+      <dt className="eyebrow truncate tracking-[0.06em]">{label}</dt>
+      <dd className="mt-1.5 truncate text-xl font-semibold tabular-nums text-ink">{value}</dd>
     </div>
   );
 }
 
-/** Label-over-value stat, as in the hero's bottom row. */
-export function HeroStat({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+/** Hairline grid wrapper for HeroStat cells. `columns` sets the responsive column classes. */
+export function StatGrid({ children, columns = 'grid-cols-2 sm:grid-cols-4' }: { children: React.ReactNode; columns?: string }) {
   return (
-    <div className="space-y-1 min-w-0">
-      <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-        <Icon className="w-3.5 h-3.5 text-slate-500 shrink-0" aria-hidden="true" />
-        <span>{label}</span>
-      </div>
-      <div className="text-base font-semibold text-white truncate">{value}</div>
-    </div>
+    <dl className={`grid gap-px overflow-hidden rounded-2xl border border-ink/10 bg-ink/10 ${columns}`}>
+      {children}
+    </dl>
   );
 }
 
 export function RiskLevelBadge({ level, testId }: { level: WeatherRiskLevel; testId?: string }) {
-  const Icon = LEVEL_ICONS[level];
   return (
-    <span
-      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider border ${LEVEL_STYLES[level].badge}`}
-      data-testid={testId}
-    >
-      <Icon className="w-3 h-3" aria-hidden="true" />
-      {level.replace('_', ' ')}
+    <span data-testid={testId} className="inline-flex">
+      <Badge status={level} label={`${statusLabel(level)} risk`} />
     </span>
   );
 }
 
 /**
  * Semicircle meter for the 0-100 weather risk score. The filled arc carries the level
- * colour; the track is a dim step of the same colour so severity reads across the arc.
+ * tone; the track is sand so severity reads against the card.
  */
 export function RiskGauge({
   score,
@@ -236,31 +167,30 @@ export function RiskGauge({
   size?: 'sm' | 'md';
   testId?: string;
 }) {
-  const s = LEVEL_STYLES[level];
   const clamped = Math.max(0, Math.min(100, score));
-  const width = size === 'sm' ? 112 : 168;
+  const width = size === 'sm' ? 120 : 176;
   const arc = 'M 12 62 A 50 50 0 0 1 112 62';
 
   return (
-    <div className="flex flex-col items-center" role="img" aria-label={`Weather risk ${clamped} out of 100, ${level.replace('_', ' ')}`}>
+    <div className="flex flex-col items-center" role="img" aria-label={`Weather risk ${clamped} out of 100, ${statusLabel(level)}`}>
       <svg viewBox="0 0 124 70" width={width} className="overflow-visible">
-        <path d={arc} fill="none" stroke={s.stroke} strokeOpacity={0.18} strokeWidth={10} strokeLinecap="round" />
+        <path d={arc} fill="none" stroke={TRACK} strokeWidth={9} strokeLinecap="round" />
         {clamped > 0 && (
           <path
             d={arc}
             fill="none"
-            stroke={s.stroke}
-            strokeWidth={10}
+            stroke={LEVEL_STYLES[level].stroke}
+            strokeWidth={9}
             strokeLinecap="round"
             pathLength={100}
             strokeDasharray={`${clamped} 100`}
           />
         )}
       </svg>
-      <div className={`${size === 'sm' ? '-mt-8' : '-mt-11'} text-center`}>
-        <div className={`${size === 'sm' ? 'text-xl' : 'text-3xl'} font-bold text-white leading-none`} data-testid={testId}>
+      <div className={`${size === 'sm' ? '-mt-9' : '-mt-12'} text-center`}>
+        <div className={`display ${size === 'sm' ? 'text-3xl' : 'text-5xl'} tabular-nums text-ink`} data-testid={testId}>
           {clamped}
-          <span className="text-xs font-normal text-slate-500">/100</span>
+          <span className="font-sans text-sm font-normal tracking-normal text-ink-muted">/100</span>
         </div>
       </div>
     </div>
@@ -296,20 +226,20 @@ export function HourlyTile({
       onMouseEnter={onSelect}
       onFocus={onSelect}
       onClick={onSelect}
-      className={`flex-1 min-w-[4.5rem] flex flex-col items-center gap-1.5 py-3 rounded-2xl border outline-none transition focus-visible:ring-2 focus-visible:ring-sky-500/60 ${
-        active ? 'bg-sky-500/15 border-sky-500/40' : 'bg-slate-900/60 border-slate-800 hover:border-slate-600'
+      className={`flex min-w-[4.75rem] flex-1 flex-col items-center gap-2 rounded-2xl border px-2 py-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${
+        active ? 'border-ink bg-sand-50' : 'border-ink/10 bg-sand-100 hover:border-ink/30'
       }`}
     >
-      <span className={`text-[11px] font-semibold ${active ? 'text-sky-200' : 'text-slate-400'}`}>{label}</span>
-      <WeatherIcon code={obs?.weather_code} iso={obs?.forecast_time} className="w-6 h-6" />
-      <span className="text-sm font-bold text-white">{formatTemperature(obs?.temperature_c)}</span>
-      {/* Risk bar: dim track + filled level colour */}
-      <div className={`w-10 h-1 rounded-full overflow-hidden ${level ? LEVEL_STYLES[level].track : 'bg-slate-800'}`}>
+      <span className={`font-mono text-[11px] uppercase tracking-[0.08em] ${active ? 'text-ink' : 'text-ink-muted'}`}>{label}</span>
+      <WeatherIcon code={obs?.weather_code} iso={obs?.forecast_time} className="h-6 w-6" />
+      <span className="text-lg font-semibold tabular-nums text-ink">{formatTemperature(obs?.temperature_c)}</span>
+      {/* Risk bar: sand track + filled level tone */}
+      <span className="block h-1.5 w-10 overflow-hidden rounded-full bg-sand-300">
         {level && score !== null && (
-          <div className={`h-full rounded-full ${LEVEL_STYLES[level].bar}`} style={{ width: `${Math.max(score, 4)}%` }} />
+          <span className={`block h-full rounded-full ${LEVEL_STYLES[level].bar}`} style={{ width: `${Math.max(score, 4)}%` }} />
         )}
-      </div>
-      <span className="text-[10px] text-slate-500">{score ?? '—'}</span>
+      </span>
+      <span className="text-sm tabular-nums text-ink-muted">{score ?? '—'}</span>
     </button>
   );
 }
@@ -319,10 +249,10 @@ export function HourDetails({ hour }: { hour: AirportWeatherResult }) {
   const obs = hour.observation;
   return (
     <div
-      className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-4 py-3 rounded-2xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300"
+      className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-ink/10 bg-sand-100 px-4 py-3 text-sm text-ink-soft"
       data-testid="hour-details"
     >
-      <span className="font-semibold text-white">{formatForecastTime(obs?.forecast_time)}</span>
+      <span className="font-semibold text-ink">{formatForecastTime(obs?.forecast_time)}</span>
       <span>{obs?.condition_text ?? 'Condition unavailable'}</span>
       <span>Wind {formatValue(obs?.wind_speed_kt, 'kn')}</span>
       <span>Gusts {formatValue(obs?.wind_gust_kt, 'kn')}</span>
@@ -330,11 +260,11 @@ export function HourDetails({ hour }: { hour: AirportWeatherResult }) {
       <span>Precipitation {formatValue(obs?.precipitation_mm_per_hr, 'mm/h')}</span>
       {hour.weather_risk && hour.weather_score !== null ? (
         <span className="ml-auto flex items-center gap-2">
-          <span className="text-slate-400">Risk {hour.weather_score}/100</span>
+          <span className="tabular-nums">Risk {hour.weather_score}/100</span>
           <RiskLevelBadge level={hour.weather_risk} />
         </span>
       ) : (
-        <span className="ml-auto text-amber-300">Risk unavailable</span>
+        <span className="ml-auto font-medium text-status-caution">Risk unavailable</span>
       )}
     </div>
   );
