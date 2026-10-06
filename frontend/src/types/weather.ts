@@ -1,5 +1,5 @@
 // Mirrors backend/app/schemas/weather.py (AirportWeatherResult) and app/airports.py.
-
+//weather
 export type WeatherRiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'VERY_HIGH';
 
 export interface Airport {
