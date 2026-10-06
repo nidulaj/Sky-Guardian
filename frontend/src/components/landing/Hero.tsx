@@ -13,7 +13,27 @@ const FACTS = [
 export default function Hero() {
   return (
     <section aria-labelledby="hero-title" className="px-2 pt-2 sm:px-3 sm:pt-3">
-      <div className="relative overflow-hidden rounded-4xl bg-gradient-to-br from-cabin-light via-cabin to-cabin-dark text-white lg:min-h-[760px]">
+      <div className="relative isolate overflow-hidden rounded-4xl bg-gradient-to-br from-cabin-light via-cabin to-cabin-dark text-white lg:min-h-[760px]">
+        {/*
+          Background video. Drop the file at public/videos/hero.mp4; until it exists the
+          cabin gradient shows as before. Hidden for people who prefer reduced motion.
+        */}
+        <video
+          className="pointer-events-none absolute inset-0 -z-20 h-full w-full object-cover motion-reduce:hidden"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          aria-hidden="true"
+        >
+          <source src="/videos/hero.mp4" type="video/mp4" />
+        </video>
+        {/* Cabin-tone overlay keeps the white hero text readable over any footage. */}
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-cabin-dark/85 via-cabin-dark/55 to-cabin-dark/25"
+          aria-hidden="true"
+        />
         <SiteHeader variant="overlay" section="marketing" />
 
         <div className="relative mx-auto max-w-7xl px-5 pt-28 sm:px-8 sm:pt-36 lg:pt-44">

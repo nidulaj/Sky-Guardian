@@ -145,6 +145,9 @@ describe('Journey weather panel', () => {
 
     const kul = screen.getByTestId('journey-weather-KUL');
     expect(within(kul).getByText('Transfer')).toBeInTheDocument();
+    // Moderate rain (WMO 63) at 14:00 local -> rain photo behind the card.
+    expect(kul).toHaveAttribute('data-weather-scene', 'rain');
+    expect(kul.style.backgroundImage).toContain('/images/weather/rain.jpg');
     expect(within(kul).getByText('Moderate rain')).toBeInTheDocument();
     expect(within(kul).getByText('27°')).toBeInTheDocument();
     expect(within(kul).getByText('4.2 km')).toBeInTheDocument();
@@ -168,6 +171,7 @@ describe('Journey weather panel', () => {
     for (const code of ['CMB', 'KUL', 'NRT']) {
       const card = screen.getByTestId(`journey-weather-${code}`);
       expect(within(card).getByText('Weather unavailable')).toBeInTheDocument();
+      expect(card.style.backgroundImage).toBe('');
       expect(within(screen.getByTestId(`journey-weather-reason-${code}`)).getByText(/Forecast unavailable for selected travel date/)).toBeInTheDocument();
       expect(card.textContent).not.toMatch(/\/100/);
     }

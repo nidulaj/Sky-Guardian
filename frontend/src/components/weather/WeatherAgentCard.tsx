@@ -30,23 +30,37 @@ interface WeatherAgentCardProps {
 function CurrentConditions({ data }: { data: AirportWeatherResult }) {
   const obs = data.observation;
   return (
-    <div className="flex h-full flex-col justify-between gap-6 rounded-3xl bg-mist-soft p-5 sm:p-7">
+    <div
+      className="relative isolate flex h-full flex-col justify-between gap-6 overflow-hidden rounded-3xl bg-cabin-dark bg-cover bg-center p-5 sm:p-7"
+      style={{ backgroundImage: "url('/images/weather-sky.jpg')" }}
+      data-testid="weather-conditions-panel"
+    >
+      {/* Darkens the sky photo on the text side so white text stays readable (WCAG AA). */}
+      <div
+        className="absolute inset-0 -z-10 bg-gradient-to-r from-cabin-dark/85 via-cabin-dark/55 to-cabin-dark/15"
+        aria-hidden="true"
+      />
+
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="eyebrow text-ink-soft">Now at the airport</p>
-          <p className="display mt-3 text-7xl text-ink sm:text-8xl tabular-nums" data-testid="weather-temperature">
+          <p className="eyebrow text-sand-100">Now at the airport</p>
+          <p className="display mt-3 text-7xl text-white sm:text-8xl tabular-nums" data-testid="weather-temperature">
             {formatTemperature(obs?.temperature_c)}
-            <span className="align-top text-3xl text-ink-soft sm:text-4xl">C</span>
+            <span className="align-top text-3xl text-sand-200 sm:text-4xl">C</span>
           </p>
-          <p className="accent mt-2 text-3xl text-ink sm:text-4xl" data-testid="weather-condition">
+          <p className="accent mt-2 text-3xl text-coral-peach sm:text-4xl" data-testid="weather-condition">
             {obs?.condition_text ?? 'Condition unavailable'}
           </p>
-          <p className="mt-3 flex items-center gap-1.5 text-sm text-ink-soft">
+          <p className="mt-3 flex items-center gap-1.5 text-sm text-sand-100">
             <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>Forecast for {formatForecastTime(obs?.forecast_time)}</span>
           </p>
         </div>
-        <WeatherIcon code={obs?.weather_code} iso={obs?.forecast_time} className="h-20 w-20 shrink-0 sm:h-24 sm:w-24" />
+        <WeatherIcon
+          code={obs?.weather_code}
+          iso={obs?.forecast_time}
+          className="h-20 w-20 shrink-0 !text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:h-24 sm:w-24"
+        />
       </div>
 
       <StatGrid>

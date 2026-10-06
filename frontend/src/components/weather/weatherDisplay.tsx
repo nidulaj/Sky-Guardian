@@ -70,6 +70,31 @@ export function formatHourLabel(iso: string | null | undefined): string {
   return `${h % 12 === 0 ? 12 : h % 12} ${suffix}`;
 }
 
+export type WeatherScene = 'clear' | 'cloudy' | 'fog' | 'rain' | 'snow' | 'storm' | 'night';
+
+/**
+ * Background photo group for a WMO weather code (images in public/images/weather/).
+ * Clear and partly cloudy skies at night (airport-local hour before 06:00 or from 18:00)
+ * use the night photo. Returns null for a missing or unknown code.
+ */
+export function weatherScene(code: number | null | undefined, iso?: string | null): WeatherScene | null {
+  if (code === null || code === undefined) return null;
+  const hour = localHour(iso);
+  const night = hour !== null && (hour < 6 || hour >= 18);
+  if (code <= 2) return night ? 'night' : code === 2 ? 'cloudy' : 'clear';
+  if (code === 3) return 'cloudy';
+  if (code === 45 || code === 48) return 'fog';
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
+  if (code === 95 || code === 96 || code === 99) return 'storm';
+  return null;
+}
+
+export function weatherImage(code: number | null | undefined, iso?: string | null): string | null {
+  const scene = weatherScene(code, iso);
+  return scene ? `/images/weather/${scene}.jpg` : null;
+}
+
 /**
  * Icon for a WMO weather code. Open-Meteo's selected variables have no day/night flag,
  * so night icons use the airport-local hour (before 06:00 or from 18:00) as an approximation.
@@ -160,21 +185,31 @@ export function RiskGauge({
   score,
   level,
   size = 'md',
+  tone = 'dark',
   testId,
 }: {
   score: number;
   level: WeatherRiskLevel;
   size?: 'sm' | 'md';
+  /** 'light' for use on a photo: white number and a translucent track. */
+  tone?: 'dark' | 'light';
   testId?: string;
 }) {
   const clamped = Math.max(0, Math.min(100, score));
   const width = size === 'sm' ? 120 : 176;
   const arc = 'M 12 62 A 50 50 0 0 1 112 62';
+  const light = tone === 'light';
 
   return (
     <div className="flex flex-col items-center" role="img" aria-label={`Weather risk ${clamped} out of 100, ${statusLabel(level)}`}>
       <svg viewBox="0 0 124 70" width={width} className="overflow-visible">
-        <path d={arc} fill="none" stroke={TRACK} strokeWidth={9} strokeLinecap="round" />
+        <path
+          d={arc}
+          fill="none"
+          stroke={light ? 'rgba(255,255,255,0.35)' : TRACK}
+          strokeWidth={9}
+          strokeLinecap="round"
+        />
         {clamped > 0 && (
           <path
             d={arc}
@@ -188,9 +223,12 @@ export function RiskGauge({
         )}
       </svg>
       <div className={`${size === 'sm' ? '-mt-9' : '-mt-12'} text-center`}>
-        <div className={`display ${size === 'sm' ? 'text-3xl' : 'text-5xl'} tabular-nums text-ink`} data-testid={testId}>
+        <div
+          className={`display ${size === 'sm' ? 'text-3xl' : 'text-5xl'} tabular-nums ${light ? 'text-white' : 'text-ink'}`}
+          data-testid={testId}
+        >
           {clamped}
-          <span className="font-sans text-sm font-normal tracking-normal text-ink-muted">/100</span>
+          <span className={`font-sans text-sm font-normal tracking-normal ${light ? 'text-sand-200' : 'text-ink-muted'}`}>/100</span>
         </div>
       </div>
     </div>

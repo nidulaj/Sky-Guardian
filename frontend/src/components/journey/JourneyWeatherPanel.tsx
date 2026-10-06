@@ -12,6 +12,8 @@ import {
   RiskLevelBadge,
   StatGrid,
   WeatherIcon,
+  weatherImage,
+  weatherScene,
 } from '@/components/weather/weatherDisplay';
 
 interface JourneyWeatherPanelProps {
@@ -32,18 +34,34 @@ function roleLabel(roles: string[]): string {
 function AirportWeather({ w }: { w: AirportWeatherResult }) {
   const obs = w.observation;
   const available = w.status === 'available' && w.weather_score !== null && w.weather_risk !== null;
+  // Photo of the forecast weather behind the card (clear, cloudy, fog, rain, snow, storm, night).
+  const image = available ? weatherImage(obs?.weather_code, obs?.forecast_time) : null;
+  const photo = image !== null;
 
   return (
     <article
-      className={`rounded-3xl border p-5 sm:p-6 ${
-        available ? 'border-ink/10 bg-sand-50' : 'border-dashed border-status-caution/40 bg-status-caution-bg/40'
+      className={`relative isolate overflow-hidden rounded-3xl border p-5 sm:p-6 ${
+        photo
+          ? 'border-ink/10 bg-cabin-dark bg-cover bg-center text-white'
+          : available
+            ? 'border-ink/10 bg-sand-50'
+            : 'border-dashed border-status-caution/40 bg-status-caution-bg/40'
       }`}
+      style={photo ? { backgroundImage: `url('${image}')` } : undefined}
       data-testid={`journey-weather-${w.airport}`}
+      data-weather-scene={photo ? weatherScene(obs?.weather_code, obs?.forecast_time) ?? undefined : undefined}
     >
+      {photo && (
+        // Darkens every photo (bright sky to night storm) enough for white text (WCAG AA).
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-cabin-dark/80 via-cabin-dark/60 to-cabin-dark/80"
+          aria-hidden="true"
+        />
+      )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="eyebrow">{roleLabel(w.roles)}</p>
-          <h4 className="display mt-1 text-4xl text-ink sm:text-5xl">{w.airport}</h4>
+          <p className={`eyebrow ${photo ? 'text-sand-100' : ''}`}>{roleLabel(w.roles)}</p>
+          <h4 className={`display mt-1 text-4xl sm:text-5xl ${photo ? 'text-white' : 'text-ink'}`}>{w.airport}</h4>
         </div>
         {available ? (
           <RiskLevelBadge level={w.weather_risk!} />
@@ -59,21 +77,33 @@ function AirportWeather({ w }: { w: AirportWeatherResult }) {
         <>
           <div className="mt-5 grid grid-cols-1 items-center gap-5 sm:grid-cols-[minmax(0,1fr)_auto]">
             <div className="flex items-center gap-4">
-              <WeatherIcon code={obs.weather_code} iso={obs.forecast_time} className="h-14 w-14 shrink-0" />
+              <WeatherIcon
+                code={obs.weather_code}
+                iso={obs.forecast_time}
+                className={`h-14 w-14 shrink-0 ${photo ? '!text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)]' : ''}`}
+              />
               <div className="min-w-0">
-                <p className="display text-5xl tabular-nums text-ink">
+                <p className={`display text-5xl tabular-nums ${photo ? 'text-white' : 'text-ink'}`}>
                   {formatTemperature(obs.temperature_c)}
-                  <span className="align-top text-2xl text-ink-soft">C</span>
+                  <span className={`align-top text-2xl ${photo ? 'text-sand-200' : 'text-ink-soft'}`}>C</span>
                 </p>
-                <p className="accent mt-1 text-2xl text-ink">{obs.condition_text ?? 'Condition unavailable'}</p>
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
+                <p className={`accent mt-1 text-2xl ${photo ? 'text-coral-peach' : 'text-ink'}`}>
+                  {obs.condition_text ?? 'Condition unavailable'}
+                </p>
+                <p className={`mt-1 flex items-center gap-1.5 text-sm ${photo ? 'text-sand-100' : 'text-ink-muted'}`}>
                   <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {formatForecastTime(obs.forecast_time)}
                 </p>
               </div>
             </div>
             <div className="justify-self-center sm:justify-self-end">
-              <RiskGauge score={w.weather_score!} level={w.weather_risk!} size="sm" testId={`journey-weather-score-${w.airport}`} />
+              <RiskGauge
+                score={w.weather_score!}
+                level={w.weather_risk!}
+                size="sm"
+                tone={photo ? 'light' : 'dark'}
+                testId={`journey-weather-score-${w.airport}`}
+              />
             </div>
           </div>
 
@@ -89,8 +119,8 @@ function AirportWeather({ w }: { w: AirportWeatherResult }) {
           {w.weather_score! > 0 && (
             <ul className="mt-4 space-y-1.5">
               {w.conditions.map((c) => (
-                <li key={c} className="flex items-start gap-2 text-base text-ink">
-                  <AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-status-caution" aria-hidden="true" />
+                <li key={c} className={`flex items-start gap-2 text-base ${photo ? 'text-white' : 'text-ink'}`}>
+                  <AlertTriangle className={`mt-1 h-4 w-4 shrink-0 ${photo ? 'text-status-caution-bg' : 'text-status-caution'}`} aria-hidden="true" />
                   <span>{c}</span>
                 </li>
               ))}
@@ -102,8 +132,8 @@ function AirportWeather({ w }: { w: AirportWeatherResult }) {
       {w.warnings.length > 0 && (
         <div className="mt-4 space-y-1.5" data-testid={`journey-weather-reason-${w.airport}`}>
           {w.warnings.map((reason) => (
-            <p key={reason} className={`flex items-start gap-2 text-sm ${available ? 'text-ink-soft' : 'text-ink'}`}>
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-caution" aria-hidden="true" />
+            <p key={reason} className={`flex items-start gap-2 text-sm ${photo ? 'text-sand-100' : available ? 'text-ink-soft' : 'text-ink'}`}>
+              <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${photo ? 'text-status-caution-bg' : 'text-status-caution'}`} aria-hidden="true" />
               <span>{reason}</span>
             </p>
           ))}
