@@ -144,12 +144,12 @@ describe('Journey weather panel', () => {
     const kul = screen.getByTestId('journey-weather-KUL');
     expect(within(kul).getByText('Transfer')).toBeInTheDocument();
     expect(within(kul).getByText('Moderate rain')).toBeInTheDocument();
-    expect(within(kul).getByText('27.4 °C')).toBeInTheDocument();
+    expect(within(kul).getByText('27°')).toBeInTheDocument();
     expect(within(kul).getByText('4.2 km')).toBeInTheDocument();
     expect(within(kul).getByText('14 kn')).toBeInTheDocument();
     expect(within(kul).getByText('31 kn')).toBeInTheDocument();
     expect(within(kul).getByText('0.3 mm/h')).toBeInTheDocument();
-    expect(within(kul).getByText('60/100')).toBeInTheDocument();
+    expect(within(kul).getByTestId('journey-weather-score-KUL')).toHaveTextContent('60/100');
     expect(within(kul).getByText('HIGH')).toBeInTheDocument();
     expect(within(kul).getByText('Active thunderstorms')).toBeInTheDocument();
     expect(within(screen.getByTestId('journey-weather-CMB')).getByText('Origin')).toBeInTheDocument();

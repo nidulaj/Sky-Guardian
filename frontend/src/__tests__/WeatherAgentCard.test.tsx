@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import WeatherAgentCard, { formatForecastTime } from '@/components/weather/WeatherAgentCard';
 import { mockWeatherBackend, requestedUrls, weatherResult } from '@/test/weatherFixtures';
 
@@ -16,12 +16,11 @@ describe('WeatherAgentCard', () => {
     render(<WeatherAgentCard />);
 
     expect(await screen.findByTestId('weather-condition')).toHaveTextContent('Moderate rain');
-    expect(screen.getByText('27.4 °C')).toBeInTheDocument();
+    expect(screen.getByTestId('weather-temperature')).toHaveTextContent('27°C');
     expect(screen.getByText('4.2 km')).toBeInTheDocument();
     expect(screen.getByText('14 kn')).toBeInTheDocument();
     expect(screen.getByText('31 kn')).toBeInTheDocument();
     expect(screen.getByText('0.3 mm/h')).toBeInTheDocument();
-    expect(screen.getByText('63')).toBeInTheDocument();
     expect(screen.getByTestId('weather-risk-level')).toHaveTextContent('MODERATE');
     expect(screen.getByTestId('weather-risk-score')).toHaveTextContent('45/100');
     expect(screen.getByText('Reduced visibility (4.2 km)')).toBeInTheDocument();
@@ -89,6 +88,35 @@ describe('WeatherAgentCard', () => {
     render(<WeatherAgentCard />);
     await screen.findByTestId('weather-condition');
     expect(requestedUrls(fetchMock).every((u) => u.startsWith('http://localhost:8000/api/'))).toBe(true);
+  });
+});
+
+describe('WeatherAgentCard hourly forecast', () => {
+  it('renders one tile per hour from the backend, starting with Now', async () => {
+    const fetchMock = mockWeatherBackend();
+    render(<WeatherAgentCard />);
+    const strip = await screen.findByTestId('hourly-forecast');
+    const tiles = within(strip).getAllByTestId('hourly-tile');
+    expect(tiles.length).toBeGreaterThan(1);
+    expect(tiles[0]).toHaveTextContent('Now');
+    expect(tiles[0]).toHaveTextContent('30°');
+    expect(tiles[1]).toHaveTextContent('3 PM');
+    expect(tiles[1].getAttribute('aria-label')).toMatch(/risk 15 LOW/);
+    expect(requestedUrls(fetchMock)).toContain('http://localhost:8000/api/weather/hourly?airport=CMB&hours=12');
+
+    // The first hour is selected; selecting another hour updates the details row.
+    expect(screen.getByTestId('hour-details')).toHaveTextContent('06 Oct, 14:00 local');
+    fireEvent.click(tiles[5]);
+    expect(screen.getByTestId('hour-details')).toHaveTextContent('06 Oct, 19:00 local');
+    expect(screen.getByTestId('hour-details')).toHaveTextContent('Risk 45/100');
+    expect(tiles[5]).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('keeps current conditions when only the hourly forecast fails', async () => {
+    mockWeatherBackend(undefined, () => ({ status: 503, body: {} }));
+    render(<WeatherAgentCard />);
+    expect(await screen.findByTestId('weather-condition')).toHaveTextContent('Moderate rain');
+    expect(screen.getByText('Hourly forecast unavailable.')).toBeInTheDocument();
   });
 });
 

@@ -95,6 +95,20 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
             )
         return self._to_observation(airport, forecast, index, retrieved_at)
 
+    async def get_hourly_observations(
+        self, airport: Airport, start_time: Optional[datetime] = None, hours: int = 12
+    ) -> List[WeatherObservation]:
+        # One cached forecast serves every hour; no extra Open-Meteo request.
+        retrieved_at, forecast = await self._get_forecast(airport)
+        start = start_time or datetime.now(timezone.utc)
+        if start.tzinfo is None:
+            raise ForecastTimeUnavailable("Forecast time must include a timezone offset.")
+        index = self._nearest_hour(forecast.times, start)
+        if index is None:
+            raise ForecastTimeUnavailable(f"Forecast unavailable for {airport.code} at the requested time.")
+        end = min(len(forecast.times), index + hours)
+        return [self._to_observation(airport, forecast, i, retrieved_at) for i in range(index, end)]
+
     async def _get_forecast(self, airport: Airport) -> Tuple[datetime, _HourlyForecast]:
         cached = self._cache.get(airport.code)
         if cached and time.monotonic() - cached[0] < self.cache_ttl_seconds:

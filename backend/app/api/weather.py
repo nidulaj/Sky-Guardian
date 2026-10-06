@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.agents.weather_agent import WeatherAgent
 from app.airports import Airport, get_airport, list_airports, normalize_airport_code
+from app.providers.weather import WeatherProviderError
 from app.schemas.weather import AirportWeatherResult
 
 router = APIRouter(prefix="/api/weather", tags=["Weather"])
@@ -19,6 +20,23 @@ UNAVAILABLE_MESSAGE = "Weather data temporarily unavailable."
 async def get_supported_airports():
     """Airports the Weather Agent has coordinates for."""
     return list_airports()
+
+
+@router.get("/hourly", response_model=List[AirportWeatherResult])
+async def get_airport_hourly_weather(
+    airport: str = Query(..., description="3-letter IATA airport code, e.g. CMB"),
+    hours: int = Query(12, ge=1, le=48, description="Number of hours from the current hour"),
+):
+    """Scored hourly forecast for the Home page strip; reuses the cached provider forecast."""
+    code = normalize_airport_code(airport)
+    if not re.fullmatch(r"[A-Z]{3}", code):
+        raise HTTPException(status_code=422, detail="airport must be a 3-letter IATA code, e.g. CMB.")
+    if get_airport(code) is None:
+        raise HTTPException(status_code=404, detail=f"Airport {code} is not supported by the Weather Agent.")
+    try:
+        return await weather_agent.assess_hourly(code, hours)
+    except WeatherProviderError as exc:
+        raise HTTPException(status_code=503, detail={"message": UNAVAILABLE_MESSAGE, "reasons": [str(exc)]})
 
 
 @router.get("", response_model=AirportWeatherResult)

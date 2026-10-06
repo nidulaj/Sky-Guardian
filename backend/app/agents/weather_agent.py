@@ -92,25 +92,7 @@ class WeatherAgent(BaseAgent):
                 errors.append(f"Weather data for {code} could not be processed.")
                 continue
 
-            assessment = score_weather(observation, self.risk_config)
-            result = AirportWeatherResult(
-                airport=code,
-                status="available" if assessment.score is not None else "unavailable",
-                roles=roles,
-                weather_risk=assessment.level,
-                weather_score=assessment.score,
-                conditions=assessment.conditions,
-                factors=assessment.factors,
-                component_scores=assessment.component_scores,
-                observation=observation,
-                forecast_window=self._forecast_window(observation.forecast_time, label),
-                source=observation.source,
-                is_mock=observation.is_mock,
-                confidence=assessment.confidence,
-                missing_data=assessment.missing_data,
-                warnings=assessment.warnings,
-                retrieved_at=observation.retrieved_at.isoformat(),
-            )
+            result = self._result_for(code, roles, observation, label)
             if best is None or self._score_rank(result) > self._score_rank(best):
                 best = result
 
@@ -119,6 +101,39 @@ class WeatherAgent(BaseAgent):
         if errors:
             best.warnings = best.warnings + errors
         return best
+
+    async def assess_hourly(self, airport_code: str, hours: int = 12) -> List[AirportWeatherResult]:
+        """
+        Scored hourly forecast from the current hour. Raises WeatherProviderError (with a
+        user-safe message) when no forecast is available; unknown airports raise ValueError.
+        """
+        code = normalize_airport_code(airport_code)
+        airport = get_airport(code)
+        if airport is None:
+            raise ValueError(f"Airport {code or '(blank)'} is not in the airport coordinate table.")
+        observations = await self.provider.get_hourly_observations(airport, None, hours)
+        return [self._result_for(code, [], obs, "hourly forecast") for obs in observations]
+
+    def _result_for(self, code: str, roles: List[str], observation, label: str) -> AirportWeatherResult:
+        assessment = score_weather(observation, self.risk_config)
+        return AirportWeatherResult(
+            airport=code,
+            status="available" if assessment.score is not None else "unavailable",
+            roles=roles,
+            weather_risk=assessment.level,
+            weather_score=assessment.score,
+            conditions=assessment.conditions,
+            factors=assessment.factors,
+            component_scores=assessment.component_scores,
+            observation=observation,
+            forecast_window=self._forecast_window(observation.forecast_time, label),
+            source=observation.source,
+            is_mock=observation.is_mock,
+            confidence=assessment.confidence,
+            missing_data=assessment.missing_data,
+            warnings=assessment.warnings,
+            retrieved_at=observation.retrieved_at.isoformat(),
+        )
 
     def _collect_targets(self, state: JourneyState) -> Dict[str, Tuple[List[str], List[_TargetTime]]]:
         """Airports in journey order with their roles and the flight times to forecast."""

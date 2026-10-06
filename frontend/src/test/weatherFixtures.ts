@@ -46,13 +46,34 @@ export function weatherResult(overrides: Partial<AirportWeatherResult> = {}): Ai
 }
 
 type WeatherResponder = (airport: string) => { status: number; body: unknown } | Promise<never>;
+type HourlyResponder = (airport: string, hours: number) => { status: number; body: unknown };
+
+/** Scored hours from 14:00 local (up to 23:00), risk rising later in the day. */
+export function hourlyResults(airport: string, hours = 12): AirportWeatherResult[] {
+  return Array.from({ length: Math.min(hours, 10) }, (_, h) => {
+    const base = weatherResult({ airport });
+    return {
+      ...base,
+      weather_score: h < 4 ? 15 : 45,
+      weather_risk: h < 4 ? 'LOW' : 'MODERATE',
+      observation: { ...base.observation!, forecast_time: `2026-10-06T${14 + h}:00:00+05:30`, temperature_c: 30 - h * 0.5 },
+    } as AirportWeatherResult;
+  });
+}
 
 /** Stubs fetch for the backend weather endpoints and records requested URLs. */
-export function mockWeatherBackend(respond: WeatherResponder = (a) => ({ status: 200, body: weatherResult({ airport: a }) })) {
+export function mockWeatherBackend(
+  respond: WeatherResponder = (a) => ({ status: 200, body: weatherResult({ airport: a }) }),
+  respondHourly: HourlyResponder = (a, n) => ({ status: 200, body: hourlyResults(a, n) }),
+) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = new URL(String(input));
     if (url.pathname === '/api/weather/airports') {
       return new Response(JSON.stringify(AIRPORTS), { status: 200 });
+    }
+    if (url.pathname === '/api/weather/hourly') {
+      const result = respondHourly(url.searchParams.get('airport') ?? '', Number(url.searchParams.get('hours') ?? 12));
+      return new Response(JSON.stringify(result.body), { status: result.status });
     }
     if (url.pathname === '/api/weather') {
       const result = respond(url.searchParams.get('airport') ?? '');

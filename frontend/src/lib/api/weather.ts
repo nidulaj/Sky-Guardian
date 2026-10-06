@@ -29,3 +29,17 @@ export async function getWeatherAirports(signal?: AbortSignal): Promise<Airport[
   }
   return response.json();
 }
+
+export async function getAirportHourlyWeather(
+  airport: string,
+  hours = 12,
+  signal?: AbortSignal,
+): Promise<AirportWeatherResult[]> {
+  const params = new URLSearchParams({ airport, hours: String(hours) });
+  const response = await fetch(`${API_BASE_URL}/api/weather/hourly?${params.toString()}`, { signal });
+
+  if (!response.ok) {
+    throw new WeatherApiError(`Failed to load hourly weather for ${airport}: ${response.status}`, response.status);
+  }
+  return response.json();
+}

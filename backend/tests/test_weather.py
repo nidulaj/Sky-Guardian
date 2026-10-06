@@ -501,3 +501,61 @@ async def test_weather_endpoint_provider_failure_returns_503(client, use_provide
     assert detail["message"] == "Weather data temporarily unavailable."
     body = json.dumps(response.json())
     assert "Traceback" not in body and "httpx" not in body
+
+
+# ---------------------------------------------------------------------------
+# Hourly forecast (Home page strip)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_open_meteo_hourly_uses_one_request_and_consecutive_hours():
+    calls = []
+    hours = 48
+    provider = provider_for(json_handler(open_meteo_payload(hours=hours, temperature_2m=[float(h) for h in range(hours)]), calls=calls))
+    observations = await provider.get_hourly_observations(CMB, datetime(2026, 10, 6, 8, 40, tzinfo=timezone.utc), 6)
+    assert len(calls) == 1
+    assert [o.temperature_c for o in observations] == [14.0, 15.0, 16.0, 17.0, 18.0, 19.0]
+    assert observations[1].forecast_time - observations[0].forecast_time == timedelta(hours=1)
+
+
+@pytest.mark.asyncio
+async def test_open_meteo_hourly_stops_at_end_of_forecast():
+    provider = provider_for(json_handler(open_meteo_payload(hours=24)))
+    observations = await provider.get_hourly_observations(CMB, datetime(2026, 10, 6, 15, 10, tzinfo=timezone.utc), 12)
+    assert len(observations) == 3  # 20:40 local -> hours 21, 22, 23 remain
+
+
+@pytest.mark.asyncio
+async def test_mock_hourly_default_implementation():
+    observations = await MockWeatherProvider().get_hourly_observations(get_airport("KUL"), None, 4)
+    assert len(observations) == 4
+    assert all(o.is_mock for o in observations)
+
+
+@pytest.mark.asyncio
+async def test_weather_hourly_endpoint(client, use_provider):
+    use_provider(MockWeatherProvider())
+    response = await client.get("/api/weather/hourly", params={"airport": "KUL", "hours": 6})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 6
+    assert all(h["weather_score"] == 60 and h["observation"]["weather_code"] == 95 for h in data)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("params,status", [
+    ({"airport": "ZZZ"}, 404),
+    ({"airport": "C1"}, 422),
+    ({"airport": "CMB", "hours": 0}, 422),
+    ({"airport": "CMB", "hours": 100}, 422),
+])
+async def test_weather_hourly_endpoint_validation(client, params, status):
+    assert (await client.get("/api/weather/hourly", params=params)).status_code == status
+
+
+@pytest.mark.asyncio
+async def test_weather_hourly_endpoint_provider_failure(client, use_provider):
+    use_provider(provider_for(raising_handler(httpx.ReadTimeout("slow"))))
+    response = await client.get("/api/weather/hourly", params={"airport": "CMB"})
+    assert response.status_code == 503
+    assert response.json()["detail"]["message"] == "Weather data temporarily unavailable."
