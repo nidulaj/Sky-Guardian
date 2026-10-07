@@ -271,7 +271,14 @@ export default function NewJourneyPage() {
                   </div>
                 )}
               </section>
+            </article>
+          )}
+        </div>
+      </div>
 
+      {/* Full-width analysis below the form and route card */}
+      {result && !loading && (
+        <div aria-label="Journey analysis details" className="mt-14 space-y-14 sm:mt-16 sm:space-y-16">
               {/* 02 Risk */}
               <section className="space-y-6">
                 <SectionTitle n={2} label="Risk estimate" />
@@ -299,7 +306,7 @@ export default function NewJourneyPage() {
               <section className="space-y-6">
                 <SectionTitle n={4} label={flights.length === 1 ? 'Your flight' : 'Your flights'} />
                 {flights.length > 0 ? (
-                  <div className="grid gap-4">
+                  <div className="grid gap-4 md:grid-cols-2">
                     {flights.map((flight, idx) => (
                       <FlightStatusCard key={`${flight.flight_number}-${idx}`} flight={flight} />
                     ))}
@@ -323,17 +330,19 @@ export default function NewJourneyPage() {
                 <JourneyWeatherPanel weather={result.weather_conditions} />
               </section>
 
-              {/* 06 Alternatives */}
-              <section className="space-y-6">
-                <SectionTitle n={6} label="Backup routes, ranked" />
-                <AlternativesList items={result.alternatives} />
-              </section>
+              <div className="grid gap-14 lg:grid-cols-2 lg:gap-10">
+                {/* 06 Alternatives */}
+                <section className="min-w-0 space-y-6">
+                  <SectionTitle n={6} label="Backup routes, ranked" />
+                  <AlternativesList items={result.alternatives} />
+                </section>
 
-              {/* 07 Policy */}
-              <section className="space-y-6">
-                <SectionTitle n={7} label="Airline policy evidence" />
-                <PolicyEvidenceList items={result.policy_evidence} />
-              </section>
+                {/* 07 Policy */}
+                <section className="min-w-0 space-y-6">
+                  <SectionTitle n={7} label="Airline policy evidence" />
+                  <PolicyEvidenceList items={result.policy_evidence} />
+                </section>
+              </div>
 
               {/* 08 Sources */}
               <section className="space-y-6">
@@ -348,10 +357,8 @@ export default function NewJourneyPage() {
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </section>
-            </article>
-          )}
         </div>
-      </div>
+      )}
 
       <ExplainabilityDrawer
         isOpen={drawerOpen && !!result}

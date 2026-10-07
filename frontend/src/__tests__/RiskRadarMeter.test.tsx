@@ -38,7 +38,7 @@ describe('RiskRadarMeter', () => {
   it('shows the overall score, component scores and backend weights', () => {
     render(<RiskRadarMeter risk={risk()} />);
     expect(screen.getByText('73')).toBeInTheDocument();
-    expect(screen.getByText('high risk')).toBeInTheDocument();
+    expect(screen.getByText('High risk')).toBeInTheDocument();
 
     const flight = screen.getByTestId('risk-flight-component');
     expect(flight).toHaveTextContent('65/100');
@@ -132,9 +132,9 @@ describe('RiskRadarMeter', () => {
     expect(screen.getByTestId('risk-panel').textContent).not.toMatch(/\d+\/100/);
   });
 
-  it('uses the earth-from-orbit backdrop', () => {
+  it('uses the runway-at-sunset backdrop', () => {
     const { container } = render(<RiskRadarMeter risk={risk()} />);
-    const backdrop = container.querySelector('[style*="earth-orbit"]') as HTMLElement;
-    expect(backdrop.style.backgroundImage).toContain('/images/risk/earth-orbit.jpg');
+    const backdrop = container.querySelector('[style*="runway-sunset"]') as HTMLElement;
+    expect(backdrop.style.backgroundImage).toContain('/images/risk/runway-sunset.jpg');
   });
 });
