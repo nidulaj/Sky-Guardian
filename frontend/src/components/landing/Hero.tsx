@@ -70,7 +70,7 @@ export default function Hero() {
           {/* Window: in the flow on small screens (cropped by the panel), absolutely placed on large screens */}
           <div
             aria-hidden="true"
-            className="pointer-events-none relative mx-auto -mb-24 mt-14 w-[78%] max-w-[340px] sm:max-w-[400px] lg:absolute lg:bottom-auto lg:right-0 lg:top-[52%] lg:mx-0 lg:mb-0 lg:mt-0 lg:w-[38%] lg:max-w-none lg:-translate-y-1/2 xl:right-4 xl:w-[40%]"
+            className="pointer-events-none relative mx-auto -mb-16 mt-12 w-[55%] max-w-[220px] sm:max-w-[250px] lg:absolute lg:bottom-auto lg:right-4 lg:top-[52%] lg:mx-0 lg:mb-0 lg:mt-0 lg:w-[24%] lg:max-w-[300px] lg:-translate-y-1/2 xl:right-10 xl:w-[22%]"
           >
             <WindowIllustration className="h-auto w-full drop-shadow-[0_30px_40px_rgba(0,0,0,0.35)]" />
           </div>
