@@ -104,8 +104,8 @@ export default function ExplainabilityDrawer({
   const parts = risk
     ? RISK_PARTS.map((p) => {
         const value = p.key === 'flight' ? risk.flight_score : p.key === 'connection' ? risk.connection_score : risk.weather_score;
-        // Missing data (weather_score null) is left out; the Risk agent re-weights the rest (effective_weights).
-        const weight = value === null ? 0 : risk.effective_weights?.[p.key] ?? p.weight;
+        // Missing data (score null) is left out; the Risk agent re-weights the rest (effective_weights).
+        const weight = value === null ? 0 : risk.effective_weights?.[p.key] ?? risk.weights?.[p.key] ?? 0;
         return { ...p, value, weight, points: (value ?? 0) * weight };
       })
     : [];
@@ -173,8 +173,12 @@ export default function ExplainabilityDrawer({
                   <tr className="border-t border-ink/30 font-semibold">
                     <th scope="row" className="py-2.5">Total</th>
                     <td colSpan={3} className="py-2.5 text-right">
-                      {total.toFixed(1)}
-                      {Math.abs(total - risk.score) > 0.05 && <span className="font-normal text-ink-muted"> (shown as {risk.score})</span>}
+                      {risk.score === null ? 'Not scored' : total.toFixed(1)}
+                      {risk.score !== null && Math.abs(total - risk.score) > 0.05 && (
+                        <span className="font-normal text-ink-muted">
+                          {' '}(shown as {risk.score}{risk.applied_overrides?.length ? ', minimum applied' : ''})
+                        </span>
+                      )}
                     </td>
                   </tr>
                 </tbody>

@@ -70,12 +70,13 @@ class TestSkyGuardianAgents(unittest.TestCase):
                 connection_results=[{"status": "LIKELY_MISSED"}],
                 weather_results=[{"weather_risk_score": 60}]
             )
-            # Flight score = 80, Connection score = 90, Weather score = 60
-            # Weighted total = (80 * 0.4) + (90 * 0.35) + (60 * 0.25) = 32 + 31.5 + 15 = 78.5 -> 79
-            agent = RiskAgent(flight_weight=0.40, connection_weight=0.35, weather_weight=0.25)
+            # Weights and bands come from config/risk.yaml:
+            # Flight score = 65 (90 min delay), Connection score = 90, Weather score = 60
+            # Weighted total = (65 * 0.4) + (90 * 0.35) + (60 * 0.25) = 26 + 31.5 + 15 = 72.5 -> 73
+            agent = RiskAgent()
             res = await agent.execute(state)
             self.assertEqual(res.status, "success")
-            self.assertEqual(state.risk_analysis["score"], 79)
+            self.assertEqual(state.risk_analysis["score"], 73)
             self.assertEqual(state.risk_analysis["level"], "HIGH")
             self.assertFalse(state.risk_analysis["is_probability"])
 
@@ -95,7 +96,7 @@ class TestSkyGuardianAgents(unittest.TestCase):
             orchestrator = SupervisorOrchestrator()
             final_state = await orchestrator.run_workflow(state)
             self.assertEqual(final_state.workflow_status, "COMPLETED")
-            self.assertEqual(final_state.risk_analysis["score"], 79)
+            self.assertEqual(final_state.risk_analysis["score"], 73)
             self.assertEqual(final_state.risk_analysis["level"], "HIGH")
             self.assertEqual(len(final_state.policy_evidence), 2)
             self.assertTrue(len(final_state.alternative_options) > 0)

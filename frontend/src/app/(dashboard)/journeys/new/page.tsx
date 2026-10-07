@@ -275,18 +275,7 @@ export default function NewJourneyPage() {
               {/* 02 Risk */}
               <section className="space-y-6">
                 <SectionTitle n={2} label="Risk estimate" />
-                <RiskRadarMeter
-                  score={result.risk.score}
-                  level={result.risk.level}
-                  flightScore={result.risk.flight_score}
-                  connScore={result.risk.connection_score}
-                  weatherScore={result.risk.weather_score}
-                  weatherUnavailableReason={result.risk.components?.weather?.reason}
-                  effectiveWeights={result.risk.effective_weights}
-                  confidence={result.risk.confidence}
-                  confidenceLabel={result.risk.confidence_label}
-                  notes={result.risk.uncertainty}
-                />
+                <RiskRadarMeter risk={result.risk} />
               </section>
 
               {/* 03 Recommendation */}
