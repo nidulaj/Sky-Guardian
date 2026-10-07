@@ -26,10 +26,10 @@ export function validateLeg(leg: FlightLegInput): LegErrors {
   else if (!FLIGHT_NUMBER.test(flight))
     errors.flight_number = 'Use the airline code and number, for example UL001 or SQ638.';
 
-  if (!leg.origin) errors.origin = 'Enter the 3-letter code of the airport you leave from.';
+  if (!leg.origin) errors.origin = 'Type the city or airport you leave from and pick it from the list.';
   else if (!AIRPORT.test(leg.origin)) errors.origin = 'Airport codes have exactly 3 letters, for example CMB.';
 
-  if (!leg.destination) errors.destination = 'Enter the 3-letter code of the airport you fly to.';
+  if (!leg.destination) errors.destination = 'Type the city or airport you fly to and pick it from the list.';
   else if (!AIRPORT.test(leg.destination)) errors.destination = 'Airport codes have exactly 3 letters, for example KUL.';
   else if (leg.destination === leg.origin && AIRPORT.test(leg.origin))
     errors.destination = 'The arrival airport must be different from the departure airport.';

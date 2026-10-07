@@ -26,6 +26,7 @@ dependencies = [
     "truststore>=0.10.0",
     "pyyaml>=6.0.1",
     "tzdata>=2024.1",
+    "airportsdata>=20250101",
     "langgraph>=0.0.30",
     "google-generativeai>=0.4.1",
     "tavily-python>=0.3.1",

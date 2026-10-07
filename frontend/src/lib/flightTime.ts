@@ -44,3 +44,23 @@ export function formatMinutes(minutes: number): string {
   if (h === 0) return `${sign}${m}m`;
   return `${sign}${h}h${m ? ` ${m}m` : ''}`;
 }
+
+/**
+ * Format a timestamp in an airport's local time, e.g. { time: '01:50', date: '20 Oct', zone: 'GMT+5:30' }.
+ * Falls back to UTC when the timezone is missing or unknown.
+ */
+export function formatLocalTime(iso?: string | null, timeZone?: string | null): { time: string; date: string; zone: string } | null {
+  const d = parseIsoUtc(iso);
+  if (!d) return null;
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timeZone || 'UTC', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      day: 'numeric', month: 'short', timeZoneName: 'short',
+    }).formatToParts(d);
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+    return { time: `${get('hour')}:${get('minute')}`, date: `${get('day')} ${get('month')}`, zone: timeZone ? get('timeZoneName') : 'UTC' };
+  } catch {
+    const utc = formatFlightTime(iso);
+    return utc ? { ...utc, zone: 'UTC' } : null;
+  }
+}

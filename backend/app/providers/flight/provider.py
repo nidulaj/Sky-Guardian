@@ -1,6 +1,8 @@
 from app.providers.flight.base import FlightDataProvider
 from app.providers.flight.mock import MockFlightProvider
 from app.providers.flight.aviationstack import AviationStackFlightProvider
+from app.providers.flight.cache import FlightCache
+from app.providers.flight.settings import flight_settings
 from app.config import settings
 from typing import Optional
 
@@ -11,7 +13,7 @@ def _aviationstack() -> FlightDataProvider:
     key = (settings.FLIGHT_API_KEY or "").strip()
     if key in PLACEHOLDER_KEYS:
         raise ValueError("FLIGHT_PROVIDER=aviationstack requires FLIGHT_API_KEY in backend/.env")
-    return AviationStackFlightProvider(api_key=key)
+    return AviationStackFlightProvider(api_key=key, cache=FlightCache(flight_settings.FLIGHT_CACHE_PATH))
 
 
 # Registry of available flight data providers; FLIGHT_PROVIDER selects one by name.

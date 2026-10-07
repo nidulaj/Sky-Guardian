@@ -2,7 +2,7 @@ import React from 'react';
 import { Plane, Info } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { FlightResult } from '@/types/flight';
-import { formatFlightTime, formatMinutes } from '@/lib/flightTime';
+import { formatFlightTime, formatLocalTime, formatMinutes } from '@/lib/flightTime';
 
 const REASON_TEXT: Record<string, string> = {
   FLIGHT_NOT_FOUND: 'No status data found for this flight number on this date.',
@@ -14,10 +14,23 @@ const REASON_TEXT: Record<string, string> = {
   ROUTE_MISMATCH: 'This flight operates a different route than the one entered.',
   DELAY_DERIVED_FROM_TIMES: 'Delay calculated from the published timetable.',
   INVALID_TIMESTAMP: 'Some times from the data source were unreadable and were ignored.',
+  UNKNOWN_AIRPORT: 'One of these airport codes does not exist. Pick the airport from the suggestions.',
+  DATE_NOT_COVERED: 'Flight data is not available for this date (past flights are not covered).',
+  TIMETABLE_ONLY: 'Times from the published timetable. Live delays and gates appear about a day before departure.',
+  TIMEZONE_UNVERIFIED: 'Some times could not be converted to local time and are shown as reported.',
+  INCIDENT_REPORTED: 'The data source reports an incident for this flight. Check with your airline.',
 };
 
-function TimeCell({ label, iso, highlight }: { label: string; iso?: string | null; highlight?: boolean }) {
-  const t = formatFlightTime(iso);
+const DATA_MODE: Record<string, { status: string; label: string }> = {
+  live: { status: 'VERIFIED', label: 'Live status' },
+  timetable: { status: 'SCHEDULED', label: 'Published timetable' },
+  demo: { status: 'DEMO_DATA', label: 'Demo data' },
+};
+
+function TimeCell({ label, iso, timeZone, city, highlight }: {
+  label: string; iso?: string | null; timeZone?: string | null; city?: string | null; highlight?: boolean;
+}) {
+  const t = formatLocalTime(iso, timeZone);
   return (
     <div className="min-w-0 bg-sand-50 px-3 py-3 sm:px-4">
       <dt className="eyebrow">{label}</dt>
@@ -25,7 +38,9 @@ function TimeCell({ label, iso, highlight }: { label: string; iso?: string | nul
         {t ? (
           <>
             <span className={`block text-xl font-semibold tabular-nums ${highlight ? 'text-status-caution' : 'text-ink'}`}>{t.time}</span>
-            <span className="block text-sm text-ink-muted">UTC · {t.date}</span>
+            <span className="block text-sm text-ink-muted" title={timeZone ? `${t.zone} (${timeZone})` : 'Coordinated Universal Time'}>
+              {timeZone ? `${city || 'Local'} time` : 'UTC'} · {t.date}
+            </span>
           </>
         ) : (
           <span className="block text-xl font-semibold text-ink-muted">
@@ -60,26 +75,35 @@ export default function FlightStatusCard({ flight }: { flight: FlightResult }) {
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <Badge status={status} />
+          {flight.data_mode && DATA_MODE[flight.data_mode] && (
+            <Badge status={DATA_MODE[flight.data_mode].status} label={DATA_MODE[flight.data_mode].label} />
+          )}
           {isDelayed && <span className="text-sm font-medium text-status-caution">{formatMinutes(flight.delay_minutes)} late</span>}
         </div>
       </div>
 
       <div className="mt-5 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3" aria-label={`From ${flight.origin || 'unknown'} to ${flight.destination || 'unknown'}`}>
-        <span className="display text-4xl sm:text-5xl text-ink">{flight.origin || '—'}</span>
+        <span className="min-w-0">
+          <span className="display block text-4xl sm:text-5xl text-ink">{flight.origin || '—'}</span>
+          {flight.origin_city && <span className="mt-1 block truncate text-sm text-ink-muted">{flight.origin_city}</span>}
+        </span>
         <span className="flex items-center gap-1.5 text-coral" aria-hidden="true">
           <span className="flex-1 border-t border-dashed border-ink/30" />
           <Plane className="h-4 w-4 fill-current" />
           <span className="flex-1 border-t border-dashed border-ink/30" />
         </span>
-        <span className="display text-4xl sm:text-5xl text-ink">{flight.destination || '—'}</span>
+        <span className="min-w-0 text-right">
+          <span className="display block text-4xl sm:text-5xl text-ink">{flight.destination || '—'}</span>
+          {flight.destination_city && <span className="mt-1 block truncate text-sm text-ink-muted">{flight.destination_city}</span>}
+        </span>
       </div>
 
       {status !== 'UNKNOWN' && (
         <dl className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-px overflow-hidden rounded-2xl border border-ink/10 bg-ink/10">
-          <TimeCell label="Sched. dep." iso={flight.scheduled_departure} />
-          <TimeCell label={flight.actual_departure ? 'Actual dep.' : 'Expected dep.'} iso={expectedDeparture} highlight={isDelayed} />
-          <TimeCell label="Sched. arr." iso={flight.scheduled_arrival} />
-          <TimeCell label={flight.actual_arrival ? 'Actual arr.' : 'Expected arr.'} iso={expectedArrival} highlight={isDelayed} />
+          <TimeCell label="Sched. dep." iso={flight.scheduled_departure} timeZone={flight.origin_timezone} city={flight.origin_city} />
+          <TimeCell label={flight.actual_departure ? 'Actual dep.' : 'Expected dep.'} iso={expectedDeparture} timeZone={flight.origin_timezone} city={flight.origin_city} highlight={isDelayed} />
+          <TimeCell label="Sched. arr." iso={flight.scheduled_arrival} timeZone={flight.destination_timezone} city={flight.destination_city} />
+          <TimeCell label={flight.actual_arrival ? 'Actual arr.' : 'Expected arr.'} iso={expectedArrival} timeZone={flight.destination_timezone} city={flight.destination_city} highlight={isDelayed} />
         </dl>
       )}
 

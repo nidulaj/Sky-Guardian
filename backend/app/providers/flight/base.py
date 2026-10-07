@@ -14,6 +14,10 @@ class FlightDataUnavailableError(FlightProviderError):
     """The provider could not be reached or returned unusable data."""
 
 
+class FlightDateNotCoveredError(FlightProviderError):
+    """The provider has no data for this date range (e.g. past dates on a free plan)."""
+
+
 class FlightDataProvider(ABC):
     name: str = "FlightDataProvider"
 

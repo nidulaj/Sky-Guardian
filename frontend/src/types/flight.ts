@@ -25,9 +25,18 @@ export interface FlightResult {
   delay_minutes: number;
   terminal?: string | null;
   gate?: string | null;
+  arrival_terminal?: string | null;
   source: string;
   retrieved_at: string;
   reason_codes?: string[];
+  /** live: real-time status; timetable: published schedule (no delays yet); demo: sample data; none: no data */
+  data_mode?: 'live' | 'timetable' | 'demo' | 'none';
+  origin_name?: string | null;
+  origin_city?: string | null;
+  origin_timezone?: string | null;
+  destination_name?: string | null;
+  destination_city?: string | null;
+  destination_timezone?: string | null;
 }
 
 export type ConnectionStatus = 'SAFE' | 'MODERATE_RISK' | 'HIGH_RISK' | 'LIKELY_MISSED' | 'MISSED' | 'UNKNOWN';
