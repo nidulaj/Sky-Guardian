@@ -64,7 +64,7 @@ class RiskAgent(BaseAgent):
 
         # Weighted Total
         total_risk = (flight_score * self.w_flight) + (connection_score * self.w_conn) + (weather_score * self.w_weather)
-        risk_int = int(round(total_risk))
+        risk_int = int(round(total_risk + 1e-6))
 
         if risk_int >= 80:
             level = "VERY_HIGH"

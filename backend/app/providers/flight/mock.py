@@ -36,7 +36,7 @@ class MockFlightProvider(FlightDataProvider):
                 "retrieved_at": datetime.utcnow().isoformat()
             }
         elif flight_upper == "XX123" or (origin.upper() == "KUL" and destination.upper() == "NRT"):
-            sched_dep = f"{travel_date}T16:20:00Z"
+            sched_dep = f"{travel_date}T17:30:00Z"
             sched_arr = f"{travel_date}T23:50:00Z"
             return {
                 "flight_number": "XX123",

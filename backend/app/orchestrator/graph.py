@@ -65,15 +65,30 @@ class SupervisorOrchestrator:
         await self.recovery_agent.execute(state)
 
         state.workflow_status = "COMPLETED"
-        state.updated_at = datetime.utcnow().isoformat()
+        from datetime import timezone
+        state.updated_at = datetime.now(timezone.utc).isoformat()
         
-        # Populate source metadata
-        state.sources = [
+        # Base aviation telemetry sources
+        telemetry_sources = [
             {"name": "MockFlightProvider", "type": "Aviation Data", "verified": True},
-            {"name": "MockWeatherProvider", "type": "Weather Forecast", "verified": True},
-            {"name": "SriLankan Airlines Conditions of Carriage", "type": "Policy Document", "verified": True},
-            {"name": "Malaysia Airlines Customer Commitment", "type": "Policy Document", "verified": True}
+            {"name": "MockWeatherProvider", "type": "Weather Forecast", "verified": True}
         ]
+        
+        # Merge with verified RAG policy documents
+        combined_sources = list(telemetry_sources)
+        seen_names = {s["name"] for s in combined_sources}
+        for s in state.sources:
+            if s.get("name") and s["name"] not in seen_names:
+                combined_sources.append(s)
+                seen_names.add(s["name"])
+
+        for pe in state.policy_evidence:
+            title = pe.get("title")
+            if title and title not in seen_names:
+                combined_sources.append({"name": title, "type": "Policy Document", "verified": True})
+                seen_names.add(title)
+                
+        state.sources = combined_sources
         
         state.warnings.append("SkyGuardian AI provides travel disruption guidance based on available schedule estimates. Confirm critical travel updates with your carrier.")
 

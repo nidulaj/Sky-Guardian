@@ -33,6 +33,18 @@ class Settings(BaseSettings):
     WEATHER_PROVIDER: str = "mock"
     WEATHER_API_KEY: Optional[str] = "mock_key"
 
+    # RAG (Retrieval-Augmented Generation) Settings
+    RAG_ENABLED: bool = True
+    RAG_TOP_K: int = 3
+    RAG_SIMILARITY_THRESHOLD: float = 0.40
+    RAG_CHUNK_SIZE: int = 600
+    RAG_CHUNK_OVERLAP: int = 80
+    RAG_MAX_CONTEXT_LENGTH: int = 3000
+    EMBEDDING_PROVIDER: str = "mock"  # "mock", "gemini", "openai"
+    EMBEDDING_MODEL: str = "models/text-embedding-004"
+    KNOWLEDGE_STORE_BACKEND: str = "memory"  # "memory", "pgvector"
+    KNOWLEDGE_CACHE_SIZE: int = 256
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

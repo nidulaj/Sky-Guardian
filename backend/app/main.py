@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api import health, auth, journeys
+from app.rag.router import router as rag_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -22,6 +23,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(journeys.router)
+app.include_router(rag_router)
 
 @app.get("/")
 async def root():
