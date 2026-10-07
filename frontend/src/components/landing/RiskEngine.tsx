@@ -1,98 +1,168 @@
 import React from 'react';
-import { Info } from 'lucide-react';
-import SectionHeading from './SectionHeading';
+import { AlertTriangle, ArrowLeftRight, CloudSun, Info, Plane, ShieldCheck } from 'lucide-react';
+import Badge from '@/components/ui/Badge';
 
+// Mirrors config/risk.yaml (the Risk agent's single source of truth). Update both together.
 const WEIGHTS = [
-  { label: 'Flight', weight: 40, note: 'Delay, cancellation or diversion on any leg', bar: 'bg-ink' },
-  { label: 'Connection', weight: 35, note: 'Transfer minutes against the minimum needed', bar: 'bg-coral-deep' },
-  { label: 'Weather', weight: 25, note: 'Conditions at departure and transfer airports', bar: 'bg-mist-deep' },
+  { key: 'flight', label: 'Flight', weight: 40, note: 'Delay, cancellation or diversion on any leg', bar: 'bg-sand-50', Icon: Plane },
+  { key: 'connection', label: 'Connection', weight: 35, note: 'Transfer minutes against the minimum needed', bar: 'bg-coral', Icon: ArrowLeftRight },
+  { key: 'weather', label: 'Weather', weight: 25, note: 'Conditions at departure, transfer and arrival airports', bar: 'bg-mist', Icon: CloudSun },
 ];
 
 const BANDS = [
-  { label: 'Low', range: '0–29', span: 30, swatch: 'bg-status-safe', pill: 'bg-status-safe-bg text-status-safe', meaning: 'Your journey looks on track.' },
-  { label: 'Moderate', range: '30–59', span: 30, swatch: 'bg-status-caution', pill: 'bg-status-caution-bg text-status-caution', meaning: 'Worth keeping an eye on.' },
-  { label: 'High', range: '60–79', span: 20, swatch: 'bg-status-high', pill: 'bg-status-high-bg text-status-high', meaning: 'Rules and alternatives are checked for you.' },
-  { label: 'Very high', range: '80–100', span: 20, swatch: 'bg-status-danger', pill: 'bg-status-danger-bg text-status-danger', meaning: 'Plan for disruption and contact your airline.' },
+  { status: 'LOW', label: 'Low', range: '0–29', span: 30, fill: 'bg-status-safe-bg', meaning: 'Your journey looks on track.' },
+  { status: 'MODERATE', label: 'Moderate', range: '30–59', span: 30, fill: 'bg-status-caution-bg', meaning: 'Worth keeping an eye on.' },
+  { status: 'HIGH', label: 'High', range: '60–79', span: 20, fill: 'bg-coral-peach', meaning: 'Rules and alternatives are checked for you.' },
+  { status: 'VERY_HIGH', label: 'Very high', range: '80–100', span: 20, fill: 'bg-coral', meaning: 'Plan for disruption and contact your airline.' },
 ];
 
-const EXAMPLE = [
-  { label: 'Flight', score: 80, weight: 0.4 },
-  { label: 'Connection', score: 90, weight: 0.35 },
-  { label: 'Weather', score: 60, weight: 0.25 },
+// How each agent result becomes a 0-100 part score.
+const SCORING = [
+  {
+    label: 'Flight',
+    source: 'Flight agent · worst leg counts',
+    Icon: Plane,
+    rows: [
+      ['On time', '0'], ['Up to 15 min late', '10'], ['Up to 30 min', '25'], ['Up to 60 min', '45'],
+      ['Up to 90 min', '65'], ['Up to 120 min', '80'], ['Over 120 min', '95'], ['Diverted', '90'], ['Cancelled', '100'],
+    ],
+  },
+  {
+    label: 'Connection',
+    source: 'Connection agent · worst transfer counts',
+    Icon: ArrowLeftRight,
+    rows: [['Safe', '10'], ['Moderate risk', '40'], ['High risk', '70'], ['Likely missed', '90'], ['Missed', '100']],
+  },
+  {
+    label: 'Weather',
+    source: 'Weather agent · worst airport counts',
+    Icon: CloudSun,
+    rows: [['Rain and snow', 'up to 35'], ['Thunderstorms', 'up to 30'], ['Wind', 'up to 28'], ['Visibility', 'up to 28'], ['Official alerts', 'up to 30']],
+    note: 'Capped at 100. Rain, snow and storms usually come together, so they are not double-counted.',
+  },
 ];
+
+// The demo journey (UL001 CMB→KUL, then XX123 KUL→NRT), as the Risk agent scores it.
+const EXAMPLE = [
+  { label: 'Flight', score: 65, weight: 0.4, why: 'UL001 is 90 min late' },
+  { label: 'Connection', score: 90, weight: 0.35, why: '30 min at KUL, 60 needed' },
+  { label: 'Weather', score: 60, weight: 0.25, why: 'Storms forecast at KUL' },
+];
+
+const SAFEGUARDS = [
+  { title: 'Missing data is never 0', text: 'If an agent has no data, that part is left out, the other weights are scaled up and confidence drops.' },
+  { title: 'Cancellations count fully', text: 'A cancelled flight puts the journey at 90 or more, whatever the weather.' },
+  { title: 'Missed connections too', text: 'A connection that cannot be made puts the journey at 80 or more.' },
+];
+
+const RUNWAY_IMAGE = '/images/risk/runway-sunset.jpg';
+const card = (extra = '') => `rounded-3xl border border-sand-50/10 bg-cabin-dark/75 backdrop-blur-md ${extra}`;
 
 export default function RiskEngine() {
-  const total = EXAMPLE.reduce((sum, row) => sum + row.score * row.weight, 0);
-  return (
-    <section id="risk-engine" aria-labelledby="risk-title" className="scroll-mt-4 px-2 sm:px-3">
-      <div className="rounded-4xl bg-sand-100">
-        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24">
-          <SectionHeading
-            id="risk-title"
-            eyebrow="05 / Risk engine"
-            aside="Same inputs, same score. Every time."
-            title="A score you can"
-            accent="check by hand."
-            description="No hidden model decides your risk. Three signals, each scored 0–100, are combined with fixed weights you can see below."
-          />
+  const weighted = EXAMPLE.reduce((sum, row) => sum + row.score * row.weight, 0);
+  const rounded = Math.floor(weighted + 0.5 + 1e-9); // the Risk agent rounds halves up
 
-          <div className="mt-14 grid gap-6 lg:grid-cols-12">
+  return (
+    <section id="risk-engine" aria-labelledby="risk-title" className="scroll-mt-4">
+      {/* Same column as the sections above (max-w-7xl with side padding) */}
+      <div className="mx-auto max-w-7xl px-5 pb-20 sm:px-8 sm:pb-28">
+      <div className="relative isolate overflow-hidden rounded-4xl bg-cabin-dark text-sand-50">
+        {/* Runway at sunset, matching the Risk agent panel on the journey page */}
+        <div className="absolute inset-0 -z-10 bg-cover bg-top" style={{ backgroundImage: `url('${RUNWAY_IMAGE}')` }} aria-hidden="true" />
+        <div
+          className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(43,36,31,0.6)_0%,rgba(43,36,31,0.25)_14%,rgba(43,36,31,0.7)_28%,rgba(43,36,31,0.92)_45%,rgba(43,36,31,0.97)_100%)]"
+          aria-hidden="true"
+        />
+
+        <div className="px-5 py-12 sm:px-10 sm:py-16">
+          {/* Heading (same structure as SectionHeading, light on the photo) */}
+          <div className="border-t border-sand-50/25 pt-5 [text-shadow:0_2px_12px_rgba(0,0,0,0.45)]">
+            <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-2">
+              <p className="eyebrow text-sand-100">05 / Risk engine</p>
+              <p className="eyebrow hidden max-w-xs text-right text-sand-100 sm:block">Same inputs, same score. Every time.</p>
+            </div>
+            <div className="mt-10 grid gap-6 lg:grid-cols-12 lg:items-end">
+              <h2 id="risk-title" className="display text-4xl text-white sm:text-5xl lg:col-span-7 lg:text-6xl">
+                A score you can <span className="accent text-coral-peach">check by hand.</span>
+              </h2>
+              <p className="text-base leading-relaxed text-sand-100 sm:text-lg lg:col-span-5 lg:pb-1">
+                No hidden model decides your risk. The Risk agent takes the Flight, Connection and Weather agent results,
+                scores each 0–100 and combines them with fixed weights you can see below.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-24 grid gap-5 sm:mt-32 lg:mt-40 lg:grid-cols-12">
             {/* Formula */}
-            <div className="rounded-3xl border border-ink/10 bg-sand-50 p-6 sm:p-8 lg:col-span-7">
-              <p className="eyebrow">The formula</p>
-              <p className="mt-4 font-mono text-base leading-relaxed text-ink sm:text-lg">
+            <div className={card('p-6 sm:p-8 lg:col-span-7')}>
+              <p className="eyebrow text-sand-300">The formula</p>
+              <p className="mt-4 font-mono text-base leading-relaxed text-white sm:text-lg">
                 <span className="whitespace-nowrap">risk =</span>{' '}
                 <span className="whitespace-nowrap">flight × 0.40</span>{' '}
                 <span className="whitespace-nowrap">+ connection × 0.35</span>{' '}
                 <span className="whitespace-nowrap">+ weather × 0.25</span>
               </p>
 
-              <div className="mt-8 flex h-3 overflow-hidden rounded-full" aria-hidden="true">
+              <div className="mt-8 flex h-3 gap-0.5 overflow-hidden rounded-full" aria-hidden="true">
                 {WEIGHTS.map((w) => (
-                  <div key={w.label} className={w.bar} style={{ width: `${w.weight}%` }} />
+                  <div key={w.key} className={w.bar} style={{ width: `${w.weight}%` }} />
                 ))}
               </div>
 
-              <ul className="mt-6 divide-y divide-ink/10 border-y border-ink/10">
-                {WEIGHTS.map((w) => (
-                  <li key={w.label} className="flex items-start gap-4 py-4">
-                    <span className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full ${w.bar}`} aria-hidden="true" />
+              <ul className="mt-6 divide-y divide-sand-50/10 border-y border-sand-50/10">
+                {WEIGHTS.map(({ key, label, weight, note, bar, Icon }) => (
+                  <li key={key} className="flex items-center gap-4 py-4">
+                    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-sand-50/15">
+                      <Icon className="h-4 w-4 text-coral-peach" aria-hidden="true" />
+                    </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-base font-semibold text-ink">{w.label}</p>
-                      <p className="text-sm leading-relaxed text-ink-soft">{w.note}</p>
+                      <p className="flex items-center gap-2 text-lg font-medium text-white">
+                        <span className={`h-2 w-2 rounded-full ${bar}`} aria-hidden="true" />
+                        {label}
+                      </p>
+                      <p className="text-sm leading-relaxed text-sand-300">{note}</p>
                     </div>
-                    <span className="display text-4xl text-ink sm:text-5xl">{w.weight}%</span>
+                    <span className="display text-4xl text-white tabular-nums sm:text-5xl">{weight}%</span>
                   </li>
                 ))}
               </ul>
 
-              <div className="mt-6 rounded-2xl bg-sand-200 p-5">
-                <p className="eyebrow">Worked example · sample numbers</p>
-                <p className="mt-3 font-mono text-sm leading-relaxed text-ink">
-                  {EXAMPLE.map((row, i) => (
-                    <React.Fragment key={row.label}>
-                      {i > 0 && ' + '}
-                      <span className="whitespace-nowrap">
-                        {row.score} × {row.weight.toFixed(2)}
-                      </span>
-                    </React.Fragment>
-                  ))}{' '}
-                  = <strong className="font-semibold">{total.toFixed(1)}</strong> → High
+              {/* Worked example */}
+              <div className="mt-6 rounded-2xl border border-sand-50/10 bg-sand-50/5 p-5">
+                <p className="eyebrow text-sand-300">Worked example · demo journey CMB → KUL → NRT</p>
+                <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+                  {EXAMPLE.map((row) => (
+                    <li key={row.label}>
+                      <p className="text-sm text-sand-300">{row.label}</p>
+                      <p className="display text-3xl text-white tabular-nums">
+                        {row.score}
+                        <span className="text-base text-sand-300"> × {row.weight.toFixed(2)}</span>
+                      </p>
+                      <p className="text-sm text-sand-100">{row.why}</p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-sand-50/10 pt-4 font-mono text-sm text-sand-100">
+                  <span>
+                    {EXAMPLE.map((r) => (r.score * r.weight).toFixed(1).replace(/\.0$/, '')).join(' + ')} ={' '}
+                    <strong className="font-semibold text-white">{weighted.toFixed(1)}</strong> → {rounded}
+                  </span>
+                  <Badge status="HIGH" label="High risk" />
                 </p>
               </div>
             </div>
 
-            {/* Bands */}
-            <div className="flex flex-col rounded-3xl border border-ink/10 bg-sand-50 p-6 sm:p-8 lg:col-span-5">
-              <p className="eyebrow">What the levels mean</p>
+            {/* Levels */}
+            <div className={card('flex flex-col p-6 sm:p-8 lg:col-span-5')}>
+              <p className="eyebrow text-sand-300">What the levels mean</p>
 
               <div className="mt-6" aria-hidden="true">
                 <div className="flex h-3 gap-1">
                   {BANDS.map((b) => (
-                    <div key={b.label} className={`${b.swatch} rounded-full`} style={{ width: `${b.span}%` }} />
+                    <div key={b.status} className={`${b.fill} rounded-full`} style={{ width: `${b.span}%` }} />
                   ))}
                 </div>
-                <div className="mt-2 flex justify-between font-mono text-xs text-ink-muted">
+                <div className="mt-2 flex justify-between font-mono text-xs text-sand-300">
                   <span>0</span>
                   <span>30</span>
                   <span>60</span>
@@ -101,34 +171,73 @@ export default function RiskEngine() {
                 </div>
               </div>
 
-              <ul className="mt-6 divide-y divide-ink/10 border-y border-ink/10">
+              <ul className="mt-6 divide-y divide-sand-50/10 border-y border-sand-50/10">
                 {BANDS.map((b) => (
-                  <li key={b.label} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-4">
-                    <span
-                      className={`inline-flex min-w-[6.5rem] items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-xs font-medium uppercase tracking-[0.08em] ${b.pill}`}
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
-                      {b.label}
-                    </span>
-                    <span className="font-mono text-sm text-ink">{b.range}</span>
-                    <span className="w-full text-sm leading-relaxed text-ink-soft">
-                      {b.meaning}
-                    </span>
+                  <li key={b.status} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-4">
+                    <Badge status={b.status} label={b.label} className="min-w-[6.5rem]" />
+                    <span className="font-mono text-sm text-white">{b.range}</span>
+                    <span className="w-full text-sm leading-relaxed text-sand-100">{b.meaning}</span>
                   </li>
                 ))}
               </ul>
 
               <div className="hidden lg:block lg:flex-1" aria-hidden="true" />
-              <div className="mt-6 flex gap-3 rounded-2xl border border-coral-deep/25 bg-coral-soft/60 p-5">
-                <Info className="mt-0.5 h-5 w-5 shrink-0 text-coral-deep" aria-hidden="true" />
-                <p className="text-base leading-relaxed text-ink">
-                  <strong className="font-semibold">An estimate, not a probability.</strong> A score of 70 does not
+              <div className="mt-6 flex gap-3 rounded-2xl border border-coral-peach/30 bg-coral/10 p-5">
+                <Info className="mt-0.5 h-5 w-5 shrink-0 text-coral-peach" aria-hidden="true" />
+                <p className="text-base leading-relaxed text-sand-100">
+                  <strong className="font-semibold text-white">An estimate, not a probability.</strong> A score of 70 does not
                   mean a 70% chance of missing your flight. Always confirm changes with your airline.
                 </p>
               </div>
             </div>
           </div>
+
+          {/* How each part is scored */}
+          <div className="mt-5 grid gap-5 md:grid-cols-3">
+            {SCORING.map(({ label, source, Icon, rows, note }) => (
+              <div key={label} className={card('p-6')}>
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-sand-50/15">
+                    <Icon className="h-4 w-4 text-coral-peach" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="text-lg font-medium text-white">{label} score</p>
+                    <p className="font-mono text-[11px] uppercase tracking-label text-sand-300">{source}</p>
+                  </div>
+                </div>
+                <dl className="mt-4 divide-y divide-sand-50/10 text-sm">
+                  {rows.map(([what, pts]) => (
+                    <div key={what} className="flex justify-between gap-4 py-2">
+                      <dt className="text-sand-100">{what}</dt>
+                      <dd className="font-mono text-white tabular-nums">{pts}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {note && <p className="mt-3 text-sm leading-relaxed text-sand-300">{note}</p>}
+              </div>
+            ))}
+          </div>
+
+          {/* Safeguards */}
+          <div className={card('mt-5 p-6 sm:p-8')}>
+            <p className="eyebrow flex items-center gap-2 text-sand-300">
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              Built-in safeguards
+            </p>
+            <ul className="mt-5 grid gap-6 md:grid-cols-3">
+              {SAFEGUARDS.map((s) => (
+                <li key={s.title} className="flex gap-3">
+                  <AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-status-caution-bg" aria-hidden="true" />
+                  <div>
+                    <p className="text-base font-medium text-white">{s.title}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-sand-100">{s.text}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
+      </div>
       </div>
     </section>
   );
