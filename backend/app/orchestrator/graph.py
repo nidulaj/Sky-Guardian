@@ -8,6 +8,7 @@ from app.agents.policy_agent import PolicyAgent
 from app.agents.alternative_agent import AlternativeAgent
 from app.agents.recovery_agent import RecoveryAgent
 from app.config import settings
+from app.llm import get_llm_provider
 from app.schemas.journey import AgentRun
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict
@@ -78,7 +79,7 @@ class SupervisorOrchestrator:
         self.risk_agent = RiskAgent()
         self.policy_agent = PolicyAgent()
         self.alternative_agent = AlternativeAgent()
-        self.recovery_agent = RecoveryAgent()
+        self.recovery_agent = RecoveryAgent(llm_provider=get_llm_provider(settings))
         self.graph = self._build_graph()
 
     def _build_graph(self):
