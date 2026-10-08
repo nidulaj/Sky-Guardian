@@ -26,6 +26,8 @@ class JourneyState(BaseModel):
     recommended_option: Optional[Dict[str, Any]] = None
     recommendation_text: str = ""
     recovery_plan: Optional[Dict[str, Any]] = None
+    # "llm" when the plan is a validated LLM answer, "template" for the deterministic summary.
+    recommendation_mode: str = "template"
 
     # Supervisor routing and public workflow trace
     alternatives_requested: bool = False
