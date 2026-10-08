@@ -7,6 +7,7 @@ from httpx import AsyncClient, ASGITransport
 from app.api import journeys
 from app.config import settings
 from app.main import app
+from app.orchestrator.routing import should_trigger_recovery
 
 DEMO_LEGS = [
     {"flight_number": "UL001", "travel_date": "2026-09-15", "origin": "CMB", "destination": "KUL"},
@@ -89,3 +90,57 @@ async def test_alternative_agent_crash_reports_unavailable_search(monkeypatch):
     state = await orchestrator.run_workflow(journeys.JourneyState(journey_legs=DEMO_LEGS))
     assert state.alternative_search["status"] == "unavailable"
     assert state.alternative_options == [] and state.recommended_option is None
+
+
+SAFE_LEGS = [
+    {"flight_number": "UL306", "travel_date": "2026-09-15", "origin": "CMB", "destination": "SIN"},
+    {"flight_number": "SQ638", "travel_date": "2026-09-15", "origin": "SIN", "destination": "NRT"},
+]
+
+
+@pytest.mark.parametrize("fields,reasons", [
+    ({"flight_results": [{"status": "ON_TIME"}, {"status": "CANCELLED"}]}, ["FLIGHT_CANCELLED"]),
+    ({"connection_results": [{"status": "SAFE"}, {"status": "LIKELY_MISSED"}]}, ["CONNECTION_AT_RISK"]),
+    ({"connection_results": [{"status": "MISSED"}]}, ["CONNECTION_AT_RISK"]),
+    ({"risk_analysis": {"score": 60}}, ["RISK_ABOVE_THRESHOLD"]),
+    ({"alternatives_requested": True}, ["PASSENGER_REQUESTED"]),
+    ({"risk_analysis": {"score": 59}, "connection_results": [{"status": "MODERATE_RISK"}]}, []),
+    ({"risk_analysis": {"score": None, "level": "UNKNOWN"}}, []),
+])
+def test_should_trigger_recovery_rules(fields, reasons):
+    assert should_trigger_recovery(journeys.JourneyState(**fields), threshold=60) == (bool(reasons), reasons)
+
+
+def test_all_reasons_are_reported_together():
+    state = journeys.JourneyState(flight_results=[{"status": "CANCELLED"}], connection_results=[{"status": "MISSED"}],
+                         risk_analysis={"score": 90}, alternatives_requested=True)
+    assert should_trigger_recovery(state, 60)[1] == [
+        "FLIGHT_CANCELLED", "CONNECTION_AT_RISK", "RISK_ABOVE_THRESHOLD", "PASSENGER_REQUESTED"]
+
+
+@pytest.mark.asyncio
+async def test_low_risk_journey_skips_policy_and_alternatives():
+    state = await journeys.orchestrator.run_workflow(journeys.JourneyState(journey_legs=SAFE_LEGS))
+    assert state.recovery_triggered is False and state.recovery_reasons == []
+    assert runs(state)["policy_agent"].status == "skipped"
+    assert runs(state)["alternative_agent"].status == "skipped"
+    assert runs(state)["recovery_agent"].status == "success"
+    assert state.workflow_status == "COMPLETED"
+
+
+@pytest.mark.asyncio
+async def test_cancelled_flight_triggers_recovery():
+    legs = [{"flight_number": "UL504", "travel_date": "2026-09-15", "origin": "CMB", "destination": "LHR"}]
+    state = await journeys.orchestrator.run_workflow(journeys.JourneyState(journey_legs=legs))
+    assert state.recovery_triggered is True
+    assert "FLIGHT_CANCELLED" in state.recovery_reasons
+    assert runs(state)["policy_agent"].status != "skipped"
+
+
+@pytest.mark.asyncio
+async def test_passenger_request_triggers_recovery_on_a_safe_journey():
+    state = await journeys.orchestrator.run_workflow(
+        journeys.JourneyState(journey_legs=SAFE_LEGS, alternatives_requested=True))
+    assert state.recovery_triggered is True
+    assert state.recovery_reasons == ["PASSENGER_REQUESTED"]
+    assert runs(state)["alternative_agent"].status != "skipped"

@@ -1,4 +1,5 @@
 from app.orchestrator.state import JourneyState
+from app.orchestrator.routing import should_trigger_recovery
 from app.agents.flight_agent import FlightAgent
 from app.agents.connection_agent import ConnectionAgent
 from app.agents.weather_agent import WeatherAgent
@@ -87,19 +88,13 @@ class SupervisorOrchestrator:
         for name in ("flight_agent", "connection_agent", "weather_agent", "risk_agent"):
             await self._run_agent(name, state)
 
-        # Step 5: Conditional Routing
-        # score is None when the Risk Agent had no usable data; that alone does not trigger recovery.
-        risk_score = state.risk_analysis.get("score") if state.risk_analysis else None
+        # Step 5: Conditional Routing (see routing.should_trigger_recovery)
         threshold = self.risk_agent.config.triggers.recovery_trigger_threshold
-        needs_recovery = (
-            any(f.get("status") == "CANCELLED" for f in state.flight_results) or
-            (risk_score is not None and risk_score >= threshold) or
-            any(c.get("status") in ["HIGH_RISK", "LIKELY_MISSED", "MISSED"] for c in state.connection_results)
-        )
+        state.recovery_triggered, state.recovery_reasons = should_trigger_recovery(state, threshold)
 
         state.alternative_options, state.recommended_option = [], None
         state.alternative_search = {"status": "not_needed"}
-        if needs_recovery:
+        if state.recovery_triggered:
             # Step 5a: Policy Agent
             await self._run_agent("policy_agent", state)
             # Step 5b: Alternative Agent
