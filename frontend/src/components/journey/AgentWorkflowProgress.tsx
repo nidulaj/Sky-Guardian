@@ -4,13 +4,13 @@ import React, { useEffect, useState } from 'react';
 
 // What each agent does. Deliberately generic: this list never shows results, only the order of work.
 export const AGENTS = [
-  { name: 'Flight', title: 'Looks up each flight', desc: 'Schedule, live status and any reported delay for every leg.' },
-  { name: 'Connection', title: 'Measures each transfer', desc: 'Time between landing and the next departure, against the airport minimum.' },
-  { name: 'Weather', title: 'Checks the airports', desc: 'Current conditions at every airport on the route.' },
-  { name: 'Risk', title: 'Builds the risk score', desc: 'A weighted 0–100 estimate from flights, connections and weather.' },
-  { name: 'Policy', title: 'Finds airline rules', desc: 'Rebooking and care policies that may apply to your trip.' },
-  { name: 'Alternative', title: 'Ranks other routes', desc: 'Backup itineraries if the original plan looks shaky.' },
-  { name: 'Recovery', title: 'Writes your advice', desc: 'A plain-language summary of what to do next.' },
+  { id: 'flight_agent', name: 'Flight', title: 'Looks up each flight', desc: 'Schedule, live status and any reported delay for every leg.' },
+  { id: 'connection_agent', name: 'Connection', title: 'Measures each transfer', desc: 'Time between landing and the next departure, against the airport minimum.' },
+  { id: 'weather_agent', name: 'Weather', title: 'Checks the airports', desc: 'Current conditions at every airport on the route.' },
+  { id: 'risk_agent', name: 'Risk', title: 'Builds the risk score', desc: 'A weighted 0–100 estimate from flights, connections and weather.' },
+  { id: 'policy_agent', name: 'Policy', title: 'Finds airline rules', desc: 'Rebooking and care policies that may apply to your trip.' },
+  { id: 'alternative_agent', name: 'Alternative', title: 'Ranks other routes', desc: 'Backup itineraries if the original plan looks shaky.' },
+  { id: 'recovery_agent', name: 'Recovery', title: 'Writes your advice', desc: 'A plain-language summary of what to do next.' },
 ];
 
 const pad2 = (n: number) => String(n).padStart(2, '0');

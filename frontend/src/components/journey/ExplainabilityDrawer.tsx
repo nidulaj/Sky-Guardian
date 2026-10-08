@@ -4,9 +4,10 @@ import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import Badge, { statusLabel } from '@/components/ui/Badge';
 import type { FlightResult } from '@/types/flight';
-import type { ConnectionSummary, RiskSummary, SourceRef } from '@/types/journey';
+import type { AgentRun, ConnectionSummary, RecoveryReason, RiskSummary, SourceRef } from '@/types/journey';
 import { formatMinutes } from '@/lib/flightTime';
 import { RISK_PARTS } from './RiskRadarMeter';
+import { AGENTS } from './AgentWorkflowProgress';
 
 interface ExplainabilityDrawerProps {
   isOpen: boolean;
@@ -18,6 +19,27 @@ interface ExplainabilityDrawerProps {
   connectionAirport?: string | null;
   sources?: SourceRef[];
   traceId?: string | null;
+  workflowTrace?: AgentRun[];
+  recoveryReasons?: RecoveryReason[];
+}
+
+export const RECOVERY_REASON_TEXT: Record<RecoveryReason, string> = {
+  FLIGHT_CANCELLED: 'A flight on this journey is reported as cancelled.',
+  CONNECTION_AT_RISK: 'A connection is at risk of being missed.',
+  RISK_ABOVE_THRESHOLD: 'The risk estimate reached the level where backup options are checked.',
+  PASSENGER_REQUESTED: 'You asked to see alternative flights.',
+};
+
+const RUN_STATUS_TEXT: Record<AgentRun['status'], string> = {
+  success: 'Done',
+  partial: 'Done, some data missing',
+  unavailable: 'Data unavailable',
+  error: 'Could not run',
+  skipped: 'Not needed',
+};
+
+function agentName(id: string): string {
+  return AGENTS.find((a) => a.id === id)?.name ?? id.replace(/_agent$/, '').replace(/_/g, ' ');
 }
 
 function flightSentence(f: FlightResult): string {
@@ -56,6 +78,8 @@ export default function ExplainabilityDrawer({
   connectionAirport,
   sources = [],
   traceId,
+  workflowTrace = [],
+  recoveryReasons = [],
 }: ExplainabilityDrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -229,13 +253,52 @@ export default function ExplainabilityDrawer({
             </Section>
           )}
 
+          {recoveryReasons.length > 0 && (
+            <Section n={++n} title="Why recovery options were checked">
+              <ul className="list-disc space-y-1.5 pl-5 text-base text-ink-soft leading-relaxed">
+                {recoveryReasons.map((r) => (
+                  <li key={r}>{RECOVERY_REASON_TEXT[r] ?? r}</li>
+                ))}
+              </ul>
+            </Section>
+          )}
+
+          {workflowTrace.length > 0 && (
+            <Section n={++n} title="How the agents ran">
+              <ol className="space-y-3">
+                {workflowTrace.map((run) => (
+                  <li key={run.agent} className="border-t border-ink/10 pt-3 first:border-t-0 first:pt-0">
+                    <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                      <span className="text-base text-ink">{agentName(run.agent)} agent</span>
+                      <span className={`text-sm ${run.status === 'error' ? 'text-status-danger' : 'text-ink-soft'}`}>
+                        {RUN_STATUS_TEXT[run.status] ?? run.status}
+                        {run.duration_ms != null && run.status !== 'skipped' && (
+                          <span className="text-ink-muted tabular-nums"> · {(run.duration_ms / 1000).toFixed(1)} s</span>
+                        )}
+                      </span>
+                    </p>
+                    {run.warnings.length > 0 && (
+                      <ul className="mt-1 space-y-1 text-sm text-ink-muted">
+                        {run.warnings.map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </Section>
+          )}
+
           <Section n={++n} title="Sources used">
             {sources.length > 0 ? (
               <ul className="space-y-2">
                 {sources.map((s, i) => (
                   <li key={`${s.name}-${i}`} className="flex flex-wrap justify-between gap-x-4 text-base text-ink">
                     <span>{s.name}</span>
-                    {s.type && <span className="text-sm text-ink-muted">{s.type}</span>}
+                    <span className="text-sm text-ink-muted">
+                      {[s.type, s.verified === false ? 'Not verified' : null].filter(Boolean).join(' · ')}
+                    </span>
                   </li>
                 ))}
               </ul>
