@@ -87,3 +87,21 @@ async def test_flight_results_carry_airport_names_and_timezones():
     assert flight["origin_city"] == "Colombo" and flight["destination_city"] == "Kuala Lumpur"
     assert flight["origin_timezone"] == "Asia/Colombo" and flight["destination_timezone"] == "Asia/Kuala_Lumpur"
     assert flight["data_mode"] == "demo"
+
+
+@pytest.mark.parametrize("query,first", [
+    ("berlin", "BER"), ("buenos aires", "EZE"), ("toronto", "YYZ"), ("vancouver", "YVR"), ("nagoya", "NGO"),
+    ("montreal", "YUL"), ("col", "CMB"), ("CMB", "CMB"), ("kuu", "KUU"),
+])
+def test_review_ranking_cases(query, first):
+    assert codes(query)[0] == first
+
+
+def test_closed_airports_are_not_suggested_but_still_valid():
+    assert "TXL" not in codes("berlin") and "ISL" not in codes("istanbul", 10)
+    assert "IST" in codes("istanbul") and get_airport("TXL") is not None
+
+
+def test_airports_without_a_city_fall_back_to_their_name():
+    assert get_airport("KUU").city == "Kullu Manali Airport"
+

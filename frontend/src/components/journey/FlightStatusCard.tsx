@@ -38,8 +38,8 @@ function TimeCell({ label, iso, timeZone, city, highlight }: {
         {t ? (
           <>
             <span className={`block text-xl font-semibold tabular-nums ${highlight ? 'text-status-caution' : 'text-ink'}`}>{t.time}</span>
-            <span className="block text-sm text-ink-muted" title={timeZone ? `${t.zone} (${timeZone})` : 'Coordinated Universal Time'}>
-              {timeZone ? `${city || 'Local'} time` : 'UTC'} · {t.date}
+            <span className="block text-sm text-ink-muted" title={t.isLocal ? `${t.zone} (${timeZone})` : 'Coordinated Universal Time'}>
+              {t.isLocal ? `${city || 'Local'} time` : 'UTC'} · {t.date}
             </span>
           </>
         ) : (

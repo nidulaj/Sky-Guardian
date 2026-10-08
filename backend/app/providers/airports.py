@@ -24,7 +24,7 @@ MAJOR_AIRPORTS = {
     # Middle East
     "DXB", "DWC", "AUH", "DOH", "BAH", "MCT", "KWI", "RUH", "JED", "AMM", "TLV", "IST", "SAW",
     # Europe
-    "LHR", "LGW", "MAN", "CDG", "ORY", "FRA", "MUC", "AMS", "MAD", "BCN", "FCO", "MXP", "ZRH", "VIE",
+    "LHR", "LGW", "MAN", "CDG", "ORY", "FRA", "MUC", "BER", "AMS", "MAD", "BCN", "FCO", "MXP", "ZRH", "VIE",
     "CPH", "ARN", "OSL", "HEL", "DUB", "BRU", "LIS", "ATH", "WAW", "PRG",
     # Africa
     "JNB", "CPT", "CAI", "ADD", "NBO", "LOS", "CMN",
@@ -32,8 +32,17 @@ MAJOR_AIRPORTS = {
     "SYD", "MEL", "BNE", "PER", "AKL",
     # Americas
     "JFK", "EWR", "LGA", "LAX", "SFO", "ORD", "ATL", "DFW", "DEN", "SEA", "MIA", "BOS", "IAD", "YYZ",
-    "YVR", "MEX", "GRU", "EZE", "BOG", "LIM", "SCL",
+    "YVR", "YUL", "MEX", "GRU", "EZE", "BOG", "LIM", "SCL",
 }
+
+# airportsdata lists some major airports under a suburb; show and search them by the city they serve
+CITY_OVERRIDES = {
+    "IST": "Istanbul", "EZE": "Buenos Aires", "YYZ": "Toronto", "YVR": "Vancouver", "YUL": "Montreal",
+    "NGO": "Nagoya", "DWC": "Dubai", "GOI": "Goa",
+}
+
+# Closed to scheduled passenger flights: still valid codes for lookups, never suggested in search
+CLOSED_AIRPORTS = {"TXL", "ISL"}
 
 _NAME_FIXES = [
     (r"\bIntl\b\.?", "International"),
@@ -69,7 +78,7 @@ def _airports() -> Dict[str, Airport]:
             iata=code,
             icao=row.get("icao") or None,
             name=_clean_name(row.get("name") or code),
-            city=row.get("city") or "",
+            city=CITY_OVERRIDES.get(code) or row.get("city") or _clean_name(row.get("name") or code),
             country=row.get("country") or "",
             timezone=row["tz"],
             latitude=row.get("lat") or 0.0,
@@ -81,7 +90,7 @@ def _airports() -> Dict[str, Airport]:
 
 @lru_cache(maxsize=1)
 def _search_index() -> List[tuple]:
-    return [(a, _fold(a.city), _fold(a.name)) for a in _airports().values()]
+    return [(a, _fold(a.city), _fold(a.name)) for a in _airports().values() if a.iata not in CLOSED_AIRPORTS]
 
 
 def get_airport(code: Optional[str]) -> Optional[Airport]:
@@ -97,8 +106,9 @@ def airport_timezone(code: Optional[str]) -> Optional[str]:
 
 def search_airports(query: str, limit: int = 8) -> List[Airport]:
     """
-    Rank airports for a free-text query. Exact IATA code first, then city and name matches;
-    major airports are boosted so 'colombo' returns CMB before RML.
+    Rank airports for a free-text query. Exact IATA code of a major airport first, then city and name matches;
+    major airports are boosted so 'colombo' returns CMB before RML, and 'col' (still typing) CMB before
+    the little-used COL. An exact code of a minor airport still beats any other minor match.
     """
     q = _fold(query)[:64]
     if len(q) < 2:
@@ -108,7 +118,7 @@ def search_airports(query: str, limit: int = 8) -> List[Airport]:
     for airport, city, name in _search_index():
         score = 0
         if airport.iata.casefold() == q:
-            score = 1000
+            score = 1000 if airport.major else 400
         elif city == q:
             score = 500
         elif city.startswith(q):

@@ -29,15 +29,25 @@ export default function AirportAutocomplete({
   const [focused, setFocused] = useState(false);
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<Airport[]>([]);
+  const [resultsFor, setResultsFor] = useState(''); // the text the current suggestions answer
   const [active, setActive] = useState(-1);
   const [selected, setSelected] = useState<Airport | null>(null);
   const [searching, setSearching] = useState(false);
   const blurTimer = useRef<ReturnType<typeof setTimeout>>();
+  const emitted = useRef(value); // last code this field reported, to tell outside changes apart
 
   // Keep the text in sync when the code changes from outside (demo journeys, add/remove leg)
   useEffect(() => {
-    if (!focused) setQuery(value);
-  }, [value, focused]);
+    if (value !== emitted.current) {
+      emitted.current = value;
+      setQuery(value);
+    }
+  }, [value]);
+
+  const emit = (code: string) => {
+    emitted.current = code;
+    onChange(code);
+  };
 
   // Resolve the selected code to a city/name for the caption under the field
   useEffect(() => {
@@ -66,6 +76,7 @@ export default function AirportAutocomplete({
       try {
         const found = await searchAirports(q, controller.signal);
         setResults(found);
+        setResultsFor(q);
         setActive(found.length ? 0 : -1);
         setOpen(true);
       } catch {
@@ -85,13 +96,34 @@ export default function AirportAutocomplete({
     setQuery(airport.iata);
     setOpen(false);
     setResults([]);
-    onChange(airport.iata);
+    setResultsFor('');
+    emit(airport.iata);
   };
 
   const onInput = (text: string) => {
     setQuery(text);
     // A typed 3-letter code is accepted directly; any other text waits for a pick from the list.
-    onChange(isCode(text) ? text.trim().toUpperCase() : '');
+    emit(isCode(text) ? text.trim().toUpperCase() : '');
+  };
+
+  // The highlighted suggestion, only if the list answers what is in the field now (not a stale search)
+  const current = open && resultsFor === query.trim() && active >= 0 ? results[active] : undefined;
+
+  // Enter, Tab or click-away: take the highlighted suggestion if the list is up to date ('col' -> CMB);
+  // otherwise a typed 3-letter code stays as typed (the list hasn't caught up, e.g. 'DEL' typed quickly)
+  const commit = () => {
+    if (current) {
+      choose(current);
+      return true;
+    }
+    if (isCode(query)) {
+      const typed = query.trim().toUpperCase();
+      const match = results.find((a) => a.iata === typed);
+      if (match) choose(match);
+      else setQuery(typed);
+      return true;
+    }
+    return false;
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -102,9 +134,8 @@ export default function AirportAutocomplete({
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActive((i) => (results.length ? (i - 1 + results.length) % results.length : -1));
-    } else if (e.key === 'Enter' && open && active >= 0 && results[active]) {
-      e.preventDefault();
-      choose(results[active]);
+    } else if (e.key === 'Enter' && open) {
+      if (commit()) e.preventDefault();
     } else if (e.key === 'Escape' && open) {
       e.preventDefault();
       setOpen(false);
@@ -114,7 +145,8 @@ export default function AirportAutocomplete({
   const showing = focused || !value ? query : value;
   const long = showing.trim().length > 3;
   const right = align === 'right';
-  const activeId = open && active >= 0 ? `${listId}-opt-${active}` : undefined;
+  const listOpen = open && results.length > 0;
+  const activeId = listOpen && active >= 0 ? `${listId}-opt-${active}` : undefined;
 
   return (
     <div className="relative">
@@ -122,8 +154,8 @@ export default function AirportAutocomplete({
         id={id}
         role="combobox"
         aria-autocomplete="list"
-        aria-expanded={open}
-        aria-controls={listId}
+        aria-expanded={listOpen}
+        aria-controls={listOpen ? listId : undefined}
         aria-activedescendant={activeId}
         aria-invalid={invalid ? true : undefined}
         aria-describedby={describedBy}
@@ -137,9 +169,9 @@ export default function AirportAutocomplete({
         }}
         onBlur={() => {
           blurTimer.current = setTimeout(() => {
+            commit();
             setFocused(false);
             setOpen(false);
-            if (isCode(query)) setQuery(query.trim().toUpperCase());
           }, 120);
         }}
         maxLength={64}
@@ -154,14 +186,24 @@ export default function AirportAutocomplete({
       />
 
       <p className={`mt-1.5 min-h-[1.25rem] truncate text-sm text-ink-muted ${right ? 'text-right' : ''}`}>
-        {selected ? `${selected.city}${selected.country ? `, ${selected.country}` : ''}` : focused ? 'City, airport or code' : ' '}
+        {selected ? [selected.city || selected.name, selected.country].filter(Boolean).join(', ') : focused ? 'City, airport or code' : ' '}
       </p>
 
       <p className="sr-only" aria-live="polite">
         {open && !searching ? (results.length ? `${results.length} airports found` : 'No airports found') : ''}
       </p>
 
-      {open && (
+      {open && !searching && results.length === 0 && (
+        <div
+          className={`absolute z-30 mt-1 w-[min(22rem,calc(100vw-3rem))] rounded-2xl border border-ink/15 bg-sand-50 px-4 py-3 text-sm text-ink-muted shadow-[0_18px_40px_-20px_rgba(26,23,20,0.45)] ${
+            right ? 'right-0' : 'left-0'
+          }`}
+        >
+          No airport matches “{query.trim()}”. Try the city name.
+        </div>
+      )}
+
+      {listOpen && (
         <ul
           id={listId}
           role="listbox"
@@ -170,11 +212,6 @@ export default function AirportAutocomplete({
             right ? 'right-0' : 'left-0'
           }`}
         >
-          {results.length === 0 && (
-            <li className="px-3 py-3 text-sm text-ink-muted">
-              No airport matches “{query.trim()}”. Try the city name.
-            </li>
-          )}
           {results.map((airport, index) => (
             <li
               key={airport.iata}
@@ -191,8 +228,10 @@ export default function AirportAutocomplete({
               <span className="w-12 shrink-0 font-sans text-lg font-semibold tracking-tight">{airport.iata}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">
-                  {airport.city}
-                  <span className={index === active ? 'text-sand-50/70' : 'text-ink-muted'}> · {airport.country}</span>
+                  {airport.city || airport.name}
+                  {airport.country && (
+                    <span className={index === active ? 'text-sand-50/70' : 'text-ink-muted'}> · {airport.country}</span>
+                  )}
                 </span>
                 <span className={`block truncate text-xs ${index === active ? 'text-sand-50/75' : 'text-ink-muted'}`}>
                   {airport.name}

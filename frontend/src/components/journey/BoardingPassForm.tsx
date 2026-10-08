@@ -263,10 +263,8 @@ export default function BoardingPassForm({ legs, errors, formError, loading, onC
           />
 
           <p className="font-mono text-[11px] uppercase tracking-label text-white">Your route</p>
-          <p
-            className="display mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-4xl text-white"
-            aria-label={`Route: ${codes.join(' to ')}`}
-          >
+          <p className="display mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-4xl text-white">
+            <span className="sr-only">{`Route: ${codes.join(' to ')}`}</span>
             {codes.map((code, i) => (
               <React.Fragment key={`${code}-${i}`}>
                 {i > 0 && <ArrowRight className="h-5 w-5 text-coral-peach" aria-hidden="true" />}
