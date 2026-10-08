@@ -29,7 +29,8 @@ services:
       - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-skyguardian}:${POSTGRES_PASSWORD:-skyguardian_secret_pass}@postgres:5432/${POSTGRES_DB:-skyguardiandb}
       - JWT_SECRET=${JWT_SECRET:-dev_secret_key_skyguardian_ai_2026_super_secure_32bytes}
       - LLM_PROVIDER=${LLM_PROVIDER:-mock}
-      - LLM_MODEL=${LLM_MODEL:-gemini-1.5-flash}
+      - LLM_MODEL=${LLM_MODEL:-gemini-2.5-flash}
+      - LLM_TIMEOUT_SECONDS=${LLM_TIMEOUT_SECONDS:-20}
       - LLM_API_KEY=${LLM_API_KEY:-mock_key}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - VOICE_ENABLED=${VOICE_ENABLED:-true}
