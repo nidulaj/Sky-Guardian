@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     WEATHER_TIMEOUT_SECONDS: float = 8.0
     WEATHER_CACHE_TTL_SECONDS: int = 600
 
+    # Outer safety timeout per agent step; longer than the providers' own timeouts
+    # (alternative search 20 s, weather 8 s) so those can report their own warnings first.
+    AGENT_TIMEOUT_SECONDS: float = 30.0
+
     # None = <repo>/config/risk.yaml (built-in defaults when that file is absent)
     RISK_CONFIG_PATH: Optional[str] = None
 

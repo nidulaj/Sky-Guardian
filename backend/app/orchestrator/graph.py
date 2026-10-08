@@ -6,10 +6,26 @@ from app.agents.risk_agent import RiskAgent
 from app.agents.policy_agent import PolicyAgent
 from app.agents.alternative_agent import AlternativeAgent
 from app.agents.recovery_agent import RecoveryAgent
+from app.config import settings
+from app.schemas.journey import AgentRun
 from datetime import datetime, timezone
+import asyncio
 import logging
+import time
 
 logger = logging.getLogger(__name__)
+
+# Passenger-safe warning added when an agent step fails or times out. Provider errors,
+# stack traces and keys are only logged, never returned.
+FAILURE_WARNINGS = {
+    "flight_agent": "Flight status could not be retrieved; the assessment uses reduced information.",
+    "connection_agent": "Connection timing could not be calculated.",
+    "weather_agent": "Weather data unavailable; risk assessed with reduced confidence.",
+    "risk_agent": "The disruption risk could not be assessed.",
+    "policy_agent": "Policy information could not be verified.",
+    "alternative_agent": "Alternative flight search could not be completed. Ask the airline for current options.",
+    "recovery_agent": "A recovery summary could not be generated.",
+}
 
 
 class SupervisorOrchestrator:
@@ -21,6 +37,9 @@ class SupervisorOrchestrator:
     4. Risk Agent
     5. Conditional Routing (if risk >= 60 or connection at risk -> Policy & Alternative Agents)
     6. Recovery Agent
+
+    Each agent runs in isolation: a failure or timeout is recorded in state.agent_runs with a
+    passenger-safe warning, and the workflow continues with the data it has.
     """
 
     def __init__(self):
@@ -32,21 +51,41 @@ class SupervisorOrchestrator:
         self.alternative_agent = AlternativeAgent()
         self.recovery_agent = RecoveryAgent()
 
+    async def _run_agent(self, name: str, state: JourneyState) -> AgentRun:
+        # Looked up at call time so tests (and callers) can replace self.<agent>.
+        agent = getattr(self, name)
+        started_at = datetime.now(timezone.utc).isoformat()
+        start = time.perf_counter()
+        try:
+            result = await asyncio.wait_for(agent.execute(state), timeout=settings.AGENT_TIMEOUT_SECONDS)
+            run = AgentRun(
+                agent=name,
+                status=getattr(result, "status", "success"),
+                confidence=getattr(result, "confidence", None),
+                warnings=list(getattr(result, "warnings", []) or []),
+                started_at=started_at,
+            )
+        except Exception as exc:
+            reason = "timed out" if isinstance(exc, asyncio.TimeoutError) else type(exc).__name__
+            logger.exception("Agent %s failed (%s) for trace_id=%s", name, reason, state.trace_id)
+            message = FAILURE_WARNINGS.get(name, "A workflow step could not be completed.")
+            state.warnings.append(message)
+            run = AgentRun(agent=name, status="error", warnings=[message], started_at=started_at,
+                           error=f"{name.replace('_', ' ')} {reason}")
+            if name == "alternative_agent":
+                state.alternative_options, state.recommended_option = [], None
+                state.alternative_search = {"status": "unavailable", "warnings": [message]}
+        run.duration_ms = round((time.perf_counter() - start) * 1000)
+        state.agent_runs.append(run)
+        return run
+
     async def run_workflow(self, state: JourneyState) -> JourneyState:
         logger.info(f"Starting journey analysis workflow for journey_id: {state.journey_id}, trace_id: {state.trace_id}")
         state.workflow_status = "IN_PROGRESS"
 
-        # Step 1: Flight Agent
-        await self.flight_agent.execute(state)
-
-        # Step 2: Connection Agent
-        await self.connection_agent.execute(state)
-
-        # Step 3: Weather Agent
-        await self.weather_agent.execute(state)
-
-        # Step 4: Risk Agent (runs after Flight, Connection and Weather results are in state)
-        await self.risk_agent.execute(state)
+        # Steps 1-4: Flight, Connection, Weather, then Risk (which needs the other three)
+        for name in ("flight_agent", "connection_agent", "weather_agent", "risk_agent"):
+            await self._run_agent(name, state)
 
         # Step 5: Conditional Routing
         # score is None when the Risk Agent had no usable data; that alone does not trigger recovery.
@@ -62,14 +101,21 @@ class SupervisorOrchestrator:
         state.alternative_search = {"status": "not_needed"}
         if needs_recovery:
             # Step 5a: Policy Agent
-            await self.policy_agent.execute(state)
+            await self._run_agent("policy_agent", state)
             # Step 5b: Alternative Agent
-            await self.alternative_agent.execute(state)
+            await self._run_agent("alternative_agent", state)
+        else:
+            for name in ("policy_agent", "alternative_agent"):
+                state.agent_runs.append(AgentRun(agent=name, status="skipped"))
 
         # Step 6: Recovery Agent
-        await self.recovery_agent.execute(state)
+        await self._run_agent("recovery_agent", state)
+        if not state.recommendation_text:
+            state.recommendation_text = (
+                "A recovery summary could not be generated. Check your flight status directly with your airline."
+            )
 
-        state.workflow_status = "COMPLETED"
+        state.workflow_status = "PARTIAL" if any(r.status == "error" for r in state.agent_runs) else "COMPLETED"
         state.updated_at = datetime.now(timezone.utc).isoformat()
 
         state.is_demo_data = any(f.get("data_mode") == "demo" for f in state.flight_results) or any(
