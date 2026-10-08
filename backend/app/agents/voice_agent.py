@@ -1,5 +1,6 @@
 """Optional input/output adapter; factual analysis remains in the existing agents."""
 
+import asyncio
 import base64
 import io
 import json
@@ -121,23 +122,34 @@ class VoiceAgent:
             raise VoiceServiceError("Voice is unavailable. Configure GEMINI_API_KEY in backend/.env and restart the backend.", 503)
         if not re.fullmatch(r"[a-zA-Z0-9._-]+", model):
             raise VoiceServiceError("The configured voice model name is invalid.", 503)
+        if model.startswith("gemini-3.") and "tts" not in model:
+            generation = {"thinkingConfig": {"thinkingLevel": "low"}, **generation}
         body = {"contents": [{"role": "user", "parts": parts}], "generationConfig": generation}
         if instruction:
             body["systemInstruction"] = {"parts": [{"text": instruction}]}
         try:
-            async with httpx.AsyncClient(timeout=self.config.VOICE_TIMEOUT_SECONDS) as client:
-                response = await client.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                    headers={"x-goog-api-key": self.api_key}, json=body,
-                )
-        except httpx.TimeoutException:
+            async with asyncio.timeout(self.config.VOICE_TIMEOUT_SECONDS):
+                async with httpx.AsyncClient(timeout=self.config.VOICE_TIMEOUT_SECONDS) as client:
+                    for attempt in range(2):
+                        response = await client.post(
+                            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                            headers={"x-goog-api-key": self.api_key}, json=body,
+                        )
+                        if response.status_code not in (500, 502, 503, 504) or attempt == 1:
+                            break
+                        await asyncio.sleep(0.75)
+        except (httpx.TimeoutException, TimeoutError):
             raise VoiceServiceError("The voice service took too long. Please try again.", 504) from None
         except httpx.RequestError:
             raise VoiceServiceError("The voice service could not be reached. Please try again.", 503) from None
         if response.status_code == 429:
-            raise VoiceServiceError("Gemini's voice quota is temporarily exhausted. Please try again later.", 429)
+            raise VoiceServiceError("Gemini's request or quota limit was reached. Wait before retrying, or check this project's limits in Google AI Studio.", 429)
         if response.status_code in (401, 403):
             raise VoiceServiceError("Gemini rejected the voice credentials. Check the backend API key and model access.", 503)
+        if response.status_code == 404:
+            raise VoiceServiceError("The configured Gemini model is unavailable for this project. Check VOICE_MODEL and VOICE_TTS_MODEL in backend/.env.", 503)
+        if response.status_code == 503:
+            raise VoiceServiceError("Gemini is busy right now. Please try again shortly.", 503)
         if not response.is_success:
             raise VoiceServiceError("Gemini could not process this request. Check the configured voice model and try again.")
         try:

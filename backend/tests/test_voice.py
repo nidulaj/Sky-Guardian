@@ -166,7 +166,7 @@ async def test_translation_cannot_change_risk_or_connection_numbers(monkeypatch)
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("upstream,status", [(429, 429), (403, 503), (500, 502)])
+@pytest.mark.parametrize("upstream,status", [(429, 429), (403, 503), (404, 503), (503, 503), (500, 502)])
 async def test_provider_errors_never_expose_credentials(monkeypatch, upstream, status):
     async def fake_post(self, url, **kwargs):
         assert "test-key" not in url
@@ -177,6 +177,42 @@ async def test_provider_errors_never_expose_credentials(monkeypatch, upstream, s
         await agent().interpret("en", date(2026, 10, 8), text="hello")
     assert caught.value.status_code == status
     assert "test-key" not in str(caught.value)
+
+
+@pytest.mark.asyncio
+async def test_busy_model_is_retried_once_with_low_thinking(monkeypatch):
+    calls = []
+    async def fake_post(self, url, **kwargs):
+        calls.append(kwargs["json"])
+        if len(calls) == 1:
+            return httpx.Response(503, json={"error": {"message": "High demand"}})
+        return httpx.Response(200, json={"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": "OK"}]}}]})
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    result = await agent()._generate("gemini-3.8-flash", [{"text": "hello"}], {})
+    assert result == [{"text": "OK"}] and len(calls) == 2
+    assert calls[0]["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "low"}
+
+
+@pytest.mark.asyncio
+async def test_quota_errors_are_not_automatically_retried(monkeypatch):
+    calls = []
+    async def fake_post(self, url, **kwargs):
+        calls.append(url)
+        return httpx.Response(429, json={"error": {"message": "Quota exhausted"}})
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    with pytest.raises(VoiceServiceError, match="quota limit"):
+        await agent()._generate("gemini-3.8-flash", [{"text": "hello"}], {})
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_retry_stays_inside_the_overall_timeout(monkeypatch):
+    async def fake_post(self, url, **kwargs):
+        return httpx.Response(503, json={"error": {"message": "High demand"}})
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    with pytest.raises(VoiceServiceError, match="took too long") as caught:
+        await agent(VOICE_TIMEOUT_SECONDS=0.01)._generate("gemini-3.8-flash", [{"text": "hello"}], {})
+    assert caught.value.status_code == 504
 
 
 @pytest.mark.asyncio

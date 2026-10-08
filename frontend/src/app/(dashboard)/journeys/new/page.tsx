@@ -142,14 +142,6 @@ export default function NewJourneyPage() {
 
       <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-8 xl:gap-12">
         <div className="lg:col-span-5">
-          <VoiceJourneyPanel language={language} onLanguageChange={setLanguage} analysis={result} disabled={loading}
-            onDraft={(draftLegs) => {
-              setLegs(draftLegs);
-              setErrors([]);
-              setFormError(null);
-              setResult(null);
-              setError(null);
-            }} />
           <BoardingPassForm
             legs={legs}
             errors={errors}
@@ -333,6 +325,15 @@ export default function NewJourneyPage() {
           )}
         </div>
       </div>
+
+      <VoiceJourneyPanel language={language} onLanguageChange={setLanguage} analysis={result} disabled={loading}
+        onDraft={(draftLegs) => {
+          setLegs(draftLegs);
+          setErrors([]);
+          setFormError(null);
+          setResult(null);
+          setError(null);
+        }} />
 
       <ExplainabilityDrawer
         isOpen={drawerOpen && !!result}

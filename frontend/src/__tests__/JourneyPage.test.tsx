@@ -121,6 +121,9 @@ describe('Journey page travel date', () => {
 
     expect(screen.queryByText('Try a sample journey')).not.toBeInTheDocument();
     expect(screen.queryByText('Demo data')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open voice assistant' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Voice assistant' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Message SkyGuardian')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Likely missed connection|Safe connection|Cancelled flight/ })).not.toBeInTheDocument();
     for (const i of [0, 1]) {
       for (const field of ['flight_number', 'origin', 'destination']) {

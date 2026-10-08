@@ -125,7 +125,7 @@ export default function LoginPage() {
       if (user.role === 'ADMIN') {
         router.push('/admin');
       } else {
-        router.push('/dashboard');
+        router.push('/journeys/new');
       }
     } catch (err: any) {
       setServerError(err.message || 'Invalid email or password. Please try again.');
@@ -202,4 +202,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

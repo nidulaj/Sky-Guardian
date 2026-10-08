@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ChevronDown, Loader2, Mic, Plus, RotateCcw, Send, Square, Volume2, VolumeX, X } from 'lucide-react';
-import { getVoiceConfig, sendVoiceChat, sendVoiceChatAudio } from '@/lib/api/voice';
+import { ArrowDownToLine, Loader2, Mic, Plus, RotateCcw, Send, Square, Volume2, VolumeX, X } from 'lucide-react';
+import { getVoiceConfig, sendVoiceChat } from '@/lib/api/voice';
 import type { FlightLegInput, JourneyAnalysisResponse } from '@/types/journey';
 import type { VoiceChatReply, VoiceConfig, VoiceDraft, VoiceLanguage } from '@/types/voice';
-import { useVoiceRecorder } from './useVoiceRecorder';
+import { useSpeechInput } from './useSpeechInput';
 
 const LANGUAGES: { code: VoiceLanguage; label: string }[] = [
   { code: 'en', label: 'English' }, { code: 'si', label: 'Sinhala' }, { code: 'ta', label: 'Tamil' },
@@ -51,7 +51,7 @@ function ReplyAudio({ reply, autoSpeak, onPlay }: {
 }
 
 export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft, analysis, disabled = false }: Props) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [config, setConfig] = useState<VoiceConfig | null>(null);
   const [checking, setChecking] = useState(false);
   const [text, setText] = useState('');
@@ -61,6 +61,7 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
+  const [spokenReplyId, setSpokenReplyId] = useState<number | null>(null);
   const controller = useRef<AbortController | null>(null);
   const active = useRef(true);
   const operation = useRef(0);
@@ -68,6 +69,9 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
   const pendingUser = useRef<number | null>(null);
   const playing = useRef<HTMLAudioElement | null>(null);
   const log = useRef<HTMLDivElement>(null);
+  const dictationBase = useRef('');
+  const launcher = useRef<HTMLButtonElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
 
   const cancelRequest = useCallback(() => {
     controller.current?.abort();
@@ -103,7 +107,8 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
     }
   }, []);
 
-  useEffect(() => { void checkConfig(); }, [checkConfig]);
+  useEffect(() => { if (open && !config) void checkConfig(); }, [open, config, checkConfig]);
+  useEffect(() => { if (open) closeButton.current?.focus(); }, [open]);
   useEffect(() => {
     const element = log.current;
     if (element) element.scrollTop = element.scrollHeight;
@@ -114,8 +119,8 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
     return () => window.removeEventListener('resize', resize);
   }, []);
 
-  const processInput = async (recording?: Blob, message = text.trim()) => {
-    if (!recording && !message) return;
+  const processInput = async (message = text.trim()) => {
+    if (!message) return;
     setError(null);
     setNotice(null);
     playing.current?.pause();
@@ -127,25 +132,25 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
     const userId = nextId.current++;
     pendingUser.current = userId;
     const history = messages.slice(-20).map(({ role, text: content }) => ({ role, text: content }));
-    setMessages((previous) => [...previous.slice(-18), { id: userId, role: 'user', text: recording ? 'Voice message...' : message }]);
+    setMessages((previous) => [...previous.slice(-18), { id: userId, role: 'user', text: message }]);
     setText('');
     const context = { language, history, legs, analysis };
     try {
-      const reply = recording
-        ? await sendVoiceChatAudio(recording, context, abort.signal)
-        : await sendVoiceChat(message, context, abort.signal);
+      const reply = await sendVoiceChat(message, context, abort.signal);
       if (!active.current || operation.current !== id) return;
       pendingUser.current = null;
       setLegs(reply.legs);
+      const replyId = nextId.current++;
+      setSpokenReplyId(replyId);
       setMessages((previous) => [
         ...previous.map((item) => item.id === userId ? { ...item, text: reply.transcript } : item),
-        { id: nextId.current++, role: 'assistant', text: reply.text, reply },
+        { id: replyId, role: 'assistant', text: reply.text, reply },
       ]);
     } catch (err) {
       if (active.current && operation.current === id && !abort.signal.aborted) {
         pendingUser.current = null;
         setError(err instanceof Error ? err.message : 'Your message could not be sent.');
-        if (!recording) setText(message);
+        setText(message);
         setMessages((previous) => previous.filter((item) => item.id !== userId));
       }
     } finally {
@@ -153,17 +158,25 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
     }
   };
 
-  const recorder = useVoiceRecorder((blob) => void processInput(blob), setError);
+  const recorder = useSpeechInput(language, (transcript) => {
+    setText([dictationBase.current, transcript].filter(Boolean).join(' ').slice(0, 4000));
+  }, setError);
   useEffect(() => {
-    if (disabled) { recorder.cancel(); cancelRequest(); }
-  }, [disabled, recorder.cancel, cancelRequest]);
+    if (disabled) {
+      if (recorder.status !== 'idle') setText(dictationBase.current);
+      recorder.cancel(); cancelRequest();
+    }
+  }, [disabled, recorder.status, recorder.cancel, cancelRequest]);
   const recording = recorder.status !== 'idle';
   const locked = disabled || busy || recording || checking;
 
   const stop = () => {
+    if (recording) setText(dictationBase.current);
     recorder.cancel();
     cancelRequest();
+    setSpokenReplyId(null);
   };
+  const closePanel = () => { stop(); setOpen(false); launcher.current?.focus(); };
   const newChat = () => { stop(); setMessages([]); setLegs([]); setText(''); setError(null); setNotice(null); };
   const playOne = (player: HTMLAudioElement) => {
     if (playing.current !== player) playing.current?.pause();
@@ -175,17 +188,23 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
     setNotice('Flight details added. Review the form before checking your journey.');
   };
 
-  return <section aria-labelledby="voice-title" className="mb-6 border-y border-ink/15 py-4">
-    <div className="flex items-center gap-2">
-      <button type="button" className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left text-ink"
-        aria-expanded={open} aria-controls="voice-panel" onClick={() => {
-          if (open) { stop(); setOpen(false); } else { setOpen(true); if (!config) void checkConfig(); }
-        }}>
+  return <>
+    <button ref={launcher} type="button" aria-label={open ? 'Hide voice assistant' : 'Open voice assistant'}
+      aria-expanded={open} aria-controls="voice-panel" aria-haspopup="dialog"
+      title={open ? 'Hide voice assistant' : 'Open voice assistant'}
+      onClick={() => { if (open) closePanel(); else setOpen(true); }}
+      className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 items-center justify-center gap-3 rounded-full bg-coral-deep px-4 text-white shadow-lg transition-colors hover:bg-ink sm:right-6 sm:px-5">
+      {open ? <X className="h-6 w-6" aria-hidden="true" /> : <Mic className="h-6 w-6" aria-hidden="true" />}
+      <span className="hidden text-sm font-semibold sm:inline">Voice assistant</span>
+    </button>
+    {open && <section id="voice-panel" role="dialog" aria-labelledby="voice-title"
+      onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closePanel(); } }}
+      className="fixed bottom-[calc(max(1rem,env(safe-area-inset-bottom))+4.5rem)] right-4 z-40 flex h-[min(680px,calc(100dvh-112px))] w-[calc(100vw-2rem)] max-w-[420px] flex-col overflow-hidden rounded-lg border border-ink/20 bg-sand-50 shadow-xl sm:right-6">
+    <div className="flex shrink-0 items-center gap-2 border-b border-ink/15 px-4 py-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2 text-ink">
         <Mic className="h-5 w-5 shrink-0 text-coral" aria-hidden="true" />
-        <span id="voice-title" className="flex-1 font-semibold">Voice assistant</span>
-        <ChevronDown className={`h-4 w-4 shrink-0 ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
-      </button>
-      {open && <>
+        <h2 id="voice-title" className="text-sm font-semibold">Voice assistant</h2>
+      </div>
         <button type="button" className={iconButton} aria-pressed={autoSpeak} title={autoSpeak ? 'Mute spoken replies' : 'Enable spoken replies'}
           aria-label={autoSpeak ? 'Mute spoken replies' : 'Enable spoken replies'} onClick={() => {
             setAutoSpeak(!autoSpeak); playing.current?.pause();
@@ -193,10 +212,12 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
         <button type="button" className={iconButton} title="New conversation" aria-label="New conversation" onClick={newChat}>
           <Plus className="h-4 w-4" />
         </button>
-      </>}
+        <button ref={closeButton} type="button" className={iconButton} title="Close voice assistant" aria-label="Close voice assistant" onClick={closePanel}>
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
     </div>
-    {open && <div id="voice-panel" className="mt-3 min-w-0 space-y-3">
-      <div role="group" aria-label="Voice language" className="grid grid-cols-3 gap-1 rounded-md border border-ink/15 p-1">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+      <div role="group" aria-label="Voice language" className="grid shrink-0 grid-cols-3 gap-1 rounded-md border border-ink/15 p-1">
         {LANGUAGES.map((item) => <button key={item.code} type="button" aria-pressed={language === item.code}
           disabled={locked} onClick={() => { playing.current?.pause(); onLanguageChange(item.code); }}
           className={`min-h-10 rounded px-2 text-sm disabled:opacity-50 ${language === item.code ? 'bg-ink text-white' : 'text-ink hover:bg-ink/5'}`}>
@@ -205,7 +226,7 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
       </div>
 
       <div ref={log} role="log" aria-label="Travel conversation" aria-live="polite" aria-relevant="additions text"
-        className="h-80 min-w-0 space-y-4 overflow-y-auto overscroll-contain border-y border-ink/10 py-4 pr-2 sm:h-96">
+        className="min-h-24 min-w-0 flex-1 space-y-4 overflow-y-auto overscroll-contain border-y border-ink/10 py-4 pr-2">
         <div className="max-w-[95%]">
           <p className="mb-1 text-xs font-semibold text-coral">SkyGuardian</p>
           <p className="text-sm leading-relaxed text-ink">Hi, I&apos;m SkyGuardian. Which flight can I help you with?</p>
@@ -217,7 +238,7 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
           <div className={`min-w-0 rounded-md px-3 py-3 ${item.role === 'user' ? 'bg-ink text-white' : 'border border-ink/10 bg-white/70 text-ink'}`}>
             <p lang={item.reply?.language} className="whitespace-pre-wrap break-words text-sm leading-relaxed [overflow-wrap:anywhere]">{item.text}</p>
             {item.reply && <>
-              <ReplyAudio reply={item.reply} autoSpeak={autoSpeak && item.id === messages[messages.length - 1]?.id && !busy && !recording}
+              <ReplyAudio reply={item.reply} autoSpeak={autoSpeak && item.id === spokenReplyId && !busy && !recording}
                 onPlay={playOne} />
               {item.reply.sources.length > 0 && <ul aria-label="Reply sources" className="mt-3 space-y-1 border-t border-ink/10 pt-2">
                 {item.reply.sources.map((source, index) => <li key={index} className="break-words text-xs text-ink-muted">
@@ -236,7 +257,17 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
         </p>}
       </div>
 
-      <form onSubmit={(event) => { event.preventDefault(); if (text.trim() && !locked && config?.available) void processInput(); }}>
+      <form className="flex min-w-0 shrink-0 items-end gap-2 rounded-md border border-ink/20 bg-white p-2 focus-within:border-coral"
+        onSubmit={(event) => { event.preventDefault(); if (text.trim() && !locked && config?.available) void processInput(); }}>
+        <button type="button" className={`${iconButton} border-0 ${recording ? 'bg-status-danger text-white hover:bg-status-danger' : ''}`}
+          aria-label={recording ? 'Stop recording' : 'Record message'} title={recording ? 'Stop dictation' : 'Dictate message'}
+          disabled={disabled || busy || checking || recorder.status === 'permission' || recorder.status === 'processing'}
+          onClick={() => {
+            if (recording) recorder.stop();
+            else { setError(null); setNotice(null); dictationBase.current = text.trim(); playing.current?.pause(); setSpokenReplyId(null); recorder.start(); }
+          }}>
+          {recorder.status === 'permission' || recorder.status === 'processing' ? <Loader2 className="h-4 w-4 animate-spin" /> : recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+        </button>
         <label htmlFor="voice-message" className="sr-only">Message SkyGuardian</label>
         <textarea id="voice-message" value={text} maxLength={4000} rows={2} disabled={locked}
           onChange={(event) => setText(event.target.value)} placeholder="Ask about your flight..."
@@ -245,30 +276,24 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
               event.preventDefault(); if (text.trim() && !locked && config?.available) void processInput();
             }
           }}
-          className="block w-full resize-none rounded-md border border-ink/20 bg-white p-3 text-base text-ink focus:border-coral focus:outline-none disabled:opacity-50" />
-        <div className="mt-2 flex items-center gap-2">
-          <button type="button" className={`${iconButton} ${recording ? 'border-status-danger text-status-danger' : ''}`}
-            aria-label={recording ? 'Stop recording' : 'Record message'} title={recording ? 'Stop recording' : 'Record message'}
-            disabled={disabled || busy || checking || !config?.available || recorder.status === 'permission'}
-            onClick={() => { if (recording) recorder.stop(); else { setError(null); playing.current?.pause(); void recorder.start(); } }}>
-            {recorder.status === 'permission' ? <Loader2 className="h-4 w-4 animate-spin" /> : recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </button>
-          <p role="status" className="min-w-0 flex-1 text-xs text-ink-muted">
-            {checking ? 'Connecting...' : recorder.status === 'permission' ? 'Waiting for microphone...' : recording ? `Recording ${recorder.seconds} / 60 s` : busy ? 'Preparing reply...' : 'Ready'}
-          </p>
-          {(busy || recording) && <button type="button" className={iconButton} title="Cancel voice request" aria-label="Cancel voice request" onClick={stop}><X className="h-4 w-4" /></button>}
-          <button type="submit" className={`${iconButton} bg-white`} title="Send message" aria-label="Send message"
-            disabled={locked || !text.trim() || !config?.available}><Send className="h-4 w-4" /></button>
-        </div>
+          className="block min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-base text-ink focus:outline-none disabled:opacity-50" />
+        <button type="submit" className={`${iconButton} border-0`} title="Send message" aria-label="Send message"
+          disabled={locked || !text.trim() || !config?.available}><Send className="h-4 w-4" /></button>
       </form>
+      <div className="flex min-h-6 shrink-0 items-center gap-2">
+        <p role="status" aria-live="polite" className="min-w-0 flex-1 text-xs text-ink-muted">
+          {checking ? 'Connecting...' : recorder.status === 'permission' ? 'Waiting for microphone...' : recorder.status === 'processing' ? 'Finishing transcript...' : recording ? `Listening ${recorder.seconds} / 60 s` : busy ? 'Preparing reply...' : 'Ready'}
+        </p>
+        {(busy || recording) && <button type="button" className={iconButton} title="Cancel voice request" aria-label="Cancel voice request" onClick={stop}><X className="h-4 w-4" /></button>}
+      </div>
 
-      {legs.length > 0 && <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink/10 pt-3">
+      {legs.length > 0 && <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-ink/10 pt-3">
         <p className="text-xs text-ink-muted">{legs.length} flight{legs.length === 1 ? '' : 's'} in this conversation</p>
         <button type="button" disabled={locked} onClick={applyDraft} className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-ink disabled:opacity-50">
           <ArrowDownToLine className="h-4 w-4" />Use these flight details
         </button>
       </div>}
-      {analysis && <button type="button" disabled={locked || !config?.available} onClick={() => void processInput(undefined, 'Explain my displayed journey assessment.')}
+      {analysis && <button type="button" disabled={locked || !config?.available} onClick={() => void processInput('Explain my displayed journey assessment.')}
         className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-ink disabled:opacity-50">
         <Volume2 className="h-4 w-4" />Discuss this assessment
       </button>}
@@ -277,6 +302,7 @@ export default function VoiceJourneyPanel({ language, onLanguageChange, onDraft,
         aria-label="Retry voice connection" onClick={() => void checkConfig()}><RotateCcw className="h-4 w-4" /></button>}
       {notice && <p role="status" className="text-sm text-ink-soft">{notice}</p>}
       {error && <p role="alert" className="break-words text-sm text-status-danger">{error}</p>}
-    </div>}
-  </section>;
+    </div>
+  </section>}
+  </>;
 }

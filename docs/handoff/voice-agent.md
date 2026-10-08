@@ -25,10 +25,18 @@ root `.env` or shell environment; the container does not read the host's `backen
 
 ## Flow
 
-1. On `/journeys/new`, open Voice assistant and choose English, Sinhala, or Tamil.
-2. Record up to 60 seconds, or type a journey description. Microphone capture requires
-   localhost or HTTPS and explicit browser microphone permission.
-3. Messages appear in a chat thread. Gemini asks for missing flight details and retains
+1. On `/journeys/new`, the normal flight form appears first. Open the bottom-right Voice
+   assistant bubble to chat in a floating panel, then choose English, Sinhala, or Tamil.
+   Closing the panel (or Escape while focused inside it) stops dictation, audio playback and
+   pending requests. Reopening retains completed messages and the unsent draft in page memory.
+   Passenger sign-in opens this journey form directly; admin sign-in still opens `/admin`.
+2. Dictate up to 60 seconds, or type a journey description. Browser speech recognition
+   previews the transcript in the message box without calling Gemini. Stop dictation,
+   review or edit the text, then press Send. Cancelling dictation restores the preceding draft.
+   Microphone capture requires localhost or HTTPS and explicit browser microphone permission.
+   English, Sinhala and Tamil locales are requested; actual support depends on the browser
+   and its speech service. Unsupported browsers and microphone errors leave typing available.
+3. Only submitted text appears in the chat thread. Gemini asks for missing flight details and retains
    earlier details across turns. Missing or invalid fields remain blank, not invented.
 4. Questions route to FlightAgent, WeatherAgent, verified RAG policy retrieval, or the
    existing journey workflow. Replies use these results rather than model memory for
@@ -59,9 +67,13 @@ server-persisted report. The frontend sends the actual displayed API result. Bri
 demo and missing-data warnings and describe risk as a prototype score, not a probability.
 Policy/recovery prose and hardcoded alternatives are excluded from the spoken summary.
 
-Gemini is called only on the backend over HTTPS with the key in an HTTP header. Audio is
-limited to 8 MB, passed inline to Gemini, and not stored by this feature. Transcripts are
-not persisted or logged. Provider retention is governed by the Gemini account's terms.
+Gemini is called only on the backend over HTTPS with the key in an HTTP header. The current
+chat UI sends text, not recorded audio. Browser dictation can send audio to the browser's
+speech provider; it is not guaranteed to run on-device or offline, and provider terms apply.
+The legacy audio endpoints remain available: audio is limited to 8 MB, passed inline to
+Gemini, and not stored by this feature. Transcripts are not persisted or logged. Gemini
+retention is governed by the account's terms. Dictation does not use Gemini quota, but
+submitted chat requests and spoken replies still require available Gemini models and quota.
 Input speech/text and model outputs are untrusted; drafts require user review. The adapter
 does not add a mandatory step to the Supervisor or change its agent order. Conversation
 history is limited to 20 messages and six collected flight legs. It is held in page memory,
@@ -86,8 +98,10 @@ cd backend
 ```
 
 Frontend tests cover conversation history, draft review, language selection, audio playback,
-unavailable services, cancellations, new conversations and microphone permission errors.
+unavailable services, cancellations, new conversations, editable dictation, explicit text
+submission, interim results, language locales, time limits and microphone permission errors.
 No real Gemini requests are made by automated tests.
 
 API references: [audio understanding](https://ai.google.dev/gemini-api/docs/generate-content/audio),
 [speech generation](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation).
+Browser dictation: [SpeechRecognition](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition).
