@@ -32,16 +32,24 @@ async def analyze_journey(request: JourneyAnalyzeRequest):
         "is_probability": False,
         "flight_score": 0,
         "connection_score": 0,
-        "weather_score": 0
+        "weather_score": None
     }
-    
+
     risk_summary = RiskSummary(
         score=risk_data["score"],
         level=risk_data["level"],
         is_probability=False,
         flight_score=risk_data["flight_score"],
         connection_score=risk_data["connection_score"],
-        weather_score=risk_data["weather_score"]
+        weather_score=risk_data.get("weather_score"),
+        status=risk_data.get("status", "complete"),
+        confidence=risk_data.get("confidence"),
+        confidence_label=risk_data.get("confidence_label"),
+        components=risk_data.get("components", {}),
+        weights=risk_data.get("weights", {}),
+        effective_weights=risk_data.get("effective_weights", {}),
+        missing_data=risk_data.get("missing_data", []),
+        uncertainty=risk_data.get("uncertainty", [])
     )
 
     # Format connection summary if present

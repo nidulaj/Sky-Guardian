@@ -1,72 +1,76 @@
 'use client';
 
-import React from 'react';
-import { Plane, Clock, CloudRain, ShieldAlert, FileText, Route, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
-const AGENTS = [
-  { id: 'flight_agent', name: 'Flight Agent', icon: Plane, desc: 'Verifying schedule estimates & delays (+90m detected)' },
-  { id: 'connection_agent', name: 'Connection Agent', icon: Clock, desc: 'Calculating transfer window buffer (30m vs 60m MCT)' },
-  { id: 'weather_agent', name: 'Weather Agent', icon: CloudRain, desc: 'Evaluating airport weather context (KUL thunderstorms)' },
-  { id: 'risk_agent', name: 'Risk Agent', icon: ShieldAlert, desc: 'Computing unhallucinated weighted risk score (79/100)' },
-  { id: 'policy_agent', name: 'Policy Agent', icon: FileText, desc: 'Retrieving grounded airline Conditions of Carriage' },
-  { id: 'alternative_agent', name: 'Alternative Agent', icon: Route, desc: 'Searching & ranking viable recovery itineraries' },
-  { id: 'recovery_agent', name: 'Recovery Agent', icon: CheckCircle2, desc: 'Synthesizing explainable passenger recommendation' },
+// What each agent does. Deliberately generic: this list never shows results, only the order of work.
+export const AGENTS = [
+  { name: 'Flight', title: 'Looks up each flight', desc: 'Schedule, live status and any reported delay for every leg.' },
+  { name: 'Connection', title: 'Measures each transfer', desc: 'Time between landing and the next departure, against the airport minimum.' },
+  { name: 'Weather', title: 'Checks the airports', desc: 'Current conditions at every airport on the route.' },
+  { name: 'Risk', title: 'Builds the risk score', desc: 'A weighted 0–100 estimate from flights, connections and weather.' },
+  { name: 'Policy', title: 'Finds airline rules', desc: 'Rebooking and care policies that may apply to your trip.' },
+  { name: 'Alternative', title: 'Ranks other routes', desc: 'Backup itineraries if the original plan looks shaky.' },
+  { name: 'Recovery', title: 'Writes your advice', desc: 'A plain-language summary of what to do next.' },
 ];
 
-interface AgentWorkflowProgressProps {
-  currentStep?: number;
-}
+const pad2 = (n: number) => String(n).padStart(2, '0');
 
-export default function AgentWorkflowProgress({ currentStep = 7 }: AgentWorkflowProgressProps) {
+/** Honest progress indicator: the analysis is one request, so we show the agent order and elapsed time, not fake per-step results. */
+export default function AgentWorkflowProgress() {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    const start = Date.now();
+    const id = window.setInterval(() => setSeconds(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
   return (
-    <div className="p-8 rounded-2xl hud-card border border-sky-500/30 space-y-6 relative overflow-hidden">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+    <section aria-labelledby="progress-title" className="rounded-4xl bg-mist px-5 py-7 sm:px-8 sm:py-9">
+      <p role="status" className="sr-only">
+        Checking your journey. This usually takes a few seconds.
+      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-ink/20 pb-5">
         <div>
-          <h3 className="text-lg font-bold text-white flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-sky-400 animate-ping" />
-            <span>Supervisor Orchestrator Active</span>
-          </h3>
-          <p className="text-xs text-slate-400">Sequential multi-agent execution pipeline running on shared journey state.</p>
+          <p className="font-mono text-[11px] uppercase tracking-label text-ink">In progress / 7 agents</p>
+          <h2 id="progress-title" className="display mt-3 text-3xl sm:text-4xl text-ink">
+            Checking your <span className="accent">journey…</span>
+          </h2>
+          <p className="mt-3 max-w-md text-base text-ink leading-relaxed">
+            Seven agents work through your trip in this order. It usually takes a few seconds.
+          </p>
         </div>
-        <span className="text-xs font-mono px-3 py-1 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/30 font-bold">
-          7 AGENTS RUNNING
-        </span>
+        <p className="text-right" aria-hidden="true">
+          <span className="block font-mono text-[11px] uppercase tracking-label text-ink">Elapsed</span>
+          <span className="display mt-1 block text-4xl sm:text-5xl font-light text-ink tabular-nums">
+            {pad2(Math.floor(seconds / 60))}:{pad2(seconds % 60)}
+          </span>
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {AGENTS.map((agent, index) => {
-          const Icon = agent.icon;
-          const isActive = index < currentStep;
-
-          return (
-            <div
-              key={agent.id}
-              className={`p-4 rounded-xl border transition-all flex items-start space-x-3 duration-300 ${
-                isActive
-                  ? 'bg-slate-900/90 border-sky-500/40 shadow-lg shadow-sky-500/10'
-                  : 'bg-slate-950/40 border-slate-800 opacity-50'
-              }`}
-            >
-              <div
-                className={`p-2.5 rounded-xl border flex-shrink-0 ${
-                  isActive
-                    ? 'bg-sky-500/20 border-sky-400 text-sky-400'
-                    : 'bg-slate-900 border-slate-800 text-slate-500'
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs font-mono text-slate-500 font-bold">AGENT 0{index + 1}</span>
-                  <h4 className="text-sm font-bold text-slate-200">{agent.name}</h4>
-                </div>
-                <p className="text-xs text-slate-400 leading-snug">{agent.desc}</p>
-              </div>
+      <ol className="mt-2">
+        {AGENTS.map((agent, i) => (
+          <li key={agent.name} className="grid grid-cols-[3rem_1.25rem_minmax(0,1fr)] sm:grid-cols-[4.5rem_1.5rem_minmax(0,1fr)] gap-x-3 sm:gap-x-4">
+            <span className="display pt-4 text-3xl sm:text-4xl font-light text-ink tabular-nums" aria-hidden="true">
+              {pad2(i + 1)}
+            </span>
+            <span className="relative flex justify-center" aria-hidden="true">
+              <span className={`absolute w-px bg-ink/40 ${i === 0 ? 'top-6' : 'top-0'} ${i === AGENTS.length - 1 ? 'h-6' : 'bottom-0'}`} />
+              <span
+                className="relative mt-[1.15rem] h-2.5 w-2.5 rounded-full bg-coral-deep animate-pulse-dot"
+                style={{ animationDelay: `${i * 0.2}s` }}
+              />
+            </span>
+            <div className={`min-w-0 py-4 ${i > 0 ? 'border-t border-ink/15' : ''}`}>
+              <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="font-mono text-[11px] uppercase tracking-label text-ink">{agent.name} agent</span>
+                <span className="text-lg font-semibold text-ink">{agent.title}</span>
+              </p>
+              <p className="mt-1 text-base text-ink-soft leading-relaxed">{agent.desc}</p>
             </div>
-          );
-        })}
-      </div>
-    </div>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

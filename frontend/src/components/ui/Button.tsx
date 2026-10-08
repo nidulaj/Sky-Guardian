@@ -3,54 +3,50 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  variant?: 'primary' | 'accent' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
+  loadingText?: string;
   children: React.ReactNode;
 }
+
+const VARIANTS = {
+  primary: 'bg-ink text-sand-50 hover:bg-ink-soft',
+  accent: 'bg-coral-deep text-white hover:bg-[#9E2A17]',
+  secondary: 'bg-sand-50 text-ink border border-ink/15 hover:border-ink/40',
+  outline: 'bg-transparent text-ink border border-ink hover:bg-ink hover:text-sand-50',
+  ghost: 'bg-transparent text-ink-soft hover:text-ink hover:bg-ink/5',
+  danger: 'bg-status-danger-bg text-status-danger border border-status-danger/30 hover:bg-coral-soft',
+};
+
+const SIZES = {
+  sm: 'h-9 px-4 text-sm',
+  md: 'h-11 px-5 text-sm',
+  lg: 'h-14 px-7 text-base',
+};
 
 export default function Button({
   variant = 'primary',
   size = 'md',
   isLoading = false,
+  loadingText = 'Working…',
   children,
   className = '',
   disabled,
   ...props
 }: ButtonProps) {
-  const baseStyle =
-    'inline-flex items-center justify-center font-bold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-500/50 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]';
-
-  const variantStyles = {
-    primary:
-      'bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-lg shadow-sky-600/20 border border-sky-400/30',
-    secondary:
-      'bg-slate-900 hover:bg-slate-850 text-slate-200 rounded-xl border border-slate-800',
-    outline:
-      'bg-transparent hover:bg-sky-500/10 text-sky-400 rounded-xl border border-sky-500/40',
-    ghost:
-      'bg-transparent hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl',
-    danger:
-      'bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg shadow-red-600/20 border border-red-400/30',
-  };
-
-  const sizeStyles = {
-    sm: 'px-3 py-1.5 text-xs font-mono',
-    md: 'px-5 py-2.5 text-xs font-mono',
-    lg: 'px-8 py-4 text-sm font-sans',
-  };
-
   return (
     <button
-      className={`${baseStyle} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors duration-200 disabled:opacity-50 disabled:pointer-events-none ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
       disabled={disabled || isLoading}
+      aria-busy={isLoading || undefined}
       {...props}
     >
       {isLoading ? (
-        <span className="flex items-center space-x-2">
-          <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-          <span>Processing...</span>
-        </span>
+        <>
+          <span className="w-4 h-4 rounded-full border-2 border-current border-r-transparent animate-spin" aria-hidden="true" />
+          <span>{loadingText}</span>
+        </>
       ) : (
         children
       )}

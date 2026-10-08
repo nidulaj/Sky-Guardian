@@ -1,5 +1,9 @@
 import type { Config } from "tailwindcss";
 
+// SkyGuardian design tokens: warm editorial palette.
+// Contrast rules (WCAG AA): small text uses ink / ink-soft / ink-muted on sand-50..200 only.
+// coral (bright) is for large display text and decoration; coral-deep for small accent text and buttons.
+// On sand-400 and mist backgrounds use ink or ink-soft for text.
 const config: Config = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -9,44 +13,80 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        aviation: {
-          bg: '#030712',        // Deepest Cockpit Midnight
-          surface: '#0B1528',   // Radar Slate Base
-          elevated: '#112240',  // Floating HUD Panel
-          border: '#1E2D4A',    // Subtle Instrument Line
-          borderGlow: '#0EA5E9',// Active Node Cyan
-          cyan: '#0EA5E9',      // Primary Telemetry
-          sky: '#38BDF8',       // Secondary Flight Curve
-          amber: '#F59E0B',     // Delay/Disruption Warning
-          red: '#EF4444',       // Critical Risk / Missed Transfer
-          emerald: '#10B981',   // Verified Safe Route
-          muted: '#64748B',     // Secondary Telemetry Text
-        }
+        sand: {
+          50: '#FAF8F4',   // paper: inputs, raised cards
+          100: '#F4F0E8',  // cream: cards
+          200: '#ECE6DB',  // page background
+          300: '#DFD7C9',  // hairline-strong / hover
+          400: '#CFC6B8',  // deep sand section
+          500: '#B5AA98',
+        },
+        ink: {
+          DEFAULT: '#1A1714', // primary text
+          soft: '#4F4842',    // secondary text
+          muted: '#6B6359',   // labels, captions (AA on sand-50..200)
+          faint: '#9A9184',   // decoration only, never text
+        },
+        coral: {
+          DEFAULT: '#E8502E', // display accents, dots, icons
+          deep: '#B8321C',    // small accent text, primary accent buttons
+          soft: '#F6D9D1',
+          peach: '#F0B39C',
+        },
+        mist: {
+          DEFAULT: '#A9C4CF', // dusty blue section
+          soft: '#D7E4EA',
+          deep: '#3F5F6C',
+        },
+        cabin: {
+          DEFAULT: '#4A4037', // hero cabin wall
+          dark: '#2B241F',
+          light: '#6B5E50',
+        },
+        status: {
+          safe: '#2F6B4F',
+          'safe-bg': '#DCE8DF',
+          caution: '#8A5A12',
+          'caution-bg': '#F3E3C2',
+          high: '#A4461A',
+          'high-bg': '#F6DCC9',
+          danger: '#B8321C',
+          'danger-bg': '#F6D9D1',
+          unknown: '#5F5850',
+          'unknown-bg': '#E4DED4',
+        },
       },
       fontFamily: {
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+        sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-serif)', 'ui-serif', 'Georgia', 'serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
-      backgroundImage: {
-        'grid-pattern': "radial-gradient(circle, rgba(14, 165, 233, 0.08) 1px, transparent 1px)",
-        'hud-glow': "radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.15), transparent 70%)",
-        'warning-glow': "radial-gradient(circle at 50% 50%, rgba(245, 158, 11, 0.12), transparent 70%)",
-        'danger-glow': "radial-gradient(circle at 50% 50%, rgba(239, 68, 68, 0.15), transparent 70%)",
+      letterSpacing: {
+        display: '-0.045em',
+        label: '0.16em',
       },
-      animation: {
-        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'radar-sweep': 'radarSweep 6s linear infinite',
-        'float': 'float 6s ease-in-out infinite',
+      borderRadius: {
+        '4xl': '2rem',
       },
       keyframes: {
-        radarSweep: {
-          '0%': { transform: 'rotate(0deg)' },
-          '100%': { transform: 'rotate(360deg)' },
+        'fade-up': {
+          '0%': { opacity: '0', transform: 'translateY(12px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
-        float: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-8px)' },
-        }
-      }
+        drift: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '50%': { transform: 'translateX(-14px)' },
+        },
+        'pulse-dot': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.35' },
+        },
+      },
+      animation: {
+        'fade-up': 'fade-up 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both',
+        drift: 'drift 18s ease-in-out infinite',
+        'pulse-dot': 'pulse-dot 1.4s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

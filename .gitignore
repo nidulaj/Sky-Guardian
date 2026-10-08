@@ -37,3 +37,8 @@ postgres_data/
 secrets/
 
 .env
+
+# Generated build metadata
+*.egg-info/
+*.tsbuildinfo
+.run-logs/
