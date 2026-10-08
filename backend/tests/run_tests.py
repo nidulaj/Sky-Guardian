@@ -15,6 +15,8 @@ from app.agents.policy_agent import PolicyAgent
 from app.agents.alternative_agent import AlternativeAgent
 from app.agents.recovery_agent import RecoveryAgent
 from app.orchestrator.graph import SupervisorOrchestrator
+from app.providers.flight.mock import MockFlightProvider
+from app.providers.weather import MockWeatherProvider
 
 class TestSkyGuardianAgents(unittest.TestCase):
 
@@ -94,6 +96,9 @@ class TestSkyGuardianAgents(unittest.TestCase):
                 ]
             )
             orchestrator = SupervisorOrchestrator()
+            # Demo providers keep this check deterministic whatever backend/.env configures.
+            orchestrator.flight_agent = FlightAgent(provider=MockFlightProvider())
+            orchestrator.weather_agent = WeatherAgent(provider=MockWeatherProvider())
             final_state = await orchestrator.run_workflow(state)
             self.assertEqual(final_state.workflow_status, "COMPLETED")
             self.assertEqual(final_state.risk_analysis["score"], 73)
