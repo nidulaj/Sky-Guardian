@@ -92,7 +92,9 @@ function mockAnalyze(weatherAvailable: boolean) {
 }
 
 function sentLegs(fetchMock: ReturnType<typeof mockAnalyze>) {
-  const [url, init] = fetchMock.mock.calls[0];
+  const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/api/journeys/analyze'));
+  expect(call).toBeDefined();
+  const [url, init] = call!;
   expect(String(url)).toBe('http://localhost:8000/api/journeys/analyze');
   return JSON.parse(String(init?.body)).legs as { travel_date: string }[];
 }

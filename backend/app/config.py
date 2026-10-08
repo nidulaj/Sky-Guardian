@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gemini-1.5-flash"
     LLM_API_KEY: Optional[str] = "mock_key"
 
+    GEMINI_API_KEY: Optional[str] = None
+    VOICE_ENABLED: bool = True
+    VOICE_MODEL: str = "gemini-2.5-flash"
+    VOICE_TTS_MODEL: str = "gemini-3.8-flash-tts"
+    VOICE_TTS_VOICE: str = "Kore"
+    VOICE_TIMEOUT_SECONDS: float = 45.0
+
     TAVILY_API_KEY: Optional[str] = "mock_key"
 
     FLIGHT_PROVIDER: str = "mock"

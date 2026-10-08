@@ -20,6 +20,8 @@ import ConnectionCard from '@/components/journey/ConnectionCard';
 import SafeRichText from '@/components/journey/SafeRichText';
 import { AlternativesList, PolicyEvidenceList, SourcesList } from '@/components/journey/JourneyDetails';
 import JourneyWeatherPanel from '@/components/journey/JourneyWeatherPanel';
+import VoiceJourneyPanel from '@/components/voice/VoiceJourneyPanel';
+import type { VoiceLanguage } from '@/types/voice';
 
 // Transfer airport label, matching ConnectionResult.airport in the Connection Agent
 function connectionAirport(flights: FlightResult[]): string | undefined {
@@ -64,6 +66,7 @@ export default function NewJourneyPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<JourneyAnalysisResponse | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [language, setLanguage] = useState<VoiceLanguage>('en');
 
   const requestId = useRef(0);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -106,7 +109,7 @@ export default function NewJourneyPage() {
 
     const id = ++requestId.current;
     try {
-      const res = await analyzeJourney(normalised);
+      const res = await analyzeJourney(normalised, language);
       if (id === requestId.current) setResult(res);
     } catch (err) {
       if (id === requestId.current) {
@@ -180,6 +183,14 @@ export default function NewJourneyPage() {
 
       <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-8 xl:gap-12">
         <div className="lg:col-span-5">
+          <VoiceJourneyPanel language={language} onLanguageChange={setLanguage} analysis={result} disabled={loading}
+            onDraft={(draftLegs) => {
+              setLegs(draftLegs);
+              setErrors([]);
+              setFormError(null);
+              setResult(null);
+              setError(null);
+            }} />
           <BoardingPassForm
             legs={legs}
             errors={errors}
