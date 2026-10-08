@@ -3,6 +3,7 @@ from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime, date
 import re
 from app.schemas.risk import RiskComponent, RiskFactor
+from app.schemas.recovery import RecommendationMode, RecoveryPlan
 
 # Same rules as frontend/src/components/journey/validation.ts: IATA (2 chars, at least one
 # letter) or ICAO (3 letters) airline code, 1-4 digits, optional suffix letter.
@@ -127,6 +128,9 @@ class JourneyAnalysisResponse(BaseModel):
     alternatives: List[Dict[str, Any]] = []
     alternative_search: Dict[str, Any] = {}
     recommendation: str
+    # Structured plan behind `recommendation`; mode says whether it is a validated LLM answer.
+    recovery_plan: Optional[RecoveryPlan] = None
+    recommendation_mode: RecommendationMode = "template"
     sources: List[Dict[str, Any]] = []
     warnings: List[str] = []
     is_demo_data: bool = True
