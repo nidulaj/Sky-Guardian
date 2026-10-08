@@ -40,3 +40,9 @@ class JourneyState(BaseModel):
 
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    def uses_demo_data(self) -> bool:
+        """True when any flight, available weather or alternative result is demo data."""
+        return any(f.get("data_mode") == "demo" for f in self.flight_results) or any(
+            w.get("is_mock") and w.get("status") == "available" for w in self.weather_results
+        ) or any(option.get("data_mode") == "demo" for option in self.alternative_options)

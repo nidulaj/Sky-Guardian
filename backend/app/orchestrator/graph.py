@@ -188,9 +188,7 @@ class SupervisorOrchestrator:
         state.workflow_status = "PARTIAL" if any(r.status == "error" for r in state.agent_runs) else "COMPLETED"
         state.updated_at = datetime.now(timezone.utc).isoformat()
 
-        state.is_demo_data = any(f.get("data_mode") == "demo" for f in state.flight_results) or any(
-            w.get("is_mock") and w.get("status") == "available" for w in state.weather_results
-        ) or any(option.get("data_mode") == "demo" for option in state.alternative_options)
+        state.is_demo_data = state.uses_demo_data()
 
         telemetry_sources = [
             {"name": f["source"], "type": "Aviation Data",
