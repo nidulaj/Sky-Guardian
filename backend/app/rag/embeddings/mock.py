@@ -11,7 +11,7 @@ class MockEmbeddingProvider(BaseEmbeddingProvider):
     Produces high cosine similarity for semantically overlapping aviation & policy texts,
     and low similarity for non-overlapping texts.
     """
-    def __init__(self, dimension: int = 128):
+    def __init__(self, dimension: int = 768):
         self._dim = dimension
 
         # Domain term weights to boost semantic focus on aviation disruption concepts

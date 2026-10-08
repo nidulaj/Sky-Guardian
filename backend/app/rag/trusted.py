@@ -70,6 +70,10 @@ class TrustedDomainValidator:
         if not url:
             return True # Allow internal/system sources
         
+        # Internal Supabase storage paths are trusted user-uploaded documents
+        if url.startswith("storage://") or "supabase.co/storage" in url:
+            return True
+        
         domain = self.extract_domain(url)
         if not domain:
             return True

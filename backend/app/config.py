@@ -42,8 +42,21 @@ class Settings(BaseSettings):
     RAG_MAX_CONTEXT_LENGTH: int = 3000
     EMBEDDING_PROVIDER: str = "mock"  # "mock", "gemini", "openai"
     EMBEDDING_MODEL: str = "models/text-embedding-004"
-    KNOWLEDGE_STORE_BACKEND: str = "memory"  # "memory", "pgvector"
+    KNOWLEDGE_STORE_BACKEND: str = "pgvector"  # "memory", "pgvector"
     KNOWLEDGE_CACHE_SIZE: int = 256
+    # Supabase & Storage Settings
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
+    SUPABASE_STORAGE_BUCKET: str = "rag-documents"
+
+    @property
+    def clean_supabase_url(self) -> Optional[str]:
+        if not self.SUPABASE_URL:
+            return None
+        url = self.SUPABASE_URL.strip().rstrip("/")
+        if url.endswith("/rest/v1"):
+            url = url[:-len("/rest/v1")].rstrip("/")
+        return url
 
     model_config = SettingsConfigDict(
         env_file=".env",
