@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any
 from app.orchestrator.state import JourneyState
 from app.schemas.journey import AgentResultSchema
-from datetime import datetime
+from datetime import datetime, timezone
 
 class BaseAgent(ABC):
     def __init__(self, name: str):
@@ -23,6 +23,7 @@ class BaseAgent(ABC):
         warnings: list = None,
         source_timestamp: str = None
     ) -> AgentResultSchema:
+        now_iso = datetime.now(timezone.utc).isoformat()
         return AgentResultSchema(
             agent=self.name,
             status=status,
@@ -30,7 +31,7 @@ class BaseAgent(ABC):
             confidence=confidence,
             evidence=evidence or [],
             warnings=warnings or [],
-            source_timestamp=source_timestamp or datetime.utcnow().isoformat(),
-            generated_at=datetime.utcnow().isoformat(),
+            source_timestamp=source_timestamp or now_iso,
+            generated_at=now_iso,
             trace_id=trace_id
         )
