@@ -19,7 +19,8 @@ async def analyze_journey(request: JourneyAnalyzeRequest):
         preferred_language=request.language,
         origin=origin,
         destination=destination,
-        journey_legs=legs_data
+        journey_legs=legs_data,
+        alternatives_requested=request.request_alternatives,
     )
 
     # Execute orchestrator agent workflow

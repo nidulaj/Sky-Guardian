@@ -12,6 +12,8 @@ class FlightLegInput(BaseModel):
 class JourneyAnalyzeRequest(BaseModel):
     language: str = Field(default="en", example="en", description="Preferred language code")
     legs: List[FlightLegInput] = Field(..., min_items=1)
+    # Passenger explicitly asked for alternatives (a recovery trigger, blueprint 5.1).
+    request_alternatives: bool = False
 
 class AgentResultSchema(BaseModel):
     agent: str
@@ -23,6 +25,17 @@ class AgentResultSchema(BaseModel):
     source_timestamp: Optional[str] = None
     generated_at: str
     trace_id: str
+
+class AgentRun(BaseModel):
+    """Public trace entry for one agent step: status and timing only, never internal reasoning."""
+    agent: str
+    status: Literal["success", "partial", "unavailable", "error", "skipped"]
+    confidence: Optional[str] = None
+    warnings: List[str] = []
+    started_at: Optional[str] = None
+    duration_ms: Optional[int] = None
+    # Short passenger-safe message; no stack traces, provider errors or keys.
+    error: Optional[str] = None
 
 class RiskSummary(BaseModel):
     """
