@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "dev_secret_key_skyguardian_ai_2026_super_secure_32bytes"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ADMIN_REGISTRATION_SECRET: str = "skyguardian_admin_secret_2026"
 
     LLM_PROVIDER: str = "mock"
     LLM_MODEL: str = "gemini-1.5-flash"

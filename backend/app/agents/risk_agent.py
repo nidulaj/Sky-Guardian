@@ -89,7 +89,7 @@ class RiskAgent(BaseAgent):
             name: (weights[name] / available_weight if name in available else 0.0) for name in weights
         }
         total_risk = sum(components[name].score * effective_weights[name] for name in available)
-        risk_int = int(round(total_risk))
+        risk_int = int(total_risk + 0.5)
         level = self._level(risk_int)
 
         missing = [name for name, c in components.items() if c.status == "missing"]

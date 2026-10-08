@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   description: 'Predict the disruption. Protect the journey. SkyGuardian checks every leg and connection of your trip and explains what to do if something goes wrong.',
 };
 
+import AppProviders from '@/components/providers/AppProviders';
+
 export default function RootLayout({
   children,
 }: {
@@ -19,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${sans.variable} ${serif.variable} ${mono.variable}`}>
       <body className="bg-sand-200 text-ink font-sans antialiased">
-        {children}
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );
