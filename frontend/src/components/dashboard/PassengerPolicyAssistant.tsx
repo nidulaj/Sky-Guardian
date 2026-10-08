@@ -145,9 +145,9 @@ export default function PassengerPolicyAssistant() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-ink/15 bg-sand-50 px-3 py-1 text-xs text-ink font-mono"
                   >
                     <BookOpen className="h-3 w-3 text-coral" />
-                    <span>{s.title || s.airline || 'Carrier Policy'}</span>
-                    {s.score && (
-                      <span className="text-coral-deep font-semibold">({(s.score * 100).toFixed(0)}% match)</span>
+                    <span>{s.name || 'Carrier Policy'}</span>
+                    {s.relevance_score != null && (
+                      <span className="text-coral-deep font-semibold">({(s.relevance_score * 100).toFixed(0)}% match)</span>
                     )}
                   </span>
                 ))}

@@ -276,7 +276,7 @@ export default function AdminPortalPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="surface p-6 space-y-2">
             <p className="eyebrow text-ink-muted">Vector Store Backend</p>
-            <p className="display text-3xl text-ink font-semibold">{stats?.backend || 'pgvector'}</p>
+            <p className="display text-3xl text-ink font-semibold">{stats?.store_backend || 'pgvector'}</p>
             <p className="text-xs text-ink-soft">Supabase PostgreSQL + pgvector</p>
           </div>
 
@@ -486,10 +486,10 @@ export default function AdminPortalPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 font-mono font-semibold text-ink">
-                        {doc.chunk_count || '1+'} chunks
+                        {doc.total_chunks ?? '1+'} chunks
                       </td>
                       <td className="px-6 py-4 text-xs font-mono text-ink-muted max-w-xs truncate">
-                        {doc.metadata?.storage_path || doc.source_url || 'Supabase pgvector'}
+                        {doc.storage_path || doc.source_url || 'Supabase pgvector'}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button

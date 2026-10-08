@@ -1,13 +1,19 @@
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import LandingPage from '@/app/page';
 import { mockWeatherBackend } from '@/test/weatherFixtures';
+import { AuthProvider } from '@/lib/auth/AuthContext';
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useRouter: () => ({ push: vi.fn() }),
+}));
 
 describe('Home page Weather Agent integration', () => {
   it('renders the Weather Agent section alongside the existing sections', async () => {
     mockWeatherBackend();
-    render(<LandingPage />);
+    render(<AuthProvider><LandingPage /></AuthProvider>);
 
     // Existing sections are still present.
     expect(screen.getByRole('heading', { name: /Seven specialists/ })).toBeInTheDocument();
@@ -23,7 +29,7 @@ describe('Home page Weather Agent integration', () => {
 
   it('keeps the page working when the weather service is down', async () => {
     mockWeatherBackend(() => ({ status: 503, body: {} }));
-    render(<LandingPage />);
+    render(<AuthProvider><LandingPage /></AuthProvider>);
     expect(await screen.findByText('Weather data temporarily unavailable.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /A score you can/ })).toBeInTheDocument();
   });
