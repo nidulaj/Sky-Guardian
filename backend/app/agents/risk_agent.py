@@ -62,7 +62,7 @@ class RiskAgent(BaseAgent):
         legs = max(len(state.journey_legs), len(state.flight_results))
         assessed = {
             "flight": self._flight_component(state.flight_results, legs),
-            "connection": self._connection_component(state.connection_results, legs - 1),
+            "connection": self._connection_component(state.connection_results, legs - 1, state.flight_results),
             "weather": self._weather_component(state.weather_results),
         }
         summary = self._combine(assessed)
@@ -217,6 +217,19 @@ class RiskAgent(BaseAgent):
             return "Flight cancellation" if a.critical else "Flight delay"
         return _LABELS[name]
 
+    def _data_quality_factor(self, data_mode: str) -> float:
+        """Confidence factor for where a Flight Agent result came from (FlightResult.data_mode)."""
+        c = self.config.confidence
+        if data_mode == "demo":
+            return c.mock_data_factor
+        if data_mode == "timetable":
+            return c.estimated_times_factor
+        return 1.0
+
+    @staticmethod
+    def _has_live_times(flight: Dict[str, Any]) -> bool:
+        return any(flight.get(k) for k in ("estimated_departure", "estimated_arrival", "actual_departure", "actual_arrival"))
+
     # ------------------------------------------------------------------
     # Flight Agent -> flight component
     # ------------------------------------------------------------------
@@ -229,6 +242,8 @@ class RiskAgent(BaseAgent):
         statuses: Dict[str, str] = {}
         cancelled: List[str] = []
         delayed_estimates: List[str] = []
+        data_modes: Dict[str, str] = {}
+        quality: Dict[str, float] = {}
 
         for i, f in enumerate(flights):
             if not isinstance(f, dict):
@@ -240,6 +255,8 @@ class RiskAgent(BaseAgent):
                 unavailable[label] = "unrecognised flight status"
                 continue
             statuses[label] = status
+            data_modes[label] = f.get("data_mode") or "none"
+            quality[label] = self._data_quality_factor(data_modes[label])
 
             if status == "UNKNOWN":
                 codes = [_safe_text(c, 32) for c in f.get("reason_codes") or [] if isinstance(c, str)]
@@ -254,6 +271,11 @@ class RiskAgent(BaseAgent):
                 if not _is_int(delay) or delay < 0 or delay > cfg.max_plausible_delay_minutes:
                     unavailable[label] = "invalid delay_minutes"
                     continue
+                # A published-timetable result carries no delay information yet: its delay of 0 is a
+                # placeholder, not "on time" (see docs/handoff/flight-agent.md, data_mode).
+                if data_modes[label] == "timetable" and delay == 0 and not self._has_live_times(f):
+                    unavailable[label] = "published timetable only, no live delay information yet"
+                    continue
                 if delay > 0:
                     reason = f"{label} is delayed by {delay} minutes."
                     if status != "LANDED":
@@ -267,6 +289,7 @@ class RiskAgent(BaseAgent):
 
         details = {
             "flight_statuses": statuses,
+            "data_modes": data_modes,
             "legs_scored": [label for _, label, _ in scored],
             "legs_unavailable": unavailable,
         }
@@ -287,13 +310,18 @@ class RiskAgent(BaseAgent):
         ]
         if worst_label in delayed_estimates:
             uncertainty.append(f"The delay for {worst_label} is the current estimate and may change.")
+        demo_legs = [label for _, label, _ in scored if data_modes.get(label) == "demo"]
+        if demo_legs:
+            uncertainty.append(f"Flight data for {', '.join(demo_legs)} is demo data, not live airline information.")
 
+        coverage = len(scored) / (len(scored) + len(unavailable))
+        data_quality = min(quality.get(label, 1.0) for _, label, _ in scored)
         return _Assessed(
             RiskComponent(
                 status="available",
                 score=worst_score,
                 level=self.config.levels.level_for(worst_score),
-                confidence=round(len(scored) / (len(scored) + len(unavailable)), 2),
+                confidence=round(coverage * data_quality, 2),
                 reason=worst_reason,
                 details=details,
             ),
@@ -306,11 +334,14 @@ class RiskAgent(BaseAgent):
     # Connection Agent -> connection component
     # ------------------------------------------------------------------
 
-    def _connection_component(self, connections: List[Any], expected: int) -> _Assessed:
+    def _connection_component(self, connections: List[Any], expected: int, flights: Optional[List[Any]] = None) -> _Assessed:
         """
         Worst transfer wins. Each Connection Agent result is turned into a ConnectionRisk
         (app/risk/connection_risk.py); UNAVAILABLE transfers are reported, never scored.
+        Confidence also reflects the Flight Agent data behind each transfer window
+        (connection i is built from flights i and i + 1).
         """
+        flights = flights or []
         if not connections:
             if expected <= 0:
                 return _Assessed(RiskComponent(
@@ -347,12 +378,26 @@ class RiskAgent(BaseAgent):
             f"{', '.join(details['connections_scored'])}."
             for k, v in unavailable.items()
         ]
+
+        def modes(r) -> List[str]:
+            legs = flights[r.connection_index:r.connection_index + 2]
+            return [f.get("data_mode") or "none" for f in legs if isinstance(f, dict)]
+
+        if any("timetable" in modes(r) for r in scored):
+            uncertainty.append(
+                f"The connection window at {label(worst)} is based on published schedules; "
+                "delays are not known yet and may shorten it."
+            )
+        data_quality = min(
+            (min((self._data_quality_factor(m) for m in modes(r)), default=1.0) for r in scored), default=1.0
+        )
+        coverage = len(scored) / (len(scored) + len(unavailable))
         return _Assessed(
             RiskComponent(
                 status="available",
                 score=worst.risk_score,
                 level=self.config.levels.level_for(worst.risk_score),
-                confidence=round(len(scored) / (len(scored) + len(unavailable)), 2),
+                confidence=round(coverage * data_quality, 2),
                 reason=worst.reason,
                 details=details,
             ),
