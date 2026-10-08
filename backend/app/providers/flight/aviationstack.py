@@ -107,6 +107,29 @@ class AviationStackFlightProvider(FlightDataProvider):
 
     # ---- live status -------------------------------------------------------------------------------------
 
+    async def search_departures(self, origin: str, travel_date: str) -> List[FlightResult]:
+        """Bounded schedule discovery sharing the existing cache and quota counter."""
+        records = await self._fetch(
+            f"alternative:departures:{origin}:{travel_date}", "flights",
+            {"dep_iata": origin, "flight_date": travel_date, "limit": 100},
+            ttl=self._settings.FLIGHT_LIVE_CACHE_SECONDS,
+        )
+        flights = []
+        for record in records:
+            if not isinstance(record, dict) or record.get("flight_date") != travel_date:
+                continue
+            departure, flight = record.get("departure") or {}, record.get("flight") or {}
+            if not isinstance(departure, dict) or not isinstance(flight, dict):
+                continue
+            number = flight.get("iata")
+            if departure.get("iata") != origin or not isinstance(number, str):
+                continue
+            try:
+                flights.append(self._live_to_result(record, number.upper()))
+            except (TypeError, ValueError, AttributeError):
+                continue
+        return flights
+
     async def _live(self, flight_iata: str, travel_date: str, origin: str, strict_origin: bool = False) -> Optional[FlightResult]:
         records = await self._fetch(
             f"live:{flight_iata}", "flights", {"flight_iata": flight_iata, "limit": 100},

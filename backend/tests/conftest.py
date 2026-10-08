@@ -11,9 +11,11 @@ import pytest
 from app.api import journeys
 from app.providers.flight.mock import MockFlightProvider
 from app.providers.weather import MockWeatherProvider
+from app.providers.flight.search import MockFlightSearch
 
 
 @pytest.fixture(autouse=True)
 def demo_providers_for_api(monkeypatch):
     monkeypatch.setattr(journeys.orchestrator.flight_agent, "provider", MockFlightProvider())
     monkeypatch.setattr(journeys.orchestrator.weather_agent, "provider", MockWeatherProvider())
+    monkeypatch.setattr(journeys.orchestrator.alternative_agent, "provider", MockFlightSearch(journeys.orchestrator.alternative_agent.config))

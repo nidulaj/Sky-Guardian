@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     FLIGHT_API_KEY: Optional[str] = "mock_key"
     USE_MOCK_FLIGHTS: bool = True
 
+    # Live search failures never fall back to sample itineraries.
+    ALTERNATIVE_PROVIDER: str = "auto"
+    RANKING_CONFIG_PATH: Optional[str] = None
+
     # Options: mock (deterministic demo data), open_meteo (live forecast, no API key needed)
     WEATHER_PROVIDER: str = "mock"
     WEATHER_API_KEY: Optional[str] = "mock_key"

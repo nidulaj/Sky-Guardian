@@ -334,7 +334,7 @@ export default function NewJourneyPage() {
                 {/* 06 Alternatives */}
                 <section className="min-w-0 space-y-6">
                   <SectionTitle n={6} label="Backup routes, ranked" />
-                  <AlternativesList items={result.alternatives} />
+                  <AlternativesList items={result.alternatives} search={result.alternative_search} />
                 </section>
 
                 {/* 07 Policy */}

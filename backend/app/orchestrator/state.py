@@ -20,6 +20,7 @@ class JourneyState(BaseModel):
     risk_analysis: Optional[Dict[str, Any]] = None
     policy_evidence: List[Dict[str, Any]] = []
     alternative_options: List[Dict[str, Any]] = []
+    alternative_search: Dict[str, Any] = {"status": "not_needed"}
     recommended_option: Optional[Dict[str, Any]] = None
     recommendation_text: str = ""
     

@@ -1,8 +1,11 @@
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import LandingPage from '@/app/page';
 import { mockWeatherBackend } from '@/test/weatherFixtures';
+
+vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('@/lib/auth/AuthContext', () => ({ useAuth: () => ({ user: null, isAuthenticated: false, isAdmin: false, logout: vi.fn() }) }));
 
 describe('Home page Weather Agent integration', () => {
   it('renders the Weather Agent section alongside the existing sections', async () => {

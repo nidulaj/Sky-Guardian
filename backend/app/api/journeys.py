@@ -63,6 +63,7 @@ async def analyze_journey(request: JourneyAnalyzeRequest):
         weather_conditions=final_state.weather_results,
         policy_evidence=final_state.policy_evidence,
         alternatives=final_state.alternative_options,
+        alternative_search=final_state.alternative_search,
         recommendation=final_state.recommendation_text,
         sources=final_state.sources,
         warnings=final_state.warnings,
