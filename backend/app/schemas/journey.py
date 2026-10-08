@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
-from app.schemas.risk import RiskComponent
+from app.schemas.risk import RiskComponent, RiskFactor
 
 class FlightLegInput(BaseModel):
     flight_number: str = Field(..., example="UL001", description="Airline IATA/ICAO flight code")
@@ -25,21 +25,33 @@ class AgentResultSchema(BaseModel):
     trace_id: str
 
 class RiskSummary(BaseModel):
-    score: int
-    level: Literal["LOW", "MODERATE", "HIGH", "VERY_HIGH"]
-    is_probability: bool = False
-    flight_score: float
-    connection_score: float
-    # None = no usable weather data; see components["weather"].status / reason.
-    weather_score: Optional[float] = None
-    status: Literal["complete", "partial"] = "complete"
+    """
+    Risk Agent output (stored in JourneyState.risk_analysis and returned by the API).
+    A decision-support score, not a probability. Component scores are None when that
+    agent's data is unavailable (see components[...].status / reason), never 0.
+    """
+    # None with level "UNKNOWN" when no component could be scored.
+    score: Optional[int] = Field(None, ge=0, le=100)
+    level: Literal["LOW", "MODERATE", "HIGH", "VERY_HIGH", "UNKNOWN"]
+    is_probability: Literal[False] = False
+    flight_score: Optional[int] = Field(None, ge=0, le=100)
+    connection_score: Optional[int] = Field(None, ge=0, le=100)
+    weather_score: Optional[int] = Field(None, ge=0, le=100)
+    status: Literal["complete", "partial", "insufficient_data"] = "complete"
     confidence: Optional[float] = Field(None, ge=0, le=1)
     confidence_label: Optional[Literal["high", "medium", "low", "unknown"]] = None
     components: Dict[str, RiskComponent] = {}
     weights: Dict[str, float] = {}
     effective_weights: Dict[str, float] = {}
+    # Weighted average before any minimum-score override, unrounded.
+    weighted_score: Optional[float] = None
+    applied_overrides: List[str] = []
+    level_thresholds: Dict[str, int] = {}
     missing_data: List[str] = []
     uncertainty: List[str] = []
+    top_factors: List[RiskFactor] = []
+    explanation: List[str] = []
+    warnings: List[str] = []
 
 class ConnectionSummary(BaseModel):
     available_minutes: int

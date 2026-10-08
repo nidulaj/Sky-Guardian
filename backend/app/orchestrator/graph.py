@@ -45,14 +45,17 @@ class SupervisorOrchestrator:
         # Step 3: Weather Agent
         await self.weather_agent.execute(state)
 
-        # Step 4: Risk Agent
+        # Step 4: Risk Agent (runs after Flight, Connection and Weather results are in state)
         await self.risk_agent.execute(state)
 
         # Step 5: Conditional Routing
-        risk_score = state.risk_analysis.get("score", 0) if state.risk_analysis else 0
-        conn_status = state.connection_results[0].get("status") if state.connection_results else "SAFE"
-
-        needs_recovery = risk_score >= 60 or conn_status in ["HIGH_RISK", "LIKELY_MISSED", "MISSED"]
+        # score is None when the Risk Agent had no usable data; that alone does not trigger recovery.
+        risk_score = state.risk_analysis.get("score") if state.risk_analysis else None
+        threshold = self.risk_agent.config.triggers.recovery_trigger_threshold
+        needs_recovery = (
+            (risk_score is not None and risk_score >= threshold) or
+            any(c.get("status") in ["HIGH_RISK", "LIKELY_MISSED", "MISSED"] for c in state.connection_results)
+        )
 
         if needs_recovery:
             # Step 5a: Policy Agent
@@ -66,11 +69,25 @@ class SupervisorOrchestrator:
         state.workflow_status = "COMPLETED"
         state.updated_at = datetime.now(timezone.utc).isoformat()
 
-        # Base telemetry sources from workflow providers
-        telemetry_sources = [
-            {"name": "MockFlightProvider", "type": "Aviation Data", "verified": True},
-            {"name": self.weather_agent.provider.name, "type": "Weather Forecast", "verified": True},
-        ]
+        # Base telemetry sources: what the Flight and Weather agents actually used.
+        # Demo/mock data is listed but never marked as verified.
+        telemetry_sources = []
+        for f in state.flight_results:
+            if (f.get("source") and f.get("data_mode") in ("live", "timetable", "demo")
+                    and all(s["name"] != f["source"] for s in telemetry_sources)):
+                telemetry_sources.append(
+                    {"name": f["source"], "type": "Aviation Data", "verified": f["data_mode"] != "demo"}
+                )
+        weather_provider = self.weather_agent.provider
+        if state.weather_results:
+            telemetry_sources.append({
+                "name": weather_provider.name, "type": "Weather Forecast",
+                "verified": not getattr(weather_provider, "is_mock", False),
+            })
+        state.is_demo_data = (
+            any(f.get("data_mode") == "demo" for f in state.flight_results)
+            or any(w.get("is_mock") for w in state.weather_results)
+        )
 
         # Merge telemetry with any evidence-derived policy sources
         combined_sources = list(telemetry_sources)

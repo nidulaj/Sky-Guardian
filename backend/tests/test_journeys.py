@@ -30,7 +30,9 @@ async def test_cmb_kul_tokyo_demo_journey():
         
         # Verify Journey Status & Risk
         assert data["journey_status"] == "HIGH_RISK"
-        assert data["risk"]["score"] == 79
+        # Flight 65 (90 min delay) x 0.40 + connection 90 (LIKELY_MISSED) x 0.35 + weather 60 (KUL, mock) x 0.25
+        # = 26 + 31.5 + 15 = 72.5 -> 73 (round half up)
+        assert data["risk"]["score"] == 73
         assert data["risk"]["level"] == "HIGH"
         assert data["risk"]["is_probability"] is False
         

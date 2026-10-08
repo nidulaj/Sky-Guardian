@@ -21,23 +21,45 @@ export interface RiskComponent {
   details: Record<string, any>;
 }
 
+export type RiskComponentName = 'flight' | 'connection' | 'weather';
+
+// Mirrors backend/app/schemas/risk.py RiskFactor.
+export interface RiskFactor {
+  factor: string;
+  component: RiskComponentName;
+  /** Component score 0-100. */
+  impact: number;
+  /** Weighted points this component adds to the journey score. */
+  contribution: number;
+  reason: string;
+}
+
+// Mirrors backend/app/schemas/journey.py RiskSummary (Risk Agent output).
 export interface RiskSummary {
-  /** Weighted 0-100 decision-support score. Not a probability. */
-  score: number;
-  level: RiskLevel;
-  is_probability: boolean;
-  flight_score: number;
-  connection_score: number;
-  /** null when no weather data was available — never a default score. */
+  /** Weighted 0-100 decision-support score. Not a probability. null when nothing could be scored. */
+  score: number | null;
+  level: RiskLevel | 'UNKNOWN';
+  is_probability: false;
+  /** Component scores are null when that agent's data is unavailable — never a default 0. */
+  flight_score: number | null;
+  connection_score: number | null;
   weather_score: number | null;
-  status?: 'complete' | 'partial';
+  status?: 'complete' | 'partial' | 'insufficient_data';
   confidence?: number | null;
   confidence_label?: 'high' | 'medium' | 'low' | 'unknown' | null;
-  components?: Record<string, RiskComponent>;
-  weights?: Record<string, number>;
-  effective_weights?: Record<string, number>;
+  components?: Partial<Record<RiskComponentName, RiskComponent>>;
+  /** Configured weights (config/risk.yaml). */
+  weights?: Partial<Record<RiskComponentName, number>>;
+  /** Weights actually applied after leaving out missing / not-applicable components. */
+  effective_weights?: Partial<Record<RiskComponentName, number>>;
+  weighted_score?: number | null;
+  applied_overrides?: string[];
+  level_thresholds?: Record<string, number>;
   missing_data?: string[];
   uncertainty?: string[];
+  top_factors?: RiskFactor[];
+  explanation?: string[];
+  warnings?: string[];
 }
 
 export interface ConnectionSummary {

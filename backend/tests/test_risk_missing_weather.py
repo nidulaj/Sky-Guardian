@@ -11,7 +11,8 @@ from app.main import app
 from app.orchestrator.state import JourneyState
 from app.providers.weather import MockWeatherProvider, OpenMeteoWeatherProvider
 
-# Flight 80 (90 min delay), connection 100 (MISSED), as in the demo journey.
+# Flight 65 (90 min delay, config/risk.yaml flight band), connection 100 (MISSED).
+# A MISSED connection sets a minimum journey score of 80 (overrides.impossible_connection_min_score).
 FLIGHTS = [{"status": "DELAYED", "delay_minutes": 90}]
 CONNECTIONS = [{"status": "MISSED"}]
 
@@ -45,9 +46,11 @@ async def test_all_weather_unavailable_is_missing_not_a_default_score():
     assert risk["missing_data"] == ["weather"]
     assert risk["status"] == "partial"
 
-    # Score = available components with re-normalised weights: (80*0.40 + 100*0.35) / 0.75 = 89.33 -> 89
+    # Score = available components with re-normalised weights: (65*0.40 + 100*0.35) / 0.75 = 81.33 -> 81
     assert risk["effective_weights"] == {"flight": 0.5333, "connection": 0.4667, "weather": 0.0}
-    assert risk["score"] == 89
+    assert risk["score"] == 81
+    assert risk["weighted_score"] == 81.33
+    assert risk["applied_overrides"] == []
     assert risk["level"] == "VERY_HIGH"
 
     # Confidence loses the weather weight: 0.40*1 + 0.35*1 + 0.25*0 = 0.75
@@ -56,8 +59,8 @@ async def test_all_weather_unavailable_is_missing_not_a_default_score():
     assert result.status == "partial"
     assert result.confidence == "medium"
 
-    # The possible range is stated: weather 0 -> 67, weather 100 -> 92.
-    assert "could be 67-92" in risk["uncertainty"][0]
+    # The possible range is stated: weather 0 -> 61, weather 100 -> 86; the missed-connection minimum lifts 61 to 80.
+    assert "could be 80-86" in risk["uncertainty"][0]
 
 
 @pytest.mark.asyncio
@@ -71,15 +74,18 @@ async def test_no_weather_results_at_all_is_missing():
 @pytest.mark.asyncio
 async def test_all_weather_available_keeps_original_formula():
     risk, result = await run_risk([available("CMB", 5), available("KUL", 60), available("NRT", 0)])
-    # 80*0.40 + 100*0.35 + 60*0.25 = 82
-    assert risk["score"] == 82
+    # 65*0.40 + 100*0.35 + 60*0.25 = 76, raised to the missed-connection minimum of 80
+    assert risk["weighted_score"] == 76.0
+    assert risk["score"] == 80
+    assert len(risk["applied_overrides"]) == 1
     assert risk["weather_score"] == 60
     assert risk["effective_weights"] == {"flight": 0.4, "connection": 0.35, "weather": 0.25}
     assert risk["components"]["weather"]["status"] == "available"
     assert risk["components"]["weather"]["reason"] == "Highest airport weather risk: KUL"
     assert risk["missing_data"] == []
     assert risk["status"] == "complete"
-    assert risk["uncertainty"] == []
+    # Only the note that the 90-minute delay is an estimate; nothing is missing.
+    assert risk["uncertainty"] == ["The delay for leg 1 is the current estimate and may change."]
     assert result.status == "success"
 
 

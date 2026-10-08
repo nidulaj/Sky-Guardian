@@ -25,32 +25,18 @@ async def analyze_journey(request: JourneyAnalyzeRequest):
     # Execute orchestrator agent workflow
     final_state = await orchestrator.run_workflow(state)
 
-    # Format risk summary
-    risk_data = final_state.risk_analysis or {
-        "score": 0,
-        "level": "LOW",
-        "is_probability": False,
-        "flight_score": 0,
-        "connection_score": 0,
-        "weather_score": None
-    }
-
-    risk_summary = RiskSummary(
-        score=risk_data["score"],
-        level=risk_data["level"],
-        is_probability=False,
-        flight_score=risk_data["flight_score"],
-        connection_score=risk_data["connection_score"],
-        weather_score=risk_data.get("weather_score"),
-        status=risk_data.get("status", "complete"),
-        confidence=risk_data.get("confidence"),
-        confidence_label=risk_data.get("confidence_label"),
-        components=risk_data.get("components", {}),
-        weights=risk_data.get("weights", {}),
-        effective_weights=risk_data.get("effective_weights", {}),
-        missing_data=risk_data.get("missing_data", []),
-        uncertainty=risk_data.get("uncertainty", [])
-    )
+    # The Risk Agent stores a RiskSummary; without one the risk is unknown, never a default low score.
+    if final_state.risk_analysis:
+        risk_summary = RiskSummary.model_validate(final_state.risk_analysis)
+    else:
+        risk_summary = RiskSummary(
+            score=None,
+            level="UNKNOWN",
+            status="insufficient_data",
+            confidence=0.0,
+            confidence_label="unknown",
+            explanation=["Overall risk: unknown. The risk assessment did not run."],
+        )
 
     # Format connection summary if present
     connection_summary = None
@@ -69,7 +55,7 @@ async def analyze_journey(request: JourneyAnalyzeRequest):
     return JourneyAnalysisResponse(
         journey_id=final_state.journey_id,
         trace_id=final_state.trace_id,
-        journey_status=risk_summary.level + "_RISK",
+        journey_status="INSUFFICIENT_DATA" if risk_summary.level == "UNKNOWN" else risk_summary.level + "_RISK",
         risk=risk_summary,
         primary_issue=primary_issue,
         connection=connection_summary,
