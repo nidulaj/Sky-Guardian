@@ -15,6 +15,13 @@ DEMO_LEGS = [
 ]
 
 
+@pytest.fixture(autouse=True, params=["langgraph", "sequential"])
+def engine(request, monkeypatch):
+    """Every orchestrator test runs on both engines."""
+    monkeypatch.setattr(settings, "ORCHESTRATOR_ENGINE", request.param)
+    return request.param
+
+
 class Boom:
     """Agent stand-in that fails with an internal error that must not reach the passenger."""
 
@@ -144,3 +151,47 @@ async def test_passenger_request_triggers_recovery_on_a_safe_journey():
     assert state.recovery_triggered is True
     assert state.recovery_reasons == ["PASSENGER_REQUESTED"]
     assert runs(state)["alternative_agent"].status != "skipped"
+
+
+GRAPH_ORDER = ["flight_agent", "connection_agent", "weather_agent", "risk_agent",
+               "policy_agent", "alternative_agent", "recovery_agent"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("legs", [DEMO_LEGS, SAFE_LEGS])
+async def test_trace_follows_graph_order(legs):
+    state = await journeys.orchestrator.run_workflow(journeys.JourneyState(journey_legs=legs))
+    assert [run.agent for run in state.agent_runs] == GRAPH_ORDER
+
+
+@pytest.mark.asyncio
+async def test_run_workflow_returns_the_callers_state():
+    state = journeys.JourneyState(journey_legs=DEMO_LEGS)
+    assert await journeys.orchestrator.run_workflow(state) is state
+
+
+@pytest.mark.asyncio
+async def test_engines_produce_the_same_assessment(monkeypatch):
+    results = {}
+    for name in ("langgraph", "sequential"):
+        monkeypatch.setattr(settings, "ORCHESTRATOR_ENGINE", name)
+        state = await journeys.orchestrator.run_workflow(journeys.JourneyState(journey_legs=DEMO_LEGS))
+        # Provider results carry fetch timestamps, so compare the decisions rather than raw dumps.
+        results[name] = {
+            "flights": [(f["flight_number"], f["status"], f["delay_minutes"]) for f in state.flight_results],
+            "connections": [(c["status"], c["available_connection_minutes"]) for c in state.connection_results],
+            "risk": (state.risk_analysis["score"], state.risk_analysis["level"]),
+            "reasons": state.recovery_reasons,
+            "trace": [(r.agent, r.status) for r in state.agent_runs],
+            "alternatives": [o.get("route_summary") for o in state.alternative_options],
+            "recommendation": state.recommendation_text,
+            "status": state.workflow_status,
+        }
+    assert results["langgraph"] == results["sequential"]
+    assert results["langgraph"]["reasons"] == ["CONNECTION_AT_RISK", "RISK_ABOVE_THRESHOLD"]
+
+
+def test_graph_diagram_has_conditional_recovery_branch():
+    diagram = journeys.orchestrator.mermaid()
+    assert "recovery_gate -.-> policy" in diagram
+    assert "recovery_gate -.-> recovery" in diagram

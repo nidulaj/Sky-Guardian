@@ -9,6 +9,8 @@ from app.agents.alternative_agent import AlternativeAgent
 from app.agents.recovery_agent import RecoveryAgent
 from app.config import settings
 from app.schemas.journey import AgentRun
+from langgraph.graph import StateGraph, START, END
+from typing import TypedDict
 from datetime import datetime, timezone
 import asyncio
 import logging
@@ -28,16 +30,37 @@ FAILURE_WARNINGS = {
     "recovery_agent": "A recovery summary could not be generated.",
 }
 
+# Graph node name -> SupervisorOrchestrator attribute holding that agent.
+AGENT_NODES = {
+    "flight": "flight_agent",
+    "connection": "connection_agent",
+    "weather": "weather_agent",
+    "risk": "risk_agent",
+    "policy": "policy_agent",
+    "alternatives": "alternative_agent",
+    "recovery": "recovery_agent",
+}
+
+
+class WorkflowState(TypedDict):
+    # The agents update JourneyState in place, so the graph carries the same object
+    # from node to node rather than merging per-field updates.
+    journey: JourneyState
+
 
 class SupervisorOrchestrator:
     """
-    Supervisor Orchestrator enforcing controlled sequential execution flow:
-    1. Flight Agent
-    2. Connection Agent
-    3. Weather Agent
-    4. Risk Agent
-    5. Conditional Routing (if risk >= 60 or connection at risk -> Policy & Alternative Agents)
-    6. Recovery Agent
+    Supervisor Orchestrator, run as a LangGraph state graph:
+
+        START -> flight -> connection -> weather -> risk -> recovery_gate
+        recovery_gate -(recovery needed)-> policy -> alternatives -> recovery
+        recovery_gate -(not needed)--------------------------------> recovery
+        recovery -> finalize -> END
+
+    Recovery is needed when a flight is cancelled, a connection is at risk, the risk score
+    reaches the configured threshold or the passenger asked for alternatives
+    (see routing.should_trigger_recovery). ORCHESTRATOR_ENGINE=sequential runs the same
+    steps without LangGraph.
 
     Each agent runs in isolation: a failure or timeout is recorded in state.agent_runs with a
     passenger-safe warning, and the workflow continues with the data it has.
@@ -51,6 +74,47 @@ class SupervisorOrchestrator:
         self.policy_agent = PolicyAgent()
         self.alternative_agent = AlternativeAgent()
         self.recovery_agent = RecoveryAgent()
+        self.graph = self._build_graph()
+
+    def _build_graph(self):
+        builder = StateGraph(WorkflowState)
+        for node, agent_name in AGENT_NODES.items():
+            builder.add_node(node, self._agent_node(agent_name))
+        builder.add_node("recovery_gate", self._graph_step(self._route))
+        builder.add_node("finalize", self._graph_step(self._finalize))
+
+        builder.add_edge(START, "flight")
+        builder.add_edge("flight", "connection")
+        builder.add_edge("connection", "weather")
+        builder.add_edge("weather", "risk")
+        builder.add_edge("risk", "recovery_gate")
+        builder.add_conditional_edges(
+            "recovery_gate",
+            lambda s: "policy" if s["journey"].recovery_triggered else "recovery",
+            {"policy": "policy", "recovery": "recovery"},
+        )
+        builder.add_edge("policy", "alternatives")
+        builder.add_edge("alternatives", "recovery")
+        builder.add_edge("recovery", "finalize")
+        builder.add_edge("finalize", END)
+        return builder.compile()
+
+    def _agent_node(self, agent_name: str):
+        async def node(s: WorkflowState) -> WorkflowState:
+            await self._run_agent(agent_name, s["journey"])
+            return {"journey": s["journey"]}
+        return node
+
+    @staticmethod
+    def _graph_step(step):
+        async def node(s: WorkflowState) -> WorkflowState:
+            step(s["journey"])
+            return {"journey": s["journey"]}
+        return node
+
+    def mermaid(self) -> str:
+        """Mermaid diagram of the supervisor graph, for the README and report."""
+        return self.graph.get_graph().draw_mermaid()
 
     async def _run_agent(self, name: str, state: JourneyState) -> AgentRun:
         # Looked up at call time so tests (and callers) can replace self.<agent>.
@@ -80,31 +144,37 @@ class SupervisorOrchestrator:
         state.agent_runs.append(run)
         return run
 
-    async def run_workflow(self, state: JourneyState) -> JourneyState:
-        logger.info(f"Starting journey analysis workflow for journey_id: {state.journey_id}, trace_id: {state.trace_id}")
-        state.workflow_status = "IN_PROGRESS"
-
-        # Steps 1-4: Flight, Connection, Weather, then Risk (which needs the other three)
-        for name in ("flight_agent", "connection_agent", "weather_agent", "risk_agent"):
-            await self._run_agent(name, state)
-
-        # Step 5: Conditional Routing (see routing.should_trigger_recovery)
+    def _route(self, state: JourneyState) -> None:
+        """Recovery gate: decide whether the Policy and Alternative agents run."""
         threshold = self.risk_agent.config.triggers.recovery_trigger_threshold
         state.recovery_triggered, state.recovery_reasons = should_trigger_recovery(state, threshold)
-
         state.alternative_options, state.recommended_option = [], None
         state.alternative_search = {"status": "not_needed"}
-        if state.recovery_triggered:
-            # Step 5a: Policy Agent
-            await self._run_agent("policy_agent", state)
-            # Step 5b: Alternative Agent
-            await self._run_agent("alternative_agent", state)
-        else:
+        if not state.recovery_triggered:
             for name in ("policy_agent", "alternative_agent"):
                 state.agent_runs.append(AgentRun(agent=name, status="skipped"))
 
-        # Step 6: Recovery Agent
+    async def run_workflow(self, state: JourneyState) -> JourneyState:
+        logger.info(f"Starting journey analysis workflow for journey_id: {state.journey_id}, trace_id: {state.trace_id}")
+        state.workflow_status = "IN_PROGRESS"
+        if settings.ORCHESTRATOR_ENGINE == "sequential":
+            return await self._run_sequential(state)
+        result = await self.graph.ainvoke({"journey": state})
+        return result["journey"]
+
+    async def _run_sequential(self, state: JourneyState) -> JourneyState:
+        """Same steps as the graph without LangGraph (fallback and parity testing)."""
+        for name in ("flight_agent", "connection_agent", "weather_agent", "risk_agent"):
+            await self._run_agent(name, state)
+        self._route(state)
+        if state.recovery_triggered:
+            await self._run_agent("policy_agent", state)
+            await self._run_agent("alternative_agent", state)
         await self._run_agent("recovery_agent", state)
+        self._finalize(state)
+        return state
+
+    def _finalize(self, state: JourneyState) -> None:
         if not state.recommendation_text:
             state.recommendation_text = (
                 "A recovery summary could not be generated. Check your flight status directly with your airline."
@@ -147,5 +217,3 @@ class SupervisorOrchestrator:
         state.warnings.append(
             "SkyGuardian AI provides travel disruption guidance based on available schedule estimates. Confirm critical travel updates with your carrier."
         )
-
-        return state
