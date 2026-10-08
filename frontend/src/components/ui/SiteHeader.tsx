@@ -14,7 +14,6 @@ const MARKETING_LINKS = [
 ];
 
 const BASE_APP_LINKS = [
-  { href: '/journeys/new', label: 'Check a journey' },
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/history', label: 'History' },
   { href: '/settings', label: 'Settings' },
@@ -144,28 +143,18 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
               </button>
             </div>
           ) : (
-            <>
+            <div className="flex items-center gap-3">
               <Link href="/login" className={`inline-flex min-h-11 items-center font-mono text-[11px] uppercase tracking-label ${linkTone}`}>
                 Sign in
               </Link>
               <Link
                 href="/register"
-                className={`inline-flex min-h-11 items-center font-mono text-[11px] uppercase tracking-label text-coral hover:text-coral-deep`}
+                className="inline-flex h-10 items-center justify-center rounded-full bg-coral px-4 text-xs font-medium text-white transition-colors hover:bg-coral-deep"
               >
                 Register
               </Link>
-            </>
+            </div>
           )}
-
-          <Link
-            href="/journeys/new"
-            className={`inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-medium transition-colors ${
-              overlay ? 'bg-white text-ink hover:bg-sand-100' : 'bg-ink text-sand-50 hover:bg-ink-soft'
-            }`}
-          >
-            Check my journey
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
         </div>
 
         <button
@@ -224,14 +213,11 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
                   <Link href="/login" className="flex-1 inline-flex h-11 items-center justify-center rounded-full border border-ink/20 text-sm">
                     Sign in
                   </Link>
-                  <Link href="/register" className="flex-1 inline-flex h-11 items-center justify-center rounded-full border border-coral text-coral text-sm">
+                  <Link href="/register" className="flex-1 inline-flex h-11 items-center justify-center rounded-full bg-coral text-white text-sm">
                     Register
                   </Link>
                 </>
               )}
-              <Link href="/journeys/new" className="flex-1 inline-flex h-11 items-center justify-center rounded-full bg-ink text-sand-50 text-sm">
-                Check journey
-              </Link>
             </div>
           </nav>
         </div>
@@ -239,4 +225,5 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
     </header>
   );
 }
+
 
