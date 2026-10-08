@@ -20,7 +20,7 @@ describe('Sign-in destination', () => {
   it('opens the normal journey form for passengers', async () => {
     login.mockResolvedValue({ role: 'PASSENGER' });
     signIn();
-    await waitFor(() => expect(push).toHaveBeenCalledWith('/journeys/new'));
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/dashboard'));
   });
 
   it('keeps the admin destination unchanged', async () => {

@@ -16,7 +16,6 @@ export default function SiteFooter() {
         <div className="space-y-3">
           <p className="eyebrow">Product</p>
           <ul className="text-sm">
-            <li><Link href="/journeys/new" className="inline-block py-2.5 text-ink-soft hover:text-ink">Check a journey</Link></li>
             <li><Link href="/dashboard" className="inline-block py-2.5 text-ink-soft hover:text-ink">Dashboard</Link></li>
             <li><Link href="/history" className="inline-block py-2.5 text-ink-soft hover:text-ink">History</Link></li>
           </ul>

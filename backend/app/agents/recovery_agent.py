@@ -31,8 +31,9 @@ class RecoveryAgent(BaseAgent):
         conn_status = conn_res.get("status", "SAFE")
 
         risk_data = state.risk_analysis or {}
-        risk_score = risk_data.get("score", 0)
-        risk_level = risk_data.get("level", "LOW")
+        # score is None (level UNKNOWN) when the Risk Agent had no usable flight, connection or weather data.
+        risk_score = risk_data.get("score")
+        risk_level = risk_data.get("level", "UNKNOWN" if risk_score is None else "LOW")
 
         best_alt = "Alternative itinerary"
         if state.recommended_option:
@@ -59,7 +60,12 @@ class RecoveryAgent(BaseAgent):
             policy_points.append(f"- **{airline_name}** ({p_title}): {snippet[:180]}...")
 
         # 3. Grounded Synthesis
-        if conn_status in ["LIKELY_MISSED", "MISSED", "HIGH_RISK"] or risk_score >= 60:
+        if risk_score is None and conn_status not in ["LIKELY_MISSED", "MISSED", "HIGH_RISK"]:
+            explanation = (
+                "SkyGuardian could not assess the disruption risk for this journey because the flight, connection "
+                "and weather information needed was unavailable. Please check your flight status directly with your airline."
+            )
+        elif conn_status in ["LIKELY_MISSED", "MISSED", "HIGH_RISK"] or (risk_score is not None and risk_score >= 60):
             delay_phrase = f"is currently delayed by {flight_delay} minutes" if flight_delay > 0 else "is experiencing schedule disruption"
             
             explanation_parts = [

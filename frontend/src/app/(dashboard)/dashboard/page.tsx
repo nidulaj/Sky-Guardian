@@ -1,90 +1,159 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import PageHeader from '@/components/ui/PageHeader';
-import Badge from '@/components/ui/Badge';
-import Barcode from '@/components/ui/Barcode';
-import { ArrowRight, Info, Plane, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowRight, HelpCircle, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { analyzeJourney } from '@/lib/api/client';
+import type { FlightLegInput, JourneyAnalysisResponse } from '@/types/journey';
+import type { FlightResult } from '@/types/flight';
+import { formatDateTimeUtc } from '@/lib/flightTime';
+import PageHeader from '@/components/ui/PageHeader';
+import Badge, { statusLabel } from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import BoardingPassForm, { DEFAULT_TRAVEL_DATE, fieldId } from '@/components/journey/BoardingPassForm';
+import { LegErrors, LegField, countErrors, normaliseFlightNumber, validateLegs } from '@/components/journey/validation';
+import RouteStrip from '@/components/journey/RouteStrip';
+import RiskRadarMeter from '@/components/journey/RiskRadarMeter';
+import AgentWorkflowProgress from '@/components/journey/AgentWorkflowProgress';
+import ExplainabilityDrawer from '@/components/journey/ExplainabilityDrawer';
+import FlightStatusCard from '@/components/journey/FlightStatusCard';
+import ConnectionCard from '@/components/journey/ConnectionCard';
+import SafeRichText from '@/components/journey/SafeRichText';
+import { AlternativesList, PolicyEvidenceList, SourcesList } from '@/components/journey/JourneyDetails';
+import JourneyWeatherPanel from '@/components/journey/JourneyWeatherPanel';
 import PassengerPolicyAssistant from '@/components/dashboard/PassengerPolicyAssistant';
+import VoiceJourneyPanel from '@/components/voice/VoiceJourneyPanel';
+import type { VoiceLanguage } from '@/types/voice';
 
-const primaryLink =
-  'inline-flex h-12 items-center justify-center gap-2 rounded-full bg-ink px-6 text-base font-medium text-sand-50 transition-colors hover:bg-ink-soft';
+// Transfer airport label, matching ConnectionResult.airport in the Connection Agent
+function connectionAirport(flights: FlightResult[]): string | undefined {
+  const arrivesAt = flights[0]?.destination;
+  const departsFrom = flights[1]?.origin;
+  if (arrivesAt && departsFrom && arrivesAt !== departsFrom) return `${arrivesAt}/${departsFrom}`;
+  return arrivesAt || departsFrom || undefined;
+}
 
-// Sample journey, consistent with the backend demo scenario (mock flight provider).
-const SAMPLE_TIMELINE = [
-  {
-    time: '15:30',
-    note: 'Scheduled',
-    label: 'Leg 1 · UL001',
-    title: 'Colombo (CMB) to Kuala Lumpur (KUL)',
-    body: 'Now expected to land at 17:00 UTC, 90 minutes later than planned.',
-    status: 'DELAYED',
-    statusLabel: 'Delayed 90 min',
-  },
-  {
-    time: '17:00',
-    note: 'Expected',
-    label: 'Connection · KUL',
-    title: '30 minutes to change planes',
-    body: 'Kuala Lumpur needs at least 60 minutes for this transfer, so the connection is likely to be missed.',
-    status: 'LIKELY_MISSED',
-    statusLabel: 'Likely missed',
-  },
-  {
-    time: '17:30',
-    note: 'Departs',
-    label: 'Leg 2 · XX123',
-    title: 'Kuala Lumpur (KUL) to Tokyo Narita (NRT)',
-    body: 'Currently on time. It may leave before you can reach the gate.',
-    status: 'ON_TIME',
-    statusLabel: 'On time',
-  },
-];
+const FIELD_ORDER: LegField[] = ['origin', 'destination', 'flight_number', 'travel_date'];
 
-const SAMPLE_STATS = [
-  { value: '3', label: 'Journeys checked', note: 'Sample history' },
-  { value: '1', label: 'Connection at risk', note: 'CMB → KUL → NRT' },
-  { value: '1', label: 'Cancelled flight', note: 'CMB → LHR' },
-];
-
-const NEXT_STEPS = [
-  'Contact SriLankan Airlines before you leave Colombo and ask whether your onward flight can be protected.',
-  'If you still travel, go straight to the transfer desk at Kuala Lumpur when you land.',
-  'Ask the airline about rebooking. In this sample, a next-day flight (MH088, 08:30) is one option to raise with them.',
-];
+function SectionTitle({ n, label, id }: { n: number; label: string; id?: string }) {
+  return (
+    <h2 id={id} className="eyebrow flex items-center gap-3">
+      <span>
+        {String(n).padStart(2, '0')} / {label}
+      </span>
+      <span className="h-px flex-1 bg-ink/15" aria-hidden="true" />
+    </h2>
+  );
+}
 
 export default function DashboardPage() {
-  const { user, isAdmin, isAuthenticated } = useAuth();
+  const { user, isAdmin } = useAuth();
+
+  const [legs, setLegs] = useState<FlightLegInput[]>(() =>
+    Array.from({ length: 2 }, () => ({ flight_number: '', origin: '', destination: '', travel_date: DEFAULT_TRAVEL_DATE })),
+  );
+  const [errors, setErrors] = useState<LegErrors[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<JourneyAnalysisResponse | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [language, setLanguage] = useState<VoiceLanguage>('en');
+
+  const requestId = useRef(0);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const resultHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  const bringResultsIntoView = useCallback(() => {
+    const el = resultsRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    if (top < 64 || top > window.innerHeight * 0.6) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  // Once a result arrives, move focus to its heading so screen-reader and keyboard users land on it.
+  useEffect(() => {
+    if (result) resultHeadingRef.current?.focus({ preventScroll: true });
+  }, [result]);
+
+  const runCheck = async (input: FlightLegInput[]) => {
+    const normalised = input.map((l) => ({ ...l, flight_number: normaliseFlightNumber(l.flight_number) }));
+    setLegs(normalised);
+
+    const found = validateLegs(normalised);
+    const count = countErrors(found);
+    if (count > 0) {
+      setErrors(found);
+      setFormError(`Please fix ${count === 1 ? 'the highlighted detail' : `the ${count} highlighted details`} before checking.`);
+      const i = found.findIndex((e) => Object.keys(e).length > 0);
+      const field = FIELD_ORDER.find((f) => found[i][f]);
+      if (field) window.setTimeout(() => document.getElementById(fieldId(i, field))?.focus(), 0);
+      return;
+    }
+
+    setErrors([]);
+    setFormError(null);
+    setError(null);
+    setResult(null);
+    setDrawerOpen(false);
+    setLoading(true);
+    window.setTimeout(bringResultsIntoView, 50);
+
+    const id = ++requestId.current;
+    try {
+      const res = await analyzeJourney(normalised, language);
+      if (id === requestId.current) setResult(res);
+    } catch (err: any) {
+      if (id === requestId.current) {
+        setError(err instanceof Error && err.message ? err.message : 'Something went wrong while checking this journey.');
+      }
+    } finally {
+      if (id === requestId.current) setLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    void runCheck(legs);
+  };
+
+  const handleLegsChange = (next: FlightLegInput[]) => {
+    setLegs(next);
+    // Clear an error as soon as the person edits that field.
+    if (errors.length) {
+      const cleared = errors
+        .slice(0, next.length)
+        .map((legErrors, i) =>
+          Object.fromEntries(Object.entries(legErrors).filter(([f]) => next[i][f as LegField] === legs[i]?.[f as LegField])),
+        ) as LegErrors[];
+      setErrors(cleared);
+      if (countErrors(cleared) === 0) setFormError(null);
+    }
+  };
+
+  const flights = result?.flight_statuses ?? [];
+  const airport = connectionAirport(flights);
+  const updated = formatDateTimeUtc(result?.last_updated);
 
   return (
     <div className="space-y-12 sm:space-y-16">
+      {/* Personalized Header */}
       <PageHeader
-        eyebrow={user?.first_name ? `Welcome back, ${user.first_name} · ${user.role}` : '01 / Dashboard'}
-        title="Your journeys,"
-        accent="at a glance."
-        description={
-          user?.first_name
-            ? `Signed in as ${user.email}. Check flight disruptions, examine connection risks, or ask questions to the airline policy assistant below.`
-            : 'See which trips need attention and what to do next. Start a new check any time. It takes about a minute.'
-        }
+        eyebrow={user?.first_name ? `Passenger Portal · Welcome back, ${user.first_name}` : 'Passenger Dashboard · Connection Risk'}
+        title="Will you make your"
+        accent="connection?"
+        description="Enter each flight in your trip. SkyGuardian checks flight status, transfer time, and airport weather, then explains what to do if something goes wrong."
         actions={
-          <div className="flex flex-wrap gap-3">
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-coral bg-coral-peach/15 px-6 text-base font-medium text-coral-deep transition-colors hover:bg-coral hover:text-white"
-              >
-                <ShieldCheck className="h-4 w-4" />
-                Admin Portal
-              </Link>
-            )}
-            <Link href="/journeys/new" className={primaryLink}>
-              Check a journey
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          isAdmin ? (
+            <Link
+              href="/admin"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-coral bg-coral-peach/15 px-6 text-base font-medium text-coral-deep transition-colors hover:bg-coral hover:text-white"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Open Admin Vault
             </Link>
-          </div>
+          ) : undefined
         }
       />
 
@@ -110,216 +179,225 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Passenger RAG Policy Assistant Widget */}
-      <PassengerPolicyAssistant />
+      {/* Interactive Journey Check Section (The /journeys/new UI) */}
+      <section aria-label="Journey check" className="space-y-8">
 
-      {/* Honest sample-data notice */}
-      <div role="note" className="flex items-start gap-3 rounded-2xl border border-ink/10 bg-mist-soft px-5 py-4">
-        <Info className="mt-0.5 h-5 w-5 shrink-0 text-mist-deep" aria-hidden="true" />
-        <p className="text-base text-ink">
-          <strong className="font-semibold">Sample data.</strong>{' '}
-          <span className="text-ink-soft">
-            {isAuthenticated
-              ? `You are logged in as ${user?.role}. The card below displays an example multi-leg journey with simulated delay status so you can preview how risk scoring appears.`
-              : 'Journey history is saved once accounts are connected. Until then, this page shows an example trip so you can see how results look.'}
-          </span>
-        </p>
-      </div>
-
-
-      {/* Upcoming trip: boarding pass */}
-      <section aria-labelledby="upcoming-heading" className="space-y-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <p className="eyebrow">02 / Upcoming trip</p>
-          <p className="eyebrow">Sample · 15 Sep 2026</p>
-        </div>
-        <h2 id="upcoming-heading" className="sr-only">
-          Upcoming trip (sample): Colombo to Tokyo via Kuala Lumpur
-        </h2>
-
-        <div className="grid lg:grid-cols-[1fr_320px]">
-          {/* Main pass */}
-          <div className="rounded-t-3xl lg:rounded-tr-none lg:rounded-l-3xl border border-ink/10 bg-sand-50 p-6 sm:p-8">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/10 pb-4">
-              <span className="eyebrow">SkyGuardian / Journey check</span>
-              <Badge status="DEMO_DATA" label="Sample data" />
-            </div>
-
-            <div className="grid grid-cols-[auto_1fr_auto] items-end gap-3 sm:gap-6 pt-8">
-              <div>
-                <p className="eyebrow">From</p>
-                <p className="display text-6xl sm:text-7xl lg:text-8xl text-ink mt-2">CMB</p>
-              </div>
-              <div className="flex flex-col items-center pb-4 sm:pb-6" aria-hidden="true">
-                <div className="flex w-full items-center gap-2">
-                  <span className="h-px flex-1 border-t border-dashed border-coral" />
-                  <Plane className="h-5 w-5 rotate-45 text-coral" />
-                  <span className="h-px flex-1 border-t border-dashed border-coral" />
-                </div>
-                <span className="eyebrow mt-2 hidden sm:block">via KUL</span>
-              </div>
-              <div className="text-right">
-                <p className="eyebrow">To</p>
-                <p className="display text-6xl sm:text-7xl lg:text-8xl text-ink mt-2">NRT</p>
-              </div>
-            </div>
-            <div className="mt-3 flex justify-between gap-4 text-sm text-ink-muted">
-              <span>Colombo</span>
-              <span className="sm:hidden">via Kuala Lumpur</span>
-              <span>Tokyo Narita</span>
-            </div>
-
-            <dl className="mt-8 grid grid-cols-2 md:grid-cols-4 border-y border-ink/10">
-              <div className="py-4 pr-4">
-                <dt className="eyebrow">Date</dt>
-                <dd className="mt-1.5 text-base sm:text-lg text-ink">15 Sep 2026</dd>
-              </div>
-              <div className="py-4 pl-4 border-l border-ink/10">
-                <dt className="eyebrow">Flights</dt>
-                <dd className="mt-1.5 text-base sm:text-lg text-ink">UL001 · XX123</dd>
-              </div>
-              <div className="py-4 pr-4 border-t border-ink/10 md:border-t-0 md:border-l md:pl-4">
-                <dt className="eyebrow">Time at KUL</dt>
-                <dd className="mt-1.5 text-base sm:text-lg text-ink">30 of 60 min needed</dd>
-              </div>
-              <div className="py-4 pl-4 border-l border-t border-ink/10 md:border-t-0">
-                <dt className="eyebrow">Connection</dt>
-                <dd className="mt-2">
-                  <Badge status="LIKELY_MISSED" />
-                </dd>
-              </div>
-            </dl>
-            <p className="mt-4 text-sm text-ink-muted">
-              Times in UTC. Based on sample schedule data, not a live feed.
-            </p>
-          </div>
-
-          {/* Perforated stub */}
-          <div className="relative rounded-b-3xl lg:rounded-bl-none lg:rounded-r-3xl bg-coral-deep p-6 sm:p-8 text-white flex flex-col gap-6">
-            <span
-              aria-hidden="true"
-              className="absolute inset-x-6 top-0 border-t-2 border-dashed border-white/40 lg:inset-x-auto lg:inset-y-6 lg:left-0 lg:border-t-0 lg:border-l-2"
+        {/* 2-Column Boarding Pass Form + Real-time Results */}
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-8 xl:gap-12">
+          {/* Left: Input Form */}
+          <div className="lg:col-span-5">
+            <BoardingPassForm
+              legs={legs}
+              errors={errors}
+              formError={formError}
+              loading={loading}
+              onChange={handleLegsChange}
+              onSubmit={handleSubmit}
             />
-            <span aria-hidden="true" className="absolute -top-3 -left-3 h-6 w-6 rounded-full bg-sand-200 lg:-top-3 lg:-left-3" />
-            <span aria-hidden="true" className="absolute -top-3 -right-3 h-6 w-6 rounded-full bg-sand-200 lg:hidden" />
-            <span aria-hidden="true" className="absolute -bottom-3 -left-3 h-6 w-6 rounded-full bg-sand-200 hidden lg:block" />
+          </div>
 
-            <div>
-              <p className="font-mono text-[11px] uppercase tracking-label text-white">Connection at KUL</p>
-              <p className="display mt-3 text-5xl">30 min</p>
-              <p className="mt-2 text-base text-white">available, 60 min needed</p>
-            </div>
-
-            <dl className="space-y-2 border-t border-white/30 pt-4 text-sm">
-              <div className="flex justify-between gap-4">
-                <dt>UL001</dt>
-                <dd className="font-medium">+90 min late</dd>
+          {/* Right: Results or Loading */}
+          <div ref={resultsRef} className="min-w-0 scroll-mt-24 lg:col-span-7 sm:scroll-mt-28">
+            {error && (
+              <div role="alert" className="mb-6 rounded-3xl border border-status-danger/30 bg-status-danger-bg p-5 sm:p-6">
+                <div className="flex gap-3">
+                  <AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-status-danger" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="text-lg font-semibold text-ink">We couldn’t check this journey</p>
+                    <p className="mt-1 text-base text-ink-soft">{error}</p>
+                    <Button variant="secondary" className="mt-4" onClick={() => void runCheck(legs)}>
+                      <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                      Try again
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between gap-4">
-                <dt>Overall risk</dt>
-                <dd className="font-medium">High</dd>
+            )}
+
+            {loading && <AgentWorkflowProgress />}
+
+            {!result && !loading && !error && (
+              <div className="rounded-4xl border border-dashed border-ink/20 px-6 py-10 sm:px-10 sm:py-14">
+                <p className="eyebrow">Results</p>
+                <p className="display mt-4 text-3xl sm:text-4xl text-ink">
+                  Your check will <span className="accent text-coral">appear here.</span>
+                </p>
+                <ol className="mt-8 space-y-0">
+                  {[
+                    ['Enter each flight', 'Airport codes, flight number and date for every leg of the trip.'],
+                    ['Press Check my journey', 'Seven agents look at flights, transfer time, weather and airline rules.'],
+                    ['Read the result', 'A risk estimate, clear advice, backup routes and the sources behind them.'],
+                  ].map(([title, desc], i) => (
+                    <li key={title} className="grid grid-cols-[3rem_minmax(0,1fr)] gap-x-3 border-t border-ink/10 py-4">
+                      <span className="display text-3xl font-light text-ink-muted" aria-hidden="true">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <span>
+                        <span className="block text-lg font-semibold text-ink">{title}</span>
+                        <span className="mt-0.5 block text-base text-ink-soft">{desc}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
               </div>
-            </dl>
+            )}
 
-            <Barcode value="CMB-KUL-NRT" className="h-12 w-full text-white" />
+            {result && !loading && (
+              <article aria-labelledby="result-title" className="space-y-12">
+                {/* 01 Summary */}
+                <section className="space-y-6">
+                  <SectionTitle n={1} label="What we found" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    {result.is_demo_data && <Badge status="DEMO_DATA" label="Includes demo data" />}
+                    <Badge status={result.journey_status} label={statusLabel(result.journey_status)} />
+                  </div>
+                  <h3 id="result-title" ref={resultHeadingRef} tabIndex={-1} className="display text-4xl sm:text-5xl text-ink focus:outline-none">
+                    {result.primary_issue}
+                  </h3>
+                  {result.is_demo_data && (
+                    <p className="text-base text-ink-soft">
+                      This assessment includes demo data. Check the source label on each flight and weather result before relying on it.
+                    </p>
+                  )}
 
-            <Link
-              href="/journeys/new"
-              className="mt-auto inline-flex h-12 items-center justify-between gap-2 rounded-xl bg-white px-5 text-base font-medium text-coral-deep transition-colors hover:bg-sand-100"
-            >
-              Check a journey
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
+                  <div className="surface p-5 sm:p-7">
+                    <RouteStrip flights={flights} connection={result.connection} />
+                  </div>
+
+                  {result.warnings.length > 0 && (
+                    <div className="rounded-3xl border border-status-caution/25 bg-status-caution-bg/60 p-5 sm:p-6">
+                      <p className="eyebrow text-ink-soft">Please note</p>
+                      <ul className="mt-3 space-y-2">
+                        {result.warnings.map((w, i) => (
+                          <li key={i} className="flex gap-2.5 text-base text-ink">
+                            <AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-status-caution" aria-hidden="true" />
+                            {w}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </section>
+
+                {/* 02 Risk */}
+                <section className="space-y-6">
+                  <SectionTitle n={2} label="Risk estimate" />
+                  <RiskRadarMeter
+                    score={result.risk.score}
+                    level={result.risk.level}
+                    flightScore={result.risk.flight_score}
+                    connScore={result.risk.connection_score}
+                    weatherScore={result.risk.weather_score}
+                    weatherUnavailableReason={result.risk.components?.weather?.reason}
+                    effectiveWeights={result.risk.effective_weights}
+                    confidence={result.risk.confidence}
+                    confidenceLabel={result.risk.confidence_label}
+                    notes={result.risk.uncertainty}
+                  />
+                </section>
+
+                {/* 03 Recommendation */}
+                <section className="space-y-6">
+                  <SectionTitle n={3} label="What to do now" />
+                  <div className="rounded-3xl border border-ink/10 bg-sand-50 p-5 sm:p-8">
+                    <SafeRichText text={result.recommendation} className="text-base sm:text-lg text-ink-soft leading-relaxed" />
+                    <div className="mt-6 flex flex-col gap-4 border-t border-ink/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm text-ink-muted">
+                        Written by the Recovery agent. Check it against the details below and confirm with your airline before you act.
+                      </p>
+                      <Button variant="outline" onClick={() => setDrawerOpen(true)} className="shrink-0">
+                        <HelpCircle className="h-4 w-4" aria-hidden="true" />
+                        Why this advice?
+                      </Button>
+                    </div>
+                  </div>
+                </section>
+
+                {/* 04 Flights + connection */}
+                <section className="space-y-6">
+                  <SectionTitle n={4} label={flights.length === 1 ? 'Your flight' : 'Your flights'} />
+                  {flights.length > 0 ? (
+                    <div className="grid gap-4">
+                      {flights.map((flight, idx) => (
+                        <FlightStatusCard key={`${flight.flight_number}-${idx}`} flight={flight} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-base text-ink-soft">No flight status was returned.</p>
+                  )}
+                  {result.connection && (
+                    <ConnectionCard
+                      connection={result.connection}
+                      airport={airport}
+                      inboundFlight={flights[0]?.flight_number}
+                      outboundFlight={flights[1]?.flight_number}
+                    />
+                  )}
+                </section>
+
+                {/* 05 Weather */}
+                <section className="space-y-6">
+                  <SectionTitle n={5} label="Airport weather" />
+                  <JourneyWeatherPanel weather={result.weather_conditions} />
+                </section>
+
+                {/* 06 Alternatives */}
+                <section className="space-y-6">
+                  <SectionTitle n={6} label="Backup routes, ranked" />
+                  <AlternativesList items={result.alternatives} />
+                </section>
+
+                {/* 07 Policy */}
+                <section className="space-y-6">
+                  <SectionTitle n={7} label="Airline policy evidence" />
+                  <PolicyEvidenceList items={result.policy_evidence} />
+                </section>
+
+                {/* 08 Sources */}
+                <section className="space-y-6">
+                  <SectionTitle n={8} label="Sources" />
+                  <SourcesList items={result.sources} />
+                  <div className="flex flex-col gap-1 font-mono text-sm text-ink-muted sm:flex-row sm:flex-wrap sm:gap-x-6">
+                    {updated && <span>Last updated {updated}</span>}
+                    <span className="break-all">Trace {result.trace_id}</span>
+                  </div>
+                  <Button variant="ghost" onClick={() => setDrawerOpen(true)} className="-ml-3">
+                    See how this result was built
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </section>
+              </article>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Flight by flight timeline */}
-      <section aria-labelledby="timeline-heading" className="rounded-4xl bg-mist-soft px-5 py-10 sm:px-10 sm:py-14">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-ink/15 pb-6">
-          <div className="space-y-3">
-            <p className="eyebrow text-ink-soft">03 / Flight by flight</p>
-            <h2 id="timeline-heading" className="display text-3xl sm:text-4xl text-ink">
-              Where the trip <span className="accent text-coral-deep">comes apart.</span>
-            </h2>
-          </div>
-          <p className="max-w-xs text-sm text-ink-soft">Sample trip. Times in UTC on 15 Sep 2026.</p>
-        </div>
+      <VoiceJourneyPanel language={language} onLanguageChange={setLanguage} analysis={result} disabled={loading}
+        onDraft={(draftLegs) => {
+          setLegs(draftLegs);
+          setErrors([]);
+          setFormError(null);
+          setResult(null);
+          setError(null);
+        }} />
 
-        <ol className="mt-2">
-          {SAMPLE_TIMELINE.map((step, i) => (
-            <li key={step.label} className="grid grid-cols-[72px_20px_1fr] sm:grid-cols-[140px_28px_1fr] gap-x-3 sm:gap-x-6">
-              <div className="pt-6">
-                <p className="display font-light text-3xl sm:text-5xl text-ink">{step.time}</p>
-                <p className="eyebrow mt-2 text-ink-soft">{step.note}</p>
-              </div>
-              <div className="relative flex justify-center" aria-hidden="true">
-                <span className={`absolute w-px bg-ink/30 ${i === 0 ? 'top-8' : 'top-0'} ${i === SAMPLE_TIMELINE.length - 1 ? 'h-8' : 'bottom-0'}`} />
-                <span className="relative mt-7 h-3 w-3 rounded-full bg-coral" />
-              </div>
-              <div className={`py-6 ${i > 0 ? 'border-t border-ink/15' : ''} grid gap-3 md:grid-cols-[1fr_auto] md:items-start`}>
-                <div className="space-y-1.5">
-                  <p className="eyebrow text-ink-soft">{step.label}</p>
-                  <h3 className="text-xl sm:text-2xl font-semibold tracking-tight text-ink">{step.title}</h3>
-                  <p className="text-base text-ink-soft leading-relaxed max-w-xl">{step.body}</p>
-                </div>
-                <div>
-                  <Badge status={step.status} label={step.statusLabel} />
-                </div>
-              </div>
-            </li>
-          ))}
-        </ol>
+      {/* Passenger RAG Policy Assistant Widget */}
+      <section className="border-t border-ink/10 pt-10">
+        <PassengerPolicyAssistant />
       </section>
 
-      {/* Next steps + overview */}
-      <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr]">
-        <section aria-labelledby="next-heading" className="space-y-6">
-          <div className="space-y-3">
-            <p className="eyebrow">04 / What you could do</p>
-            <h2 id="next-heading" className="display text-3xl sm:text-4xl text-ink">
-              Suggested <span className="accent text-coral">next steps.</span>
-            </h2>
-          </div>
-          <ol className="divide-y divide-ink/10 border-y border-ink/10">
-            {NEXT_STEPS.map((text, i) => (
-              <li key={i} className="flex gap-5 py-5">
-                <span className="display font-light text-3xl text-ink-muted w-10 shrink-0">0{i + 1}</span>
-                <p className="text-base sm:text-lg text-ink leading-relaxed">{text}</p>
-              </li>
-            ))}
-          </ol>
-          <p className="text-sm text-ink-muted leading-relaxed">
-            SkyGuardian&apos;s risk level is a rule-based estimate from schedule data, not a probability. Always confirm
-            changes with your airline before acting.
-          </p>
-        </section>
-
-        <section aria-labelledby="overview-heading" className="surface p-6 sm:p-8 space-y-6 self-start">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id="overview-heading" className="eyebrow">05 / Overview</h2>
-            <Badge status="DEMO_DATA" label="Sample" />
-          </div>
-          <dl className="divide-y divide-ink/10">
-            {SAMPLE_STATS.map((s) => (
-              <div key={s.label} className="flex items-center justify-between gap-4 py-4">
-                <dt>
-                  <span className="block text-base text-ink">{s.label}</span>
-                  <span className="block text-sm text-ink-muted">{s.note}</span>
-                </dt>
-                <dd className="display font-light text-5xl text-ink">{s.value}</dd>
-              </div>
-            ))}
-          </dl>
-          <Link
-            href="/history"
-            className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/15 bg-sand-50 px-5 text-sm font-medium text-ink transition-colors hover:border-ink/40"
-          >
-            See journey history
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </section>
-      </div>
+      {/* Explainability Drawer */}
+      <ExplainabilityDrawer
+        isOpen={drawerOpen && !!result}
+        onClose={() => setDrawerOpen(false)}
+        risk={result?.risk}
+        primaryIssue={result?.primary_issue}
+        flights={flights}
+        connection={result?.connection}
+        connectionAirport={airport}
+        sources={result?.sources ?? []}
+        traceId={result?.trace_id}
+      />
     </div>
   );
 }

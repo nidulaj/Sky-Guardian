@@ -1,13 +1,14 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import NewJourneyPage from '@/app/(dashboard)/journeys/new/page';
+import NewJourneyPage from '@/app/(dashboard)/dashboard/page';
 import { todayISODate } from '@/lib/date';
 import { weatherResult } from '@/test/weatherFixtures';
 import { JourneyAnalysisResponse } from '@/types/journey';
 import { AirportWeatherResult } from '@/types/weather';
 
 const REASON = 'Forecast unavailable for selected travel date: 2026-12-01 15:30 local time at CMB is beyond the 16-day forecast range.';
+vi.mock('@/lib/auth/AuthContext', () => ({ useAuth: () => ({ user: null, isAdmin: false }) }));
 
 function unavailableWeather(airport: string, roles: string[]): AirportWeatherResult {
   return {

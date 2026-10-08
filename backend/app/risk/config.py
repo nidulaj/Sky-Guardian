@@ -99,22 +99,40 @@ class FlightScoringConfig(_ConfigModel):
             raise ValueError("flight.delay_bands scores must not decrease as delay grows")
         return self
 
+    def score_for_delay(self, delay_minutes: int) -> int:
+        for band in self.delay_bands:
+            if delay_minutes <= band.max_minutes:
+                return band.score
+        return self.above_max_band_score
+
+
+# Connection Agent statuses that carry a risk assessment (UNKNOWN means "not assessed").
+SCORED_CONNECTION_STATUSES = ("MISSED", "LIKELY_MISSED", "HIGH_RISK", "MODERATE_RISK", "SAFE")
+
 
 class ConnectionScoringConfig(_ConfigModel):
-    default_mct_minutes: int = Field(60, ge=0, le=1440)
-    # Margins are measured above the minimum connection time (MCT).
-    tight_margin_minutes: int = Field(20, ge=0)
-    moderate_margin_minutes: int = Field(45, ge=0)
-    impossible_score: int = Field(100, ge=0, le=100)
-    below_mct_score: int = Field(90, ge=0, le=100)
-    tight_score: int = Field(70, ge=0, le=100)
-    moderate_score: int = Field(40, ge=0, le=100)
-    comfortable_score: int = Field(10, ge=0, le=100)
+    """
+    Score for each status assigned by the Connection Agent. The Connection Agent owns
+    the minimum connection time and the margins behind these statuses
+    (backend/app/agents/connection_agent.py); the Risk Agent only scores its verdict.
+    """
+    status_scores: Dict[str, int] = {
+        "MISSED": 100,
+        "LIKELY_MISSED": 90,
+        "HIGH_RISK": 70,
+        "MODERATE_RISK": 40,
+        "SAFE": 10,
+    }
 
     @model_validator(mode="after")
-    def _ordered(self) -> "ConnectionScoringConfig":
-        if self.tight_margin_minutes >= self.moderate_margin_minutes:
-            raise ValueError("connection.tight_margin_minutes must be below moderate_margin_minutes")
+    def _all_statuses_scored(self) -> "ConnectionScoringConfig":
+        if set(self.status_scores) != set(SCORED_CONNECTION_STATUSES):
+            raise ValueError(f"connection.status_scores must define exactly: {', '.join(SCORED_CONNECTION_STATUSES)}")
+        if any(not 0 <= s <= 100 for s in self.status_scores.values()):
+            raise ValueError("connection.status_scores values must be between 0 and 100")
+        ordered = [self.status_scores[s] for s in SCORED_CONNECTION_STATUSES]
+        if ordered != sorted(ordered, reverse=True):
+            raise ValueError("connection.status_scores must not increase from MISSED to SAFE")
         return self
 
 
@@ -233,8 +251,11 @@ def get_risk_config() -> RiskConfig:
 
 
 def round_half_up(value: float) -> int:
-    """Deterministic rounding (Python's round() uses banker's rounding)."""
-    return int(math.floor(value + 0.5))
+    """
+    Deterministic rounding (Python's round() uses banker's rounding). The value is first
+    rounded to 6 decimals so float noise cannot flip a .5 (90 * 0.35 == 31.499999999999996).
+    """
+    return int(math.floor(round(value, 6) + 0.5))
 
 
 def confidence_label(confidence: float) -> Literal["high", "medium", "low", "unknown"]:

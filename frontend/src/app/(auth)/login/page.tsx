@@ -125,7 +125,7 @@ export default function LoginPage() {
       if (user.role === 'ADMIN') {
         router.push('/admin');
       } else {
-        router.push('/journeys/new');
+        router.push('/dashboard');
       }
     } catch (err: any) {
       setServerError(err.message || 'Invalid email or password. Please try again.');
@@ -194,8 +194,8 @@ export default function LoginPage() {
         </p>
         <p className="text-base text-ink-soft">
           Just looking?{' '}
-          <Link href="/journeys/new" className="inline-flex min-h-[44px] items-center font-medium text-ink underline decoration-coral underline-offset-4 hover:decoration-2">
-            Check a journey without signing in
+          <Link href="/dashboard" className="inline-flex min-h-[44px] items-center font-medium text-ink underline decoration-coral underline-offset-4 hover:decoration-2">
+            Continue to dashboard without signing in
           </Link>
         </p>
       </div>

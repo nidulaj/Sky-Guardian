@@ -45,14 +45,17 @@ class SupervisorOrchestrator:
         # Step 3: Weather Agent
         await self.weather_agent.execute(state)
 
-        # Step 4: Risk Agent
+        # Step 4: Risk Agent (runs after Flight, Connection and Weather results are in state)
         await self.risk_agent.execute(state)
 
         # Step 5: Conditional Routing
-        risk_score = state.risk_analysis.get("score", 0) if state.risk_analysis else 0
-        conn_status = state.connection_results[0].get("status") if state.connection_results else "SAFE"
-
-        needs_recovery = risk_score >= 60 or conn_status in ["HIGH_RISK", "LIKELY_MISSED", "MISSED"]
+        # score is None when the Risk Agent had no usable data; that alone does not trigger recovery.
+        risk_score = state.risk_analysis.get("score") if state.risk_analysis else None
+        threshold = self.risk_agent.config.triggers.recovery_trigger_threshold
+        needs_recovery = (
+            (risk_score is not None and risk_score >= threshold) or
+            any(c.get("status") in ["HIGH_RISK", "LIKELY_MISSED", "MISSED"] for c in state.connection_results)
+        )
 
         if needs_recovery:
             # Step 5a: Policy Agent

@@ -1,3 +1,12 @@
+# Verify TLS against the operating system's certificate store (as the Open-Meteo provider does), so
+# Supabase and other HTTPS clients work on networks that re-sign traffic with a locally trusted CA.
+# Certificates are still verified. Must run before any HTTPS client is created.
+try:
+    import truststore
+    truststore.inject_into_ssl()
+except ImportError:
+    pass
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings

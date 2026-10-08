@@ -113,8 +113,8 @@ export default function HistoryPage() {
         accent="remembered."
         description="Past checks, with what SkyGuardian found and the step it suggested. Open a new check to get up-to-date results."
         actions={
-          <Link href="/journeys/new" className={primaryLink}>
-            Check a journey
+          <Link href="/dashboard" className={primaryLink}>
+            Go to Dashboard
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         }
@@ -266,10 +266,10 @@ function EmptyState() {
         </p>
       </div>
       <Link
-        href="/journeys/new"
+        href="/dashboard"
         className="inline-flex h-11 items-center gap-2 rounded-full bg-ink px-5 text-sm font-medium text-sand-50 transition-colors hover:bg-ink-soft"
       >
-        Check a journey
+        Go to Dashboard
         <ArrowRight className="h-4 w-4" aria-hidden="true" />
       </Link>
     </div>

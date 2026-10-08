@@ -2,8 +2,10 @@
 #
 # Validated by backend/app/risk/config.py (RiskConfig): unknown keys are rejected,
 # and any section left out uses the built-in defaults defined in that file
-# (flight delay bands, connection margins, weather thresholds, confidence factors).
+# (weather thresholds, confidence factors).
 
+# Journey score = flight x flight + connection x connection + weather x weather.
+# Must sum to 1.0. When a component is unavailable the remaining weights are re-normalised.
 weights:
   flight: 0.40
   connection: 0.35
@@ -15,9 +17,33 @@ levels:
   moderate_max: 59
   high_max: 79
 
+# Flight component: score of the worst leg reported by the Flight Agent.
+# delay_minutes <= max_minutes -> score; longer delays -> above_max_band_score.
+flight:
+  delay_bands:
+    - { max_minutes: 0, score: 0 }
+    - { max_minutes: 15, score: 10 }
+    - { max_minutes: 30, score: 25 }
+    - { max_minutes: 60, score: 45 }
+    - { max_minutes: 90, score: 65 }
+    - { max_minutes: 120, score: 80 }
+  above_max_band_score: 95
+  cancelled_score: 100
+  diverted_score: 90
+
+# Connection component: score of the worst transfer, by the status the Connection Agent assigned.
+connection:
+  status_scores:
+    MISSED: 100
+    LIKELY_MISSED: 90
+    HIGH_RISK: 70
+    MODERATE_RISK: 40
+    SAFE: 10
+
+# Minimum journey score when an agent reports an event that makes disruption near-certain.
+overrides:
+  cancelled_flight_min_score: 90
+  impossible_connection_min_score: 80
+
 triggers:
   recovery_trigger_threshold: 60
-
-# Settings from the previous version of this file that RiskConfig does not read yet:
-#   triggers.policy_search_threshold: 50
-#   confidence_ratings: full_data=high, missing_weather=medium, missing_flight_detail=low
