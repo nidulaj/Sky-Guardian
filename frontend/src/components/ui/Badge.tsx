@@ -32,6 +32,7 @@ const TONE_BY_STATUS: Record<string, Tone> = {
   SCHEDULED: 'info',
   DEPARTED: 'info',
   DEMO_DATA: 'info',
+  AI_ASSISTED: 'info',
   DELAYED: 'caution',
   MODERATE: 'caution',
   MODERATE_RISK: 'caution',
