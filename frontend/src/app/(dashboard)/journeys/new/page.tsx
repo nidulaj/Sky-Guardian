@@ -252,7 +252,7 @@ export default function NewJourneyPage() {
               <section className="space-y-6">
                 <SectionTitle n={1} label="What we found" />
                 <div className="flex flex-wrap items-center gap-2">
-                  {result.is_demo_data && <Badge status="DEMO_DATA" label="Demo data" />}
+                  {result.is_demo_data && <Badge status="DEMO_DATA" label="Includes demo data" />}
                   <Badge status={result.journey_status} label={statusLabel(result.journey_status)} />
                 </div>
                 <h3 id="result-title" ref={resultHeadingRef} tabIndex={-1} className="display text-4xl sm:text-5xl text-ink focus:outline-none">
@@ -260,7 +260,7 @@ export default function NewJourneyPage() {
                 </h3>
                 {result.is_demo_data && (
                   <p className="text-base text-ink-soft">
-                    These results use sample flight and weather data, not live information.
+                    Parts of this assessment use sample data. Check the source shown on each flight and weather result.
                   </p>
                 )}
 

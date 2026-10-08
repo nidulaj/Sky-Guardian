@@ -66,17 +66,25 @@ class SupervisorOrchestrator:
         state.workflow_status = "COMPLETED"
         state.updated_at = datetime.now(timezone.utc).isoformat()
 
-        # Base telemetry sources from workflow providers
+        state.is_demo_data = any(f.get("data_mode") == "demo" for f in state.flight_results) or any(
+            w.get("is_mock") and w.get("status") == "available" for w in state.weather_results
+        )
+
         telemetry_sources = [
-            {"name": "MockFlightProvider", "type": "Aviation Data", "verified": True},
-            {"name": self.weather_agent.provider.name, "type": "Weather Forecast", "verified": True},
+            {"name": f["source"], "type": "Aviation Data",
+             "verified": f.get("data_mode") in ("live", "timetable") and f.get("status") != "UNKNOWN"}
+            for f in state.flight_results if f.get("source")
+        ] + [
+            {"name": w["source"], "type": "Weather Forecast",
+             "verified": not w.get("is_mock", False) and w.get("status") == "available"}
+            for w in state.weather_results if w.get("source")
         ]
 
         # Merge telemetry with any evidence-derived policy sources
-        combined_sources = list(telemetry_sources)
-        seen_names = {s["name"] for s in combined_sources}
+        combined_sources = []
+        seen_names = set()
 
-        for s in state.sources:
+        for s in [*telemetry_sources, *state.sources]:
             if s.get("name") and s["name"] not in seen_names:
                 combined_sources.append(s)
                 seen_names.add(s["name"])

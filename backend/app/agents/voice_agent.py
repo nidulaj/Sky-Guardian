@@ -59,7 +59,7 @@ class VoiceServiceError(Exception):
 def build_briefing(analysis: JourneyAnalysisResponse) -> str:
     # Speak a narrow, deterministic set of results, excluding unverified policy/recovery prose.
     demo = analysis.is_demo_data or any(f.get("data_mode") == "demo" for f in analysis.flight_statuses)
-    lines = ["This is a demo assessment using sample data." if demo else "Here is your journey assessment."]
+    lines = ["This assessment includes demo data. Check individual result sources." if demo else "Here is your journey assessment."]
     if not analysis.flight_statuses:
         lines.append("Flight status data is unavailable.")
     for flight in analysis.flight_statuses[:6]:

@@ -45,11 +45,12 @@ Connection feasibility now belongs to the Journey Risk Agent. Fields from the Fl
 and `data_mode` (a `timetable` result has no delay information yet). `app/providers/airports.py` gives each
 airport's country and coordinates (domestic vs international connections, airports in the same city).
 
-## Requests for the Supervisor side (not changed by me)
+## Supervisor integration
 
-1. **Sources list** (`graph.py`) always says `MockFlightProvider`: use `self.flight_agent.provider.name` or each
-   flight result's `source`.
-2. **`is_demo_data`** is always `true`: set it from the agents, e.g. `any(f["data_mode"] == "demo" for f in state.flight_results)`.
+The sources list now uses the individual flight/weather results, rather than a hardcoded mock flight source.
+Demo sources are not marked verified. `is_demo_data` is derived from returned sample flight or weather data;
+the result heading says "Includes demo data" because a real flight can be assessed with mock weather.
+Each flight card still distinguishes live status, published timetable and demo data.
 
 ## Tests
 
