@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 RiskLevel = Literal["LOW", "MODERATE", "HIGH", "VERY_HIGH"]
 ComponentStatus = Literal["available", "missing", "not_applicable"]
@@ -20,6 +20,28 @@ class RiskComponent(BaseModel):
     confidence: float = Field(..., ge=0, le=1)
     reason: Optional[str] = None
     details: Dict[str, Any] = {}
+
+
+ConnectionRiskStatus = Literal["SAFE", "MODERATE_RISK", "HIGH_RISK", "LIKELY_MISSED", "MISSED", "UNAVAILABLE"]
+
+
+class ConnectionRisk(BaseModel):
+    """
+    Risk view of one transfer, derived from the Connection Agent's ConnectionResult
+    (backend/app/risk/connection_risk.py). UNAVAILABLE means the transfer could not be
+    assessed: risk_score and the minute fields are None, never 0.
+    """
+    connection_index: int
+    airport: Optional[str] = None
+    inbound_flight: Optional[str] = None
+    outbound_flight: Optional[str] = None
+    status: ConnectionRiskStatus
+    risk_score: Optional[int] = Field(None, ge=0, le=100)
+    connection_minutes: Optional[int] = None
+    required_minutes: Optional[int] = None
+    buffer_minutes: Optional[int] = None
+    reason: str
+    reason_codes: List[str] = []
 
 
 class RiskFactor(BaseModel):

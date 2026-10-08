@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple, get_args
 from app.agents.base import BaseAgent
 from app.orchestrator.state import JourneyState
 from app.risk.config import RiskConfig, confidence_label, get_risk_config, round_half_up
-from app.schemas.connection import ConnectionStatus
+from app.risk.connection_risk import assess_connection, safe_text as _safe_text
 from app.schemas.flight import FlightStatus
 from app.schemas.journey import AgentResultSchema, RiskSummary
 from app.schemas.risk import RiskComponent, RiskFactor
@@ -12,12 +12,6 @@ from app.schemas.risk import RiskComponent, RiskFactor
 COMPONENTS = ("flight", "connection", "weather")
 _LABELS = {"flight": "Flight", "connection": "Connection", "weather": "Weather"}
 _FLIGHT_STATUSES = set(get_args(FlightStatus))
-_CONNECTION_STATUSES = set(get_args(ConnectionStatus))
-# Connection Agent reason codes for which the minute fields are measured, not placeholders.
-_TIMED_CONNECTION_CODES = {
-    "NEGATIVE_CONNECTION_WINDOW", "BELOW_MINIMUM_CONNECTION_TIME", "TIGHT_TRANSFER_BUFFER",
-    "MODERATE_BUFFER", "SUFFICIENT_TRANSFER_TIME",
-}
 
 
 @dataclass
@@ -37,12 +31,6 @@ def _is_int(value: Any) -> bool:
 def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
-
-def _safe_text(value: Any, limit: int = 12) -> str:
-    """Identifiers copied from another agent's output, trimmed before they reach user-facing text."""
-    if value is None:
-        return ""
-    return "".join(ch for ch in str(value) if ch.isalnum() or ch in "-/_")[:limit]
 
 
 def _level_text(level: str) -> str:
@@ -319,8 +307,10 @@ class RiskAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def _connection_component(self, connections: List[Any], expected: int) -> _Assessed:
-        """Worst transfer wins, scored from the status the Connection Agent assigned."""
-        scores = self.config.connection.status_scores
+        """
+        Worst transfer wins. Each Connection Agent result is turned into a ConnectionRisk
+        (app/risk/connection_risk.py); UNAVAILABLE transfers are reported, never scored.
+        """
         if not connections:
             if expected <= 0:
                 return _Assessed(RiskComponent(
@@ -329,86 +319,47 @@ class RiskAgent(BaseAgent):
             reason = "The Connection Agent returned no result for this multi-leg journey."
             return _Assessed(RiskComponent(status="missing", confidence=0.0, reason=reason), warnings=[reason])
 
-        scored: List[Tuple[int, str, str]] = []
-        unavailable: Dict[str, str] = {}
-        statuses: Dict[str, str] = {}
-        missed: List[str] = []
-
-        for i, c in enumerate(connections):
-            if not isinstance(c, dict):
-                unavailable[f"connection {i + 1}"] = "invalid Connection Agent result"
-                continue
-            label = _safe_text(c.get("airport")) or f"connection {i + 1}"
-            status = c.get("status")
-            if status not in _CONNECTION_STATUSES:
-                unavailable[label] = "unrecognised connection status"
-                continue
-            statuses[label] = status
-            if status == "UNKNOWN":
-                codes = [_safe_text(r, 32) for r in c.get("reason_codes") or [] if isinstance(r, str)]
-                unavailable[label] = ", ".join(codes) or "status unknown"
-                continue
-            scored.append((scores[status], label, self._connection_reason(c, label, status)))
-            if status == "MISSED":
-                missed.append(label)
-
+        assessed = [assess_connection(c, i, self.config.connection) for i, c in enumerate(connections)]
+        label = lambda r: r.airport or f"connection {r.connection_index + 1}"  # noqa: E731
+        scored = [r for r in assessed if r.risk_score is not None]
+        unavailable: Dict[str, str] = {
+            label(r): ", ".join(r.reason_codes) or r.reason for r in assessed if r.risk_score is None
+        }
         for i in range(len(connections), expected):
             unavailable[f"connection {i + 1}"] = "no Connection Agent result"
 
         details = {
-            "connection_statuses": statuses,
-            "connections_scored": [label for _, label, _ in scored],
+            "connections": [r.model_dump() for r in assessed],
+            "connection_statuses": {label(r): r.status for r in assessed},
+            "connections_scored": [label(r) for r in scored],
             "connections_unavailable": unavailable,
         }
-        warnings = [f"Connection at {label} could not be assessed ({reason})." for label, reason in unavailable.items()]
+        warnings = [f"Connection at {k} could not be assessed ({v})." for k, v in unavailable.items()]
 
         if not scored:
             reason = "Connection could not be assessed: " + ", ".join(f"{k} ({v})" for k, v in unavailable.items()) + "."
             return _Assessed(RiskComponent(status="missing", confidence=0.0, reason=reason, details=details), warnings=warnings)
 
-        worst_score, worst_label, worst_reason = max(scored, key=lambda s: s[0])
-        details["worst_connection"] = worst_label
+        worst = max(scored, key=lambda r: r.risk_score)
+        details["worst_connection"] = label(worst)
         uncertainty = [
-            f"Connection at {label} could not be assessed ({reason}); the connection score only covers "
+            f"Connection at {k} could not be assessed ({v}); the connection score only covers "
             f"{', '.join(details['connections_scored'])}."
-            for label, reason in unavailable.items()
+            for k, v in unavailable.items()
         ]
         return _Assessed(
             RiskComponent(
                 status="available",
-                score=worst_score,
-                level=self.config.levels.level_for(worst_score),
+                score=worst.risk_score,
+                level=self.config.levels.level_for(worst.risk_score),
                 confidence=round(len(scored) / (len(scored) + len(unavailable)), 2),
-                reason=worst_reason,
+                reason=worst.reason,
                 details=details,
             ),
             uncertainty=uncertainty,
             warnings=warnings,
-            critical=missed,
+            critical=[label(r) for r in scored if r.status == "MISSED"],
         )
-
-    @staticmethod
-    def _connection_reason(c: Dict[str, Any], airport: str, status: str) -> str:
-        inbound = _safe_text(c.get("inbound_flight")) or "the inbound flight"
-        outbound = _safe_text(c.get("outbound_flight")) or "the onward flight"
-        codes = set(r for r in c.get("reason_codes") or [] if isinstance(r, str))
-        status_text = _level_text(status)
-
-        if "INBOUND_FLIGHT_CANCELLED" in codes:
-            return f"Connection at {airport} cannot be made: {inbound} is cancelled ({status_text})."
-        if "OUTBOUND_FLIGHT_CANCELLED" in codes:
-            return f"Connection at {airport} cannot be made: {outbound} is cancelled ({status_text})."
-        if "INBOUND_FLIGHT_DIVERTED" in codes:
-            return f"Connection at {airport} is at risk: {inbound} has been diverted ({status_text})."
-
-        available, mct = c.get("available_connection_minutes"), c.get("minimum_required_minutes")
-        if codes & _TIMED_CONNECTION_CODES and _is_int(available) and _is_int(mct):
-            if available < 0:
-                return (f"Connection at {airport}: {outbound} is due to leave {-available} minutes before "
-                        f"{inbound} arrives ({status_text}).")
-            return (f"Connection at {airport}: {available} minutes between {inbound} arriving and {outbound} "
-                    f"departing, against a {mct}-minute minimum ({status_text}).")
-        return f"Connection at {airport} is assessed as {status_text}."
 
     # ------------------------------------------------------------------
     # Weather Agent -> weather component
