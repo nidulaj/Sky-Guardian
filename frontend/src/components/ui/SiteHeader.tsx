@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ArrowRight, Menu, X } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { ArrowRight, Menu, X, LogOut, ShieldCheck, User } from 'lucide-react';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 const MARKETING_LINKS = [
   { href: '/#how-it-works', label: 'How it works' },
@@ -12,7 +13,7 @@ const MARKETING_LINKS = [
   { href: '/#responsible-ai', label: 'Responsible AI' },
 ];
 
-const APP_LINKS = [
+const BASE_APP_LINKS = [
   { href: '/journeys/new', label: 'Check a journey' },
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/history', label: 'History' },
@@ -37,9 +38,17 @@ export function Wordmark({ light = false }: { light?: boolean }) {
 
 export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteHeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const overlay = variant === 'overlay';
-  const links = section === 'app' ? APP_LINKS : MARKETING_LINKS;
+
+  // Include Admin Knowledge Base link if current user is an Admin
+  const appLinks = isAdmin
+    ? [...BASE_APP_LINKS, { href: '/admin', label: 'Admin Portal' }]
+    : BASE_APP_LINKS;
+
+  const links = section === 'app' ? appLinks : MARKETING_LINKS;
 
   useEffect(() => setOpen(false), [pathname]);
 
@@ -49,6 +58,11 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
 
   const linkTone = overlay ? 'text-white/85 hover:text-white' : 'text-ink-soft hover:text-ink';
 
@@ -81,10 +95,68 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
           })}
         </nav>
 
-        <div className="hidden xl:flex items-center gap-6">
-          <Link href="/login" className={`inline-flex min-h-11 items-center font-mono text-[11px] uppercase tracking-label ${linkTone}`}>
-            Sign in
-          </Link>
+        <div className="hidden xl:flex items-center gap-4">
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-3">
+              {/* User badge */}
+              <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                overlay
+                  ? 'border-white/20 bg-white/10 text-white'
+                  : 'border-ink/15 bg-sand-50 text-ink'
+              }`}>
+                {isAdmin ? (
+                  <ShieldCheck className="h-3.5 w-3.5 text-coral" aria-hidden="true" />
+                ) : (
+                  <User className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />
+                )}
+                <span>{user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.email}</span>
+                <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase font-bold tracking-wider ${
+                  isAdmin
+                    ? 'bg-coral-deep text-white'
+                    : 'bg-sand-200 text-ink-soft'
+                }`}>
+                  {user.role}
+                </span>
+              </div>
+
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-coral px-3.5 text-xs font-medium text-white transition-colors hover:bg-coral-deep"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Admin
+                </Link>
+              )}
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors ${
+                  overlay
+                    ? 'border-white/30 text-white hover:bg-white/10'
+                    : 'border-ink/15 text-ink hover:bg-sand-100'
+                }`}
+                title="Sign out"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <>
+              <Link href="/login" className={`inline-flex min-h-11 items-center font-mono text-[11px] uppercase tracking-label ${linkTone}`}>
+                Sign in
+              </Link>
+              <Link
+                href="/register"
+                className={`inline-flex min-h-11 items-center font-mono text-[11px] uppercase tracking-label text-coral hover:text-coral-deep`}
+              >
+                Register
+              </Link>
+            </>
+          )}
+
           <Link
             href="/journeys/new"
             className={`inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-medium transition-colors ${
@@ -113,7 +185,19 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
       {open && (
         <div id="mobile-menu" className="xl:hidden border-t border-ink/10 bg-sand-50 text-ink shadow-xl">
           <nav aria-label="Mobile" className="mx-auto flex max-w-7xl flex-col px-5 py-4">
-            {[...APP_LINKS, ...MARKETING_LINKS].map((link) => (
+            {isAuthenticated && user && (
+              <div className="flex items-center justify-between border-b border-ink/10 pb-4 mb-2">
+                <div className="flex items-center gap-2">
+                  {isAdmin ? <ShieldCheck className="h-4 w-4 text-coral" /> : <User className="h-4 w-4 text-ink-muted" />}
+                  <span className="font-medium text-sm">{user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.email}</span>
+                </div>
+                <span className="rounded bg-coral-deep px-2 py-0.5 font-mono text-[10px] uppercase font-bold text-white">
+                  {user.role}
+                </span>
+              </div>
+            )}
+
+            {[...appLinks, ...MARKETING_LINKS].map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -124,12 +208,29 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
                 <ArrowRight className="h-4 w-4 text-ink-muted" aria-hidden="true" />
               </Link>
             ))}
+
             <div className="flex gap-3 pt-4">
-              <Link href="/login" className="flex-1 inline-flex h-11 items-center justify-center rounded-full border border-ink/20 text-sm">
-                Sign in
-              </Link>
+              {isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-ink/20 text-sm font-medium"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </button>
+              ) : (
+                <>
+                  <Link href="/login" className="flex-1 inline-flex h-11 items-center justify-center rounded-full border border-ink/20 text-sm">
+                    Sign in
+                  </Link>
+                  <Link href="/register" className="flex-1 inline-flex h-11 items-center justify-center rounded-full border border-coral text-coral text-sm">
+                    Register
+                  </Link>
+                </>
+              )}
               <Link href="/journeys/new" className="flex-1 inline-flex h-11 items-center justify-center rounded-full bg-ink text-sand-50 text-sm">
-                Check my journey
+                Check journey
               </Link>
             </div>
           </nav>
@@ -138,3 +239,4 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
     </header>
   );
 }
+

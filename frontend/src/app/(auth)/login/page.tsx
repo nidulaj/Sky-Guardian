@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
-import { ArrowRight, Eye, EyeOff, Info } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -18,7 +20,7 @@ function validate(email: string, password: string): Errors {
   if (!email.trim()) errors.email = 'Enter your email address.';
   else if (!EMAIL_RE.test(email.trim())) errors.email = 'Enter an email address like name@example.com.';
   if (!password) errors.password = 'Enter your password.';
-  else if (password.length < 8) errors.password = 'Passwords have at least 8 characters. Check what you typed.';
+  else if (password.length < 6) errors.password = 'Password must be at least 6 characters.';
   return errors;
 }
 
@@ -85,30 +87,51 @@ function PasswordField({
 }
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { login } = useAuth();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [attempted, setAttempted] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const noticeRef = useRef<HTMLDivElement>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const revalidate = (nextEmail: string, nextPassword: string) => {
     if (attempted) setErrors(validate(nextEmail, nextPassword));
+    if (serverError) setServerError(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAttempted(true);
+    setServerError(null);
+
     const found = validate(email, password);
     setErrors(found);
     if (found.email || found.password) {
-      setSubmitted(false);
       document.getElementById(found.email ? 'login-email' : 'login-password')?.focus();
       return;
     }
-    // The backend has no real authentication yet: do not pretend the sign-in worked.
-    setSubmitted(true);
-    requestAnimationFrame(() => noticeRef.current?.focus());
+
+    setLoading(true);
+    try {
+      const user = await login({
+        email: email.trim(),
+        password,
+      });
+
+      // Role-based redirect
+      if (user.role === 'ADMIN') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err: any) {
+      setServerError(err.message || 'Invalid email or password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -119,34 +142,14 @@ export default function LoginPage() {
           Welcome <span className="accent text-coral">back.</span>
         </h1>
         <p className="text-base sm:text-lg text-ink-soft leading-relaxed">
-          Sign in to see your saved journeys and alerts.
+          Sign in as a passenger to check connections and view advice, or as an admin to manage the knowledge base.
         </p>
       </div>
 
-      {submitted && (
-        <div
-          ref={noticeRef}
-          tabIndex={-1}
-          role="status"
-          className="space-y-4 rounded-2xl border border-mist-deep/20 bg-mist-soft p-5 focus:outline-none"
-        >
-          <div className="flex items-start gap-3">
-            <Info className="mt-0.5 h-5 w-5 shrink-0 text-mist-deep" aria-hidden="true" />
-            <div className="space-y-1">
-              <p className="text-base font-semibold text-ink">Sign-in isn&apos;t connected in this demo</p>
-              <p className="text-sm text-ink-soft leading-relaxed">
-                Your details look fine, but accounts aren&apos;t switched on yet, so nothing was sent or saved. You can
-                still check a journey without an account.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/journeys/new"
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-coral-deep px-5 text-sm font-medium text-white transition-colors hover:bg-[#9E2A17]"
-          >
-            Continue to the demo
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
+      {serverError && (
+        <div role="alert" className="flex items-start gap-3 rounded-2xl border border-status-danger/30 bg-status-danger-bg p-4 text-status-danger">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <p className="text-sm font-medium leading-relaxed">{serverError}</p>
         </div>
       )}
 
@@ -176,15 +179,15 @@ export default function LoginPage() {
           error={errors.password}
           autoComplete="current-password"
         />
-        <Button type="submit" variant="primary" size="lg" className="w-full">
-          Sign in
+        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={loading}>
+          {loading ? 'Signing in...' : 'Sign in'}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Button>
       </form>
 
       <div className="space-y-1 border-t border-ink/10 pt-4">
         <p className="text-base text-ink-soft">
-          New to SkyGuardian?{' '}
+          New passenger to SkyGuardian?{' '}
           <Link href="/register" className="inline-flex min-h-[44px] items-center font-medium text-ink underline decoration-coral underline-offset-4 hover:decoration-2">
             Create an account
           </Link>
@@ -199,3 +202,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

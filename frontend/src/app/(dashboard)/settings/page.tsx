@@ -124,7 +124,10 @@ function Section({
   );
 }
 
+import { useAuth } from '@/lib/auth/AuthContext';
+
 export default function SettingsPage() {
+  const { user, isAuthenticated } = useAuth();
   const [prefs, setPrefs] = useState<Prefs>(DEFAULTS);
   const [emailError, setEmailError] = useState<string>();
   const [message, setMessage] = useState('');
@@ -132,8 +135,16 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const stored = readStored();
-    if (stored) setPrefs(stored);
-  }, []);
+    if (stored) {
+      setPrefs(stored);
+    } else if (user) {
+      setPrefs((p) => ({
+        ...p,
+        name: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : '',
+        email: user.email || '',
+      }));
+    }
+  }, [user]);
 
   const update = <K extends keyof Prefs>(key: K, value: Prefs[K]) => {
     setPrefs((p) => ({ ...p, [key]: value }));
@@ -152,7 +163,7 @@ export default function SettingsPage() {
     setEmailError(undefined);
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prefs, email }));
-      setMessage('Saved in this browser only. Nothing was sent to a server.');
+      setMessage('Preferences saved in this browser.');
     } catch {
       setMessage('Your browser blocked local storage, so these choices will reset when you leave this page.');
     }
@@ -183,10 +194,25 @@ export default function SettingsPage() {
       <div role="note" className="flex items-start gap-3 rounded-2xl border border-ink/10 bg-mist-soft px-5 py-4">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-mist-deep" aria-hidden="true" />
         <p className="text-base text-ink">
-          <strong className="font-semibold">Demo mode.</strong>{' '}
-          <span className="text-ink-soft">
-            Accounts aren&apos;t connected yet, so settings are saved only in this browser and no alerts are sent.
-          </span>
+          {isAuthenticated && user ? (
+            <>
+              <strong className="font-semibold">Authenticated Session.</strong>{' '}
+              <span className="text-ink-soft">
+                Signed in as <strong className="text-ink">{user.email}</strong> with role{' '}
+                <span className="rounded bg-coral px-1.5 py-0.5 font-mono text-xs uppercase font-bold text-white">
+                  {user.role}
+                </span>.
+                {user.phone_number && ` Disruption SMS alerts configured for ${user.phone_number}.`}
+              </span>
+            </>
+          ) : (
+            <>
+              <strong className="font-semibold">Guest mode.</strong>{' '}
+              <span className="text-ink-soft">
+                Sign in to link alerts to your passenger profile. Settings below are saved locally in this browser.
+              </span>
+            </>
+          )}
         </p>
       </div>
 
@@ -194,7 +220,11 @@ export default function SettingsPage() {
         <Section
           index="01 / Profile"
           title="About you"
-          description="Optional. Used to address you and, once accounts are connected, to send alerts."
+          description={
+            isAuthenticated && user
+              ? 'Your authenticated passenger identity linked with Supabase.'
+              : 'Used to address you and to send flight alerts.'
+          }
         >
           <div className="grid gap-5">
             <Input
@@ -217,11 +247,22 @@ export default function SettingsPage() {
                 if (emailError) setEmailError(undefined);
               }}
               error={emailError}
-              helperText="We will never share your email."
+              helperText={isAuthenticated ? "Linked to your active user account." : "We will never share your email."}
               placeholder="name@example.com"
             />
+            {isAuthenticated && user?.phone_number && (
+              <Input
+                id="settings-phone"
+                label="Registered Phone Number"
+                type="tel"
+                value={user.phone_number}
+                readOnly
+                helperText="Verified during registration for flight delay notifications."
+              />
+            )}
           </div>
         </Section>
+
 
         <Section
           index="02 / Language"

@@ -42,3 +42,6 @@ secrets/
 *.egg-info/
 *.tsbuildinfo
 .run-logs/
+
+# Local runtime data (flight cache, quota counter)
+backend/data/

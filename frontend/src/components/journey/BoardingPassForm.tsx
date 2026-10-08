@@ -6,7 +6,8 @@ import Barcode from '@/components/ui/Barcode';
 import type { FlightLegInput } from '@/types/journey';
 import { formatTravelDate } from '@/lib/flightTime';
 import { todayISODate } from '@/lib/date';
-import { LegErrors, LegField, normaliseAirport, routeCodes } from './validation';
+import { LegErrors, LegField, routeCodes } from './validation';
+import AirportAutocomplete from './AirportAutocomplete';
 
 export const MAX_LEGS = 6;
 // Today (local date): Open-Meteo only forecasts ~16 days ahead, so a fixed past date
@@ -138,20 +139,13 @@ export default function BoardingPassForm({ legs, errors, formError, loading, onC
                     <label htmlFor={fieldId(i, 'origin')} className="eyebrow block">
                       From
                     </label>
-                    <input
+                    <AirportAutocomplete
                       id={fieldId(i, 'origin')}
                       value={leg.origin}
-                      onChange={(e) => update(i, 'origin', normaliseAirport(e.target.value))}
-                      maxLength={3}
+                      onChange={(code) => update(i, 'origin', code)}
                       placeholder="CMB"
-                      autoComplete="off"
-                      autoCapitalize="characters"
-                      spellCheck={false}
-                      aria-invalid={legErrors.origin ? true : undefined}
-                      aria-describedby={describedBy(i, 'origin', !!legErrors.origin, 'airport-help')}
-                      className={`display mt-1 w-full min-w-0 bg-transparent uppercase text-[3.25rem] sm:text-6xl text-ink placeholder:text-ink/20 border-b-2 border-dashed pb-1 rounded-none focus:outline-none focus:border-solid focus:border-ink transition-colors ${
-                        legErrors.origin ? 'border-status-danger' : 'border-ink/20 hover:border-ink/40'
-                      }`}
+                      invalid={!!legErrors.origin}
+                      describedBy={describedBy(i, 'origin', !!legErrors.origin, 'airport-help')}
                     />
                   </div>
 
@@ -165,20 +159,14 @@ export default function BoardingPassForm({ legs, errors, formError, loading, onC
                     <label htmlFor={fieldId(i, 'destination')} className="eyebrow block">
                       To
                     </label>
-                    <input
+                    <AirportAutocomplete
                       id={fieldId(i, 'destination')}
                       value={leg.destination}
-                      onChange={(e) => update(i, 'destination', normaliseAirport(e.target.value))}
-                      maxLength={3}
+                      onChange={(code) => update(i, 'destination', code)}
                       placeholder="KUL"
-                      autoComplete="off"
-                      autoCapitalize="characters"
-                      spellCheck={false}
-                      aria-invalid={legErrors.destination ? true : undefined}
-                      aria-describedby={describedBy(i, 'destination', !!legErrors.destination, 'airport-help')}
-                      className={`display mt-1 w-full min-w-0 bg-transparent text-right uppercase text-[3.25rem] sm:text-6xl text-ink placeholder:text-ink/20 border-b-2 border-dashed pb-1 rounded-none focus:outline-none focus:border-solid focus:border-ink transition-colors ${
-                        legErrors.destination ? 'border-status-danger' : 'border-ink/20 hover:border-ink/40'
-                      }`}
+                      align="right"
+                      invalid={!!legErrors.destination}
+                      describedBy={describedBy(i, 'destination', !!legErrors.destination, 'airport-help')}
                     />
                   </div>
                 </div>
@@ -248,7 +236,7 @@ export default function BoardingPassForm({ legs, errors, formError, loading, onC
           })}
 
           <p id="airport-help" className="sr-only">
-            Three-letter airport code, for example CMB for Colombo.
+            Type a city, airport name or 3-letter code, for example Colombo or CMB, then pick the airport from the list.
           </p>
 
           <button
@@ -275,10 +263,8 @@ export default function BoardingPassForm({ legs, errors, formError, loading, onC
           />
 
           <p className="font-mono text-[11px] uppercase tracking-label text-white">Your route</p>
-          <p
-            className="display mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-4xl text-white"
-            aria-label={`Route: ${codes.join(' to ')}`}
-          >
+          <p className="display mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-4xl text-white">
+            <span className="sr-only">{`Route: ${codes.join(' to ')}`}</span>
             {codes.map((code, i) => (
               <React.Fragment key={`${code}-${i}`}>
                 {i > 0 && <ArrowRight className="h-5 w-5 text-coral-peach" aria-hidden="true" />}

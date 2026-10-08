@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "dev_secret_key_skyguardian_ai_2026_super_secure_32bytes"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ADMIN_REGISTRATION_SECRET: str = "skyguardian_admin_secret_2026"
 
     LLM_PROVIDER: str = "mock"
     LLM_MODEL: str = "gemini-1.5-flash"
@@ -39,6 +40,31 @@ class Settings(BaseSettings):
 
     # None = <repo>/config/risk.yaml (built-in defaults when that file is absent)
     RISK_CONFIG_PATH: Optional[str] = None
+
+    # RAG (Retrieval-Augmented Generation) Settings
+    RAG_ENABLED: bool = True
+    RAG_TOP_K: int = 3
+    RAG_SIMILARITY_THRESHOLD: float = 0.40
+    RAG_CHUNK_SIZE: int = 600
+    RAG_CHUNK_OVERLAP: int = 80
+    RAG_MAX_CONTEXT_LENGTH: int = 3000
+    EMBEDDING_PROVIDER: str = "mock"  # "mock", "gemini", "openai"
+    EMBEDDING_MODEL: str = "models/text-embedding-004"
+    KNOWLEDGE_STORE_BACKEND: str = "pgvector"  # "memory", "pgvector"
+    KNOWLEDGE_CACHE_SIZE: int = 256
+    # Supabase & Storage Settings
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
+    SUPABASE_STORAGE_BUCKET: str = "rag-documents"
+
+    @property
+    def clean_supabase_url(self) -> Optional[str]:
+        if not self.SUPABASE_URL:
+            return None
+        url = self.SUPABASE_URL.strip().rstrip("/")
+        if url.endswith("/rest/v1"):
+            url = url[:-len("/rest/v1")].rstrip("/")
+        return url
 
     model_config = SettingsConfigDict(
         env_file=".env",

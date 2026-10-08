@@ -1,9 +1,13 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import PageHeader from '@/components/ui/PageHeader';
 import Badge from '@/components/ui/Badge';
 import Barcode from '@/components/ui/Barcode';
-import { ArrowRight, Info, Plane } from 'lucide-react';
+import { ArrowRight, Info, Plane, ShieldCheck, Sparkles } from 'lucide-react';
+import { useAuth } from '@/lib/auth/AuthContext';
+import PassengerPolicyAssistant from '@/components/dashboard/PassengerPolicyAssistant';
 
 const primaryLink =
   'inline-flex h-12 items-center justify-center gap-2 rounded-full bg-ink px-6 text-base font-medium text-sand-50 transition-colors hover:bg-ink-soft';
@@ -52,20 +56,62 @@ const NEXT_STEPS = [
 ];
 
 export default function DashboardPage() {
+  const { user, isAdmin, isAuthenticated } = useAuth();
+
   return (
     <div className="space-y-12 sm:space-y-16">
       <PageHeader
-        eyebrow="01 / Dashboard"
+        eyebrow={user?.first_name ? `Welcome back, ${user.first_name} · ${user.role}` : '01 / Dashboard'}
         title="Your journeys,"
         accent="at a glance."
-        description="See which trips need attention and what to do next. Start a new check any time. It takes about a minute."
+        description={
+          user?.first_name
+            ? `Signed in as ${user.email}. Check flight disruptions, examine connection risks, or ask questions to the airline policy assistant below.`
+            : 'See which trips need attention and what to do next. Start a new check any time. It takes about a minute.'
+        }
         actions={
-          <Link href="/journeys/new" className={primaryLink}>
-            Check a journey
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-coral bg-coral-peach/15 px-6 text-base font-medium text-coral-deep transition-colors hover:bg-coral hover:text-white"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Admin Portal
+              </Link>
+            )}
+            <Link href="/journeys/new" className={primaryLink}>
+              Check a journey
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
         }
       />
+
+      {/* Admin Quick Callout if logged in as Admin */}
+      {isAdmin && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-coral/30 bg-sand-50 p-5">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="h-6 w-6 text-coral shrink-0" />
+            <div>
+              <p className="font-semibold text-ink text-base">Administrator Mode Active</p>
+              <p className="text-sm text-ink-soft">
+                You have administrative access to the Supabase Knowledge Base, document ingestion, and vector store metrics.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/admin"
+            className="inline-flex h-10 items-center gap-1.5 rounded-full bg-coral px-4 text-xs font-medium text-white transition-colors hover:bg-coral-deep shrink-0"
+          >
+            Open Admin Vault
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      )}
+
+      {/* Passenger RAG Policy Assistant Widget */}
+      <PassengerPolicyAssistant />
 
       {/* Honest sample-data notice */}
       <div role="note" className="flex items-start gap-3 rounded-2xl border border-ink/10 bg-mist-soft px-5 py-4">
@@ -73,11 +119,13 @@ export default function DashboardPage() {
         <p className="text-base text-ink">
           <strong className="font-semibold">Sample data.</strong>{' '}
           <span className="text-ink-soft">
-            Journey history is saved once accounts are connected. Until then, this page shows an example trip so you can
-            see how results look.
+            {isAuthenticated
+              ? `You are logged in as ${user?.role}. The card below displays an example multi-leg journey with simulated delay status so you can preview how risk scoring appears.`
+              : 'Journey history is saved once accounts are connected. Until then, this page shows an example trip so you can see how results look.'}
           </span>
         </p>
       </div>
+
 
       {/* Upcoming trip: boarding pass */}
       <section aria-labelledby="upcoming-heading" className="space-y-5">

@@ -2,7 +2,10 @@ from app.agents.base import BaseAgent
 from app.orchestrator.state import JourneyState
 from app.schemas.journey import AgentResultSchema
 from app.schemas.flight import FlightResult, FLIGHT_NUMBER_PATTERN, AIRPORT_CODE_PATTERN, TRAVEL_DATE_PATTERN, parse_flight_time
-from app.providers.flight.base import FlightDataProvider, FlightNotFoundError, FlightDataUnavailableError
+from app.providers.flight.base import (
+    FlightDataProvider, FlightNotFoundError, FlightDataUnavailableError, FlightDateNotCoveredError,
+)
+from app.providers.airports import get_airport
 from app.providers.flight.provider import get_flight_provider
 from datetime import date, datetime, timezone
 from typing import Dict, Any, List, Optional
@@ -64,6 +67,8 @@ class FlightAgent(BaseAgent):
             reasons.append("INVALID_FLIGHT_NUMBER")
         if not re.fullmatch(AIRPORT_CODE_PATTERN, origin) or not re.fullmatch(AIRPORT_CODE_PATTERN, dest):
             reasons.append("INVALID_AIRPORT_CODE")
+        elif get_airport(origin) is None or get_airport(dest) is None:
+            reasons.append("UNKNOWN_AIRPORT")
         try:
             if not re.fullmatch(TRAVEL_DATE_PATTERN, travel_date):
                 raise ValueError(travel_date)
@@ -76,7 +81,7 @@ class FlightAgent(BaseAgent):
             safe_origin, safe_dest = re.sub(r"[^A-Z]", "", origin)[:3], re.sub(r"[^A-Z]", "", dest)[:3]
             label = safe_num or "(blank)"
             return self._unknown(safe_num, safe_origin, safe_dest, reasons), [
-                f"Flight {label}: input rejected ({', '.join(reasons)}). Use a flight number like UL001, 3-letter airport codes and a YYYY-MM-DD date."
+                f"Flight {label}: input rejected ({', '.join(reasons)}). Use a flight number like UL001, real 3-letter airport codes and a YYYY-MM-DD date."
             ]
 
         # Call the provider
@@ -88,6 +93,10 @@ class FlightAgent(BaseAgent):
         except FlightNotFoundError:
             return self._unknown(flight_num, origin, dest, ["FLIGHT_NOT_FOUND"]), [
                 f"No status data found for {flight_num} on {travel_date}. Check the flight number with your airline."
+            ]
+        except FlightDateNotCoveredError as e:
+            return self._unknown(flight_num, origin, dest, ["DATE_NOT_COVERED"]), [
+                f"{flight_num} on {travel_date}: {e}"
             ]
         except (FlightDataUnavailableError, asyncio.TimeoutError) as e:
             logger.warning(f"Flight provider unavailable for {flight_num}: {e!r}")
@@ -135,10 +144,21 @@ class FlightAgent(BaseAgent):
             result.status = "DELAYED"
 
         result.reason_codes = list(dict.fromkeys(reasons))
-        return result, warnings
+        return self._enrich(result), warnings
+
+    @staticmethod
+    def _enrich(result: FlightResult) -> FlightResult:
+        """Attach airport names, cities and IANA timezones so the UI can show local times."""
+        for side in ("origin", "destination"):
+            airport = get_airport(getattr(result, side))
+            if airport:
+                setattr(result, f"{side}_name", airport.name)
+                setattr(result, f"{side}_city", airport.city)
+                setattr(result, f"{side}_timezone", airport.timezone)
+        return result
 
     def _unknown(self, flight_num: str, origin: str, dest: str, reasons: List[str]) -> FlightResult:
-        return FlightResult(
+        return self._enrich(FlightResult(
             flight_number=flight_num,
             origin=origin,
             destination=dest,
@@ -147,4 +167,4 @@ class FlightAgent(BaseAgent):
             source=getattr(self.provider, "name", type(self.provider).__name__),
             retrieved_at=datetime.now(timezone.utc).isoformat(),
             reason_codes=reasons
-        )
+        ))

@@ -26,9 +26,12 @@ dependencies = [
     "truststore>=0.10.0",
     "pyyaml>=6.0.1",
     "tzdata>=2024.1",
+    "airportsdata>=2024.1",  # mixes 20260905 and 2026.10.1 version styles; a low bound accepts both
     "langgraph>=0.0.30",
     "google-generativeai>=0.4.1",
     "tavily-python>=0.3.1",
+    "supabase>=2.0.0",
+    "pypdf>=4.0.0",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0"
 ]

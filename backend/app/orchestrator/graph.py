@@ -6,10 +6,11 @@ from app.agents.risk_agent import RiskAgent
 from app.agents.policy_agent import PolicyAgent
 from app.agents.alternative_agent import AlternativeAgent
 from app.agents.recovery_agent import RecoveryAgent
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 class SupervisorOrchestrator:
     """
@@ -21,6 +22,7 @@ class SupervisorOrchestrator:
     5. Conditional Routing (if risk >= 60 or connection at risk -> Policy & Alternative Agents)
     6. Recovery Agent
     """
+
     def __init__(self):
         self.flight_agent = FlightAgent()
         self.connection_agent = ConnectionAgent()
@@ -65,16 +67,33 @@ class SupervisorOrchestrator:
         await self.recovery_agent.execute(state)
 
         state.workflow_status = "COMPLETED"
-        state.updated_at = datetime.utcnow().isoformat()
-        
-        # Populate source metadata
-        state.sources = [
+        state.updated_at = datetime.now(timezone.utc).isoformat()
+
+        # Base telemetry sources from workflow providers
+        telemetry_sources = [
             {"name": "MockFlightProvider", "type": "Aviation Data", "verified": True},
             {"name": self.weather_agent.provider.name, "type": "Weather Forecast", "verified": True},
-            {"name": "SriLankan Airlines Conditions of Carriage", "type": "Policy Document", "verified": True},
-            {"name": "Malaysia Airlines Customer Commitment", "type": "Policy Document", "verified": True}
         ]
-        
-        state.warnings.append("SkyGuardian AI provides travel disruption guidance based on available schedule estimates. Confirm critical travel updates with your carrier.")
+
+        # Merge telemetry with any evidence-derived policy sources
+        combined_sources = list(telemetry_sources)
+        seen_names = {s["name"] for s in combined_sources}
+
+        for s in state.sources:
+            if s.get("name") and s["name"] not in seen_names:
+                combined_sources.append(s)
+                seen_names.add(s["name"])
+
+        for pe in state.policy_evidence:
+            title = pe.get("title")
+            if title and title not in seen_names:
+                combined_sources.append({"name": title, "type": "Policy Document", "verified": True})
+                seen_names.add(title)
+
+        state.sources = combined_sources
+
+        state.warnings.append(
+            "SkyGuardian AI provides travel disruption guidance based on available schedule estimates. Confirm critical travel updates with your carrier."
+        )
 
         return state

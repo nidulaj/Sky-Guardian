@@ -14,6 +14,9 @@ FlightStatus = Literal[
     "UNKNOWN",
 ]
 
+# Where a flight result came from: live status, published timetable, demo data or nothing.
+DataMode = Literal["live", "timetable", "demo", "none"]
+
 # Flight designator: airline code + 1-4 digit number + optional suffix.
 # Airline code is IATA (2 characters, at least one letter: UL, 6E, U2) or ICAO (3 letters: SLK).
 FLIGHT_NUMBER_PATTERN = r"^(?:[A-Z]{2}|[A-Z][0-9]|[0-9][A-Z]|[A-Z]{3})[0-9]{1,4}[A-Z]?$"
@@ -46,8 +49,17 @@ class FlightResult(BaseModel):
     actual_arrival: Optional[str] = None
     status: FlightStatus = "UNKNOWN"
     delay_minutes: int = Field(default=0, ge=0)
-    terminal: Optional[str] = None
-    gate: Optional[str] = None
+    terminal: Optional[str] = None          # departure terminal
+    gate: Optional[str] = None              # departure gate
+    arrival_terminal: Optional[str] = None
     source: str
     retrieved_at: str
     reason_codes: list[str] = []
+    data_mode: DataMode = "none"
+    # Airport reference data for display (names, cities, IANA timezones for local times)
+    origin_name: Optional[str] = None
+    origin_city: Optional[str] = None
+    origin_timezone: Optional[str] = None
+    destination_name: Optional[str] = None
+    destination_city: Optional[str] = None
+    destination_timezone: Optional[str] = None

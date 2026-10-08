@@ -81,5 +81,6 @@ class MockFlightProvider(FlightDataProvider):
             terminal=flight["terminal"],
             gate=flight["gate"],
             source="MockFlightProvider (Demo Data)",
+            data_mode="demo",
             retrieved_at=datetime.now(timezone.utc).isoformat(),
         )
