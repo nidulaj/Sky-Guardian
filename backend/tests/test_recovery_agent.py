@@ -204,3 +204,51 @@ async def test_api_without_llm_key_uses_standard_summary():
         response = await client.post("/api/journeys/analyze", json={"legs": legs})
     assert response.status_code == 200
     assert "SriLankan Airlines" in response.json()["recommendation"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("overrides,error", [
+    ({"what_happened": "UL001 from CMB to KUL is delayed by 300 minutes."}, "numbers not in facts"),
+    ({"policy_citations": ["P9"]}, "unknown policy citations"),
+    ({"recommended_action": "Ask about rebooking [P4]."}, "unknown policy citations"),
+    ({"recommended_action": "Take UL999 instead."}, "flight numbers not in facts"),
+    ({"recommended_action": "Fly via DXB instead."}, "airport codes not in facts"),
+    ({"impact": "You are guaranteed a free hotel."}, "unsupported promise wording"),
+    ({"impact": "You are entitled to compensation."}, "unsupported promise wording"),
+])
+async def test_ungrounded_llm_output_falls_back(overrides, error):
+    state, result = await recover(demo_state(), MockLLMProvider(good_plan(**overrides)))
+    assert state.recommendation_mode == "template"
+    assert any(error in e for e in result.data["validation_errors"])
+    assert LLM_FALLBACK_WARNING in state.warnings
+
+
+@pytest.mark.asyncio
+async def test_promise_word_allowed_when_the_cited_policy_says_it():
+    state = demo_state(policy_evidence=[{"title": "CoC", "snippet": "Passengers are entitled to rebooking.", "verified": True}])
+    plan = good_plan(impact="Policy P1 says passengers are entitled to rebooking [P1].")
+    state, _ = await recover(state, MockLLMProvider(plan))
+    assert state.recommendation_mode == "llm"
+
+
+@pytest.mark.asyncio
+async def test_times_and_figures_from_facts_are_allowed():
+    state = demo_state()
+    state.flight_results[0]["estimated_arrival"] = "2026-09-15T17:00:00+08:00"
+    plan = good_plan(impact="You now land at KUL around 17:00 with a 30-minute window against a 60-minute minimum; risk 73/100.")
+    state, _ = await recover(state, MockLLMProvider(plan))
+    assert state.recommendation_mode == "llm"
+
+
+@pytest.mark.asyncio
+async def test_missing_policy_must_be_stated():
+    state = demo_state(policy_evidence=[])
+    plan = good_plan(policy_citations=[], recommended_action="Ask SriLankan Airlines at KUL about rebooking.")
+    state, result = await recover(state, MockLLMProvider(plan))
+    assert state.recommendation_mode == "template"
+    assert "Policy information could not be verified." in state.recovery_plan["uncertainty"]
+
+    ok = good_plan(policy_citations=[], recommended_action="Ask SriLankan Airlines at KUL about rebooking.",
+                   uncertainty=["Policy information could not be verified."])
+    state, _ = await recover(demo_state(policy_evidence=[]), MockLLMProvider(ok))
+    assert state.recommendation_mode == "llm"

@@ -7,6 +7,7 @@ from app.agents.base import BaseAgent
 from app.agents.recovery_facts import RecoveryFacts, build_fact_sheet
 from app.agents.recovery_prompt import build_system_prompt, build_user_message
 from app.agents.recovery_template import render_markdown, render_template
+from app.agents.recovery_validation import validate_plan
 from app.llm import LLMError
 from app.orchestrator.state import JourneyState
 from app.schemas.journey import AgentResultSchema
@@ -34,7 +35,10 @@ class RecoveryAgent(BaseAgent):
         try:
             raw = await self.llm_provider.generate_json(
                 build_system_prompt(facts), build_user_message(facts), RECOVERY_PLAN_SCHEMA)
-            return RecoveryPlan.model_validate(raw), []
+            plan = RecoveryPlan.model_validate(raw)
+            errors = validate_plan(plan, facts)
+            if not errors:
+                return plan, []
         except LLMError as exc:
             errors = [str(exc)]
         except ValidationError as exc:
