@@ -386,6 +386,8 @@ export default function DashboardPage() {
         connectionAirport={airport}
         sources={result?.sources ?? []}
         traceId={result?.trace_id}
+        workflowTrace={result?.workflow_trace ?? []}
+        recoveryReasons={result?.recovery_reasons ?? []}
       />
     </div>
   );
