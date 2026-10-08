@@ -11,6 +11,8 @@ import httpx
 AERODATABOX_BASE_URL = "https://aerodatabox.p.rapidapi.com"
 AERODATABOX_HOST = "aerodatabox.p.rapidapi.com"
 UNITS_PER_LOOKUP = 2      # "Flight status (single day)" is a Tier 2 endpoint
+UNITS_READING_KEY = "adb:units_remaining"
+UNITS_READING_SECONDS = 24 * 3600   # how long a units reading is trusted when RapidAPI doesn't say when it resets
 MAX_DAYS = 365            # schedules and history are available up to a year either way
 
 # AeroDataBox status -> FlightResult status. "Expected"/"Unknown" keep SCHEDULED; the agent promotes to DELAYED
@@ -56,8 +58,9 @@ class AeroDataBoxFlightProvider(FlightDataProvider):
     Flight status and schedules from AeroDataBox (via RapidAPI): GET /flights/number/{number}/{dateLocal}.
     One lookup answers past, today and future dates (up to a year either way). Times come back in UTC and local.
     Live data ("Live" quality) exists only where AeroDataBox tracks the airport; elsewhere it is the timetable.
-    Usage is limited by API units: the remaining units reported by RapidAPI are stored and requests stop
-    before the reserve is reached. Responses are cached (well under the 7-day limit in the terms of use).
+    Usage is limited by API units. Requests stop before the reserve is reached, judged by both the remaining units
+    RapidAPI reports (trusted until its reset time, or for a day) and our own count of calls this month, whichever
+    is stricter. Responses are cached (well under the 7-day limit in the terms of use).
     """
     name = "AeroDataBox"
 
@@ -135,8 +138,7 @@ class AeroDataBoxFlightProvider(FlightDataProvider):
         if cached is not None:
             return cached
 
-        remaining = self._cache.get(f"adb:units_remaining")
-        if remaining is not None and remaining - UNITS_PER_LOOKUP < self._settings.AERODATABOX_UNITS_RESERVE:
+        if self._units_left() - UNITS_PER_LOOKUP < self._settings.AERODATABOX_UNITS_RESERVE:
             raise FlightDataUnavailableError("AeroDataBox monthly unit quota reached")
 
         url = f"{self._base_url}/flights/number/{flight_iata}/{travel_date}"
@@ -149,9 +151,7 @@ class AeroDataBoxFlightProvider(FlightDataProvider):
             raise FlightDataUnavailableError(f"AeroDataBox request failed ({type(e).__name__})") from None
         self._cache.record_call(self.name)
 
-        units = response.headers.get("x-ratelimit-api-units-remaining")
-        if units and units.isdigit():
-            self._cache.set("adb:units_remaining", int(units), 40 * 24 * 3600)
+        self._store_units_reading(response.headers)
 
         if response.status_code in (204, 404):
             records: List[Dict[str, Any]] = []
@@ -173,3 +173,17 @@ class AeroDataBoxFlightProvider(FlightDataProvider):
             ttl = self._settings.FLIGHT_NOT_FOUND_CACHE_SECONDS
         self._cache.set(cache_key, records, ttl)
         return records
+
+    def _units_left(self) -> int:
+        counted = self._settings.AERODATABOX_MONTHLY_UNITS - self._cache.calls_this_month(self.name) * UNITS_PER_LOOKUP
+        reported = self._cache.get(UNITS_READING_KEY)
+        return min(counted, reported) if reported is not None else counted
+
+    def _store_units_reading(self, headers: httpx.Headers) -> None:
+        """Keep RapidAPI's remaining-units reading until its quota resets (or a day), so a low reading never outlives the reset."""
+        units = (headers.get("x-ratelimit-api-units-remaining") or "").strip()
+        if not units.isdigit():
+            return
+        reset = (headers.get("x-ratelimit-api-units-reset") or headers.get("x-ratelimit-requests-reset") or "").strip()
+        ttl = min(int(reset), UNITS_READING_SECONDS * 31) if reset.isdigit() and int(reset) > 0 else UNITS_READING_SECONDS
+        self._cache.set(UNITS_READING_KEY, int(units), ttl)

@@ -356,3 +356,27 @@ def test_factory_honours_use_mock_flights_switch(monkeypatch, tmp_path):
 
     monkeypatch.setattr(provider_module.settings, "USE_MOCK_FLIGHTS", True)
     assert provider_module.get_flight_provider().name == "MockFlightProvider"
+
+
+# ---- live-only path used to upgrade another provider's timetable -----------------------------------------
+
+@pytest.mark.asyncio
+async def test_live_status_outside_the_live_window_costs_no_request():
+    provider, calls = make_provider(respond([record(flight_date="2026-10-20")]))
+    assert await provider.get_live_status("UL306", "2026-10-20", "CMB", "SIN") is None
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_live_status_never_falls_back_to_the_timetable():
+    provider, calls = make_provider(respond([]))
+    assert await provider.get_live_status("UL306", "2026-10-06", "CMB", "SIN") is None
+    assert [c.url.path for c in calls] == ["/v1/flights"]
+
+
+@pytest.mark.asyncio
+async def test_live_status_only_returns_a_departure_from_the_requested_origin():
+    other_leg = record(dep=("MLE", "Indian/Maldives", "2026-10-06T10:00:00+00:00"),
+                       arr=("CMB", "Asia/Colombo", "2026-10-06T12:00:00+00:00"), status="active", dep_delay=90)
+    provider, _ = make_provider(respond([other_leg]))
+    assert await provider.get_live_status("UL306", "2026-10-06", "CMB", "SIN") is None

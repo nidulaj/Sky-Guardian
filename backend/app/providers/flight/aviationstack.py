@@ -97,15 +97,25 @@ class AviationStackFlightProvider(FlightDataProvider):
             raise FlightNotFoundError(f"AviationStack has no {flight_iata} departing {origin} on {travel_date}")
         return result
 
+    async def get_live_status(self, flight_number: str, travel_date: str, origin: str, destination: str) -> Optional[FlightResult]:
+        """Live status only, and only inside the live window; no timetable call, so no quota is wasted."""
+        flight_iata = flight_number.upper().strip()
+        days_ahead = (date.fromisoformat(travel_date) - self._today(airport_timezone(origin) or "UTC")).days
+        if abs(days_ahead) > self._settings.FLIGHT_LIVE_WINDOW_DAYS:
+            return None
+        return await self._live(flight_iata, travel_date, origin, strict_origin=True)
+
     # ---- live status -------------------------------------------------------------------------------------
 
-    async def _live(self, flight_iata: str, travel_date: str, origin: str) -> Optional[FlightResult]:
+    async def _live(self, flight_iata: str, travel_date: str, origin: str, strict_origin: bool = False) -> Optional[FlightResult]:
         records = await self._fetch(
             f"live:{flight_iata}", "flights", {"flight_iata": flight_iata, "limit": 100},
             ttl=self._settings.FLIGHT_LIVE_CACHE_SECONDS,
         )
         on_date = [r for r in records if r.get("flight_date") == travel_date
                    and ((r.get("flight") or {}).get("iata") or "").upper() == flight_iata]
+        if strict_origin:
+            on_date = [r for r in on_date if ((r.get("departure") or {}).get("iata") or "").upper() == origin]
         if not on_date:
             return None
         # Prefer the operating carrier's record, then one departing from the requested origin

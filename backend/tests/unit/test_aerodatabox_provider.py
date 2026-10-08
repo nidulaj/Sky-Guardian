@@ -1,4 +1,6 @@
+import asyncio
 import json
+import time
 from datetime import date
 from pathlib import Path
 
@@ -204,6 +206,42 @@ async def test_stops_before_the_unit_reserve_using_rapidapi_header():
     assert len(calls) == 1
 
 
+@pytest.mark.asyncio
+async def test_low_units_reading_expires_so_the_provider_recovers_after_the_reset(monkeypatch):
+    cache = FlightCache()
+    provider, calls = make_provider(ok([flight()]), cache=cache, units_remaining="11", AERODATABOX_UNITS_RESERVE=10)
+    await provider.get_flight_status("UL306", "2026-10-20", "CMB", "SIN")
+    real_time = time.time
+    monkeypatch.setattr(time, "time", lambda: real_time() + 2 * 24 * 3600)   # reading older than a day
+    with pytest.raises(FlightNotFoundError):                                  # asked the API again (no UL306 that day)
+        await provider.get_flight_status("UL306", "2026-10-21", "CMB", "SIN")
+    assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_units_reading_lasts_until_rapidapi_reset_when_given():
+    cache = FlightCache()
+
+    def handler(request):
+        return httpx.Response(200, json=[flight()], headers={"x-ratelimit-api-units-reset": "60"})
+
+    provider, calls = make_provider(handler, cache=cache, units_remaining="11", AERODATABOX_UNITS_RESERVE=10)
+    await provider.get_flight_status("UL306", "2026-10-20", "CMB", "SIN")
+    with pytest.raises(FlightDataUnavailableError, match="quota"):
+        await provider.get_flight_status("UL306", "2026-10-21", "CMB", "SIN")
+
+
+@pytest.mark.asyncio
+async def test_local_count_caps_units_when_rapidapi_sends_no_header():
+    cache = FlightCache()
+    for _ in range(195):                       # 390 of 400 units used this month
+        cache.record_call("AeroDataBox")
+    provider, calls = make_provider(ok([flight()]), cache=cache, units_remaining=None, AERODATABOX_UNITS_RESERVE=10)
+    with pytest.raises(FlightDataUnavailableError, match="quota"):
+        await provider.get_flight_status("UL306", "2026-10-20", "CMB", "SIN")
+    assert calls == []
+
+
 # ---- provider chain -------------------------------------------------------------------------------------
 
 class Stub(FlightDataProvider):
@@ -216,10 +254,20 @@ class Stub(FlightDataProvider):
             raise self.outcome
         return self.outcome
 
+    async def get_live_status(self, flight_number, travel_date, origin, destination):
+        return await self.get_flight_status(flight_number, travel_date, origin, destination)
 
-def result(mode, source="x"):
-    return FlightResult(flight_number="UL306", origin="CMB", destination="SIN", status="SCHEDULED",
-                        source=source, retrieved_at="2026-10-07T00:00:00Z", data_mode=mode)
+
+class Slow(Stub):
+    async def get_flight_status(self, flight_number, travel_date, origin, destination):
+        self.calls += 1
+        await asyncio.sleep(5)
+        return self.outcome
+
+
+def result(mode, source="x", origin="CMB", destination="SIN", departure="2026-10-19T20:20:00Z"):
+    return FlightResult(flight_number="UL306", origin=origin, destination=destination, status="SCHEDULED",
+                        scheduled_departure=departure, source=source, retrieved_at="2026-10-07T00:00:00Z", data_mode=mode)
 
 
 @pytest.mark.asyncio
@@ -270,6 +318,39 @@ async def test_chain_does_not_upgrade_live_results():
     chain = ChainFlightProvider([Stub("ADB", result("live", "ADB"))], live_upgrade=upgrade)
     await chain.get_flight_status("UL306", "2026-10-07", "CMB", "SIN")
     assert upgrade.calls == 0
+
+
+@pytest.mark.parametrize("other", [
+    result("live", "AS", origin="MLE", destination="CMB"),              # another leg of the same flight number
+    result("live", "AS", departure="2026-10-20T20:20:00Z"),             # the next day's departure
+])
+@pytest.mark.asyncio
+async def test_chain_ignores_a_live_answer_for_a_different_departure(other):
+    upgrade = Stub("AS", other)
+    chain = ChainFlightProvider([Stub("ADB", result("timetable", "ADB"))], live_upgrade=upgrade)
+    out = await chain.get_flight_status("UL306", "2026-10-20", "CMB", "SIN")
+    assert out.source == "ADB"
+
+
+@pytest.mark.asyncio
+async def test_slow_upgrade_keeps_the_timetable_answer_within_the_deadline():
+    upgrade = Slow("AS", result("live", "AS"))
+    chain = ChainFlightProvider([Stub("ADB", result("timetable", "ADB"))], live_upgrade=upgrade, timeout_seconds=1.5)
+    started = time.monotonic()
+    out = await chain.get_flight_status("UL306", "2026-10-20", "CMB", "SIN")
+    assert out.source == "ADB" and time.monotonic() - started < 2
+
+
+@pytest.mark.asyncio
+async def test_slow_first_provider_leaves_time_for_the_fallback():
+    chain = ChainFlightProvider([Slow("ADB", result("live", "ADB")), Stub("AS", result("timetable", "AS"))], timeout_seconds=1.0)
+    out = await chain.get_flight_status("UL306", "2026-10-20", "CMB", "SIN")
+    assert out.source == "AS"
+
+
+def test_chain_deadline_is_shorter_than_the_flight_agent_timeout():
+    from app.agents.flight_agent import FlightAgent
+    assert ChainFlightProvider([Stub("A", result("live"))]).timeout_seconds < FlightAgent(provider=Stub("A", result("live"))).timeout_seconds
 
 
 # ---- factory ----------------------------------------------------------------------------------------------

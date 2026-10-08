@@ -19,6 +19,7 @@ class FlightSettings(BaseSettings):
 
     # AeroDataBox (RapidAPI free Basic plan: 400 units/month, a flight lookup costs 2 units; cache at most 7 days)
     AERODATABOX_API_KEY: str = ""
+    AERODATABOX_MONTHLY_UNITS: int = 400
     AERODATABOX_UNITS_RESERVE: int = 10
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
