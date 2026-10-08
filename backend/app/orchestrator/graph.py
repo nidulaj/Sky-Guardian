@@ -30,6 +30,11 @@ FAILURE_WARNINGS = {
     "recovery_agent": "A recovery summary could not be generated.",
 }
 
+DISCLAIMER = (
+    "SkyGuardian AI provides travel disruption guidance based on available schedule estimates. "
+    "Confirm critical travel updates with your carrier."
+)
+
 # Graph node name -> SupervisorOrchestrator attribute holding that agent.
 AGENT_NODES = {
     "flight": "flight_agent",
@@ -197,23 +202,22 @@ class SupervisorOrchestrator:
             for w in state.weather_results if w.get("source")
         ]
 
-        # Merge telemetry with any evidence-derived policy sources
+        # Policy sources are rebuilt from the evidence itself: an item is verified only when the
+        # evidence says so, never because it came from the Policy Agent.
+        policy_sources = [
+            {"name": ev["title"], "type": "Policy Document", "verified": bool(ev.get("verified", False)),
+             "url": ev.get("source_url", ""), "retrieved_at": ev.get("retrieved_at")}
+            for ev in state.policy_evidence if ev.get("title")
+        ]
+        other_sources = [s for s in state.sources if s.get("type") != "Policy Document"]
+
         combined_sources = []
         seen_names = set()
-
-        for s in [*telemetry_sources, *state.sources]:
+        for s in [*telemetry_sources, *other_sources, *policy_sources]:
             if s.get("name") and s["name"] not in seen_names:
                 combined_sources.append(s)
                 seen_names.add(s["name"])
-
-        for pe in state.policy_evidence:
-            title = pe.get("title")
-            if title and title not in seen_names:
-                combined_sources.append({"name": title, "type": "Policy Document", "verified": True})
-                seen_names.add(title)
-
         state.sources = combined_sources
 
-        state.warnings.append(
-            "SkyGuardian AI provides travel disruption guidance based on available schedule estimates. Confirm critical travel updates with your carrier."
-        )
+        if DISCLAIMER not in state.warnings:
+            state.warnings.append(DISCLAIMER)

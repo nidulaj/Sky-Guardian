@@ -7,6 +7,7 @@ from httpx import AsyncClient, ASGITransport
 from app.api import journeys
 from app.config import settings
 from app.main import app
+from app.orchestrator.graph import DISCLAIMER
 from app.orchestrator.routing import should_trigger_recovery
 
 DEMO_LEGS = [
@@ -195,3 +196,38 @@ def test_graph_diagram_has_conditional_recovery_branch():
     diagram = journeys.orchestrator.mermaid()
     assert "recovery_gate -.-> policy" in diagram
     assert "recovery_gate -.-> recovery" in diagram
+
+
+class PolicyStep:
+    def __init__(self, evidence):
+        self.evidence = evidence
+
+    async def execute(self, state):
+        state.policy_evidence = self.evidence
+        # What the Policy Agent does today: label every document verified.
+        state.sources.extend({"name": e["title"], "type": "Policy Document", "verified": True} for e in self.evidence)
+
+
+@pytest.mark.asyncio
+async def test_policy_sources_take_verification_from_the_evidence(monkeypatch):
+    evidence = [
+        {"title": "Official CoC", "source_url": "https://airline.example/coc", "verified": True,
+         "retrieved_at": "2026-10-09T00:00:00+00:00"},
+        {"title": "Demo sample policy", "source_url": "", "verified": False},
+        {"title": "Unlabelled snippet"},
+    ]
+    monkeypatch.setattr(journeys.orchestrator, "policy_agent", PolicyStep(evidence))
+    state = await journeys.orchestrator.run_workflow(journeys.JourneyState(journey_legs=DEMO_LEGS))
+    policy = {s["name"]: s for s in state.sources if s["type"] == "Policy Document"}
+    assert policy["Official CoC"]["verified"] is True
+    assert policy["Official CoC"]["retrieved_at"] == "2026-10-09T00:00:00+00:00"
+    assert policy["Demo sample policy"]["verified"] is False
+    assert policy["Unlabelled snippet"]["verified"] is False
+    assert len(policy) == 3
+
+
+@pytest.mark.asyncio
+async def test_disclaimer_is_added_once():
+    state = journeys.JourneyState(journey_legs=SAFE_LEGS, warnings=[DISCLAIMER])
+    state = await journeys.orchestrator.run_workflow(state)
+    assert state.warnings.count(DISCLAIMER) == 1
