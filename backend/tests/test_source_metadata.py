@@ -2,11 +2,13 @@ import pytest
 
 from app.orchestrator.graph import SupervisorOrchestrator
 from app.orchestrator.state import JourneyState
+from app.risk.config import get_risk_config
 
 
 class Step:
     def __init__(self, **updates):
         self.updates = updates
+        self.config = get_risk_config()
 
     async def execute(self, state):
         for field, value in self.updates.items():

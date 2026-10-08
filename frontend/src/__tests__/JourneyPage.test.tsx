@@ -84,9 +84,9 @@ function journeyResponse(weatherAvailable: boolean): JourneyAnalysisResponse {
   };
 }
 
-function mockAnalyze(weatherAvailable: boolean) {
+function mockAnalyze(weatherAvailable: boolean, updates: Partial<JourneyAnalysisResponse> = {}) {
   const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-    new Response(JSON.stringify(journeyResponse(weatherAvailable)), { status: 200 }),
+    new Response(JSON.stringify({ ...journeyResponse(weatherAvailable), ...updates }), { status: 200 }),
   );
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
@@ -166,6 +166,17 @@ describe('Journey page travel date', () => {
 });
 
 describe('Journey weather panel', () => {
+  it('shows backup search availability alongside the risk result and voice bubble', async () => {
+    mockAnalyze(true, { alternative_search: { status: 'unavailable', provider: 'AeroDataBox' } });
+    render(<NewJourneyPage />);
+    await runAnalysis();
+
+    expect(screen.getByText('Routes could not be checked. Ask the airline transfer desk for options.')).toBeInTheDocument();
+    expect(screen.getByTestId('risk-panel')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open voice assistant' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Voice assistant' })).not.toBeInTheDocument();
+  });
+
   it('shows per-airport weather when available', async () => {
     mockAnalyze(true);
     render(<NewJourneyPage />);
