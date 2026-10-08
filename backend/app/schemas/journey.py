@@ -131,3 +131,8 @@ class JourneyAnalysisResponse(BaseModel):
     warnings: List[str] = []
     is_demo_data: bool = True
     last_updated: str
+    # Public workflow trace: each agent's status, timing and warnings (no model reasoning).
+    workflow_status: str = "COMPLETED"
+    workflow_trace: List[AgentRun] = []
+    recovery_triggered: bool = False
+    recovery_reasons: List[str] = []

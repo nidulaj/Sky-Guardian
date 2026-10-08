@@ -231,3 +231,23 @@ async def test_disclaimer_is_added_once():
     state = journeys.JourneyState(journey_legs=SAFE_LEGS, warnings=[DISCLAIMER])
     state = await journeys.orchestrator.run_workflow(state)
     assert state.warnings.count(DISCLAIMER) == 1
+
+
+@pytest.mark.asyncio
+async def test_api_exposes_public_workflow_trace():
+    data = (await analyze()).json()
+    assert data["workflow_status"] == "COMPLETED"
+    assert data["recovery_triggered"] is True
+    assert data["recovery_reasons"] == ["CONNECTION_AT_RISK", "RISK_ABOVE_THRESHOLD"]
+    assert [run["agent"] for run in data["workflow_trace"]] == GRAPH_ORDER
+    assert set(data["workflow_trace"][0]) == {
+        "agent", "status", "confidence", "warnings", "started_at", "duration_ms", "error"}
+
+
+@pytest.mark.asyncio
+async def test_api_passenger_request_flag():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        data = (await client.post("/api/journeys/analyze",
+                                  json={"legs": SAFE_LEGS, "request_alternatives": True})).json()
+    assert data["recovery_reasons"] == ["PASSENGER_REQUESTED"]
+    assert data["alternative_search"]["status"] != "not_needed"
