@@ -107,6 +107,27 @@ export interface AlternativeOption {
   ranking_score?: number | null;
   ranking_reasons?: string[];
   warnings?: string[];
+  availability_status?: string;
+  data_mode?: 'live' | 'timetable' | 'demo';
+  retrieved_at?: string;
+  sources?: SourceRef[];
+  legs?: FlightResult[];
+  risk_confidence?: string;
+  risk_missing_data?: string[];
+  ranking_factors?: Record<string, number>;
+  ranking_weights?: Record<string, number>;
+  ranking_config_version?: string;
+}
+
+export interface AlternativeSearchSummary {
+  status: 'not_needed' | 'available' | 'partial' | 'no_results' | 'unavailable';
+  provider?: string;
+  origin?: string;
+  destination?: string;
+  earliest_departure?: string;
+  latest_departure?: string;
+  searched_at?: string;
+  warnings?: string[];
 }
 
 export interface SourceRef {
@@ -128,6 +149,7 @@ export interface JourneyAnalysisResponse {
   weather_conditions: (AirportWeatherResult & WeatherCondition)[];
   policy_evidence: PolicyEvidence[];
   alternatives: AlternativeOption[];
+  alternative_search?: AlternativeSearchSummary;
   recommendation: string;
   sources: SourceRef[];
   warnings: string[];

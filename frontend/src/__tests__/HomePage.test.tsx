@@ -10,6 +10,9 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('@/lib/auth/AuthContext', () => ({ useAuth: () => ({ user: null, isAuthenticated: false, isAdmin: false, logout: vi.fn() }) }));
+
 describe('Home page Weather Agent integration', () => {
   it('renders the Weather Agent section alongside the existing sections', async () => {
     mockWeatherBackend();

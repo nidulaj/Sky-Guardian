@@ -344,7 +344,7 @@ export default function DashboardPage() {
                 {/* 06 Alternatives */}
                 <section className="space-y-6">
                   <SectionTitle n={6} label="Backup routes, ranked" />
-                  <AlternativesList items={result.alternatives} />
+                  <AlternativesList items={result.alternatives} search={result.alternative_search} />
                 </section>
 
                 {/* 07 Policy */}

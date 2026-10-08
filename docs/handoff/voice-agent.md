@@ -25,11 +25,12 @@ root `.env` or shell environment; the container does not read the host's `backen
 
 ## Flow
 
-1. On `/journeys/new`, the normal flight form appears first. Open the bottom-right Voice
+1. On `/dashboard`, the normal flight form appears first. `/journeys/new` redirects there.
+   Open the bottom-right Voice
    assistant bubble to chat in a floating panel, then choose English, Sinhala, or Tamil.
    Closing the panel (or Escape while focused inside it) stops dictation, audio playback and
    pending requests. Reopening retains completed messages and the unsent draft in page memory.
-   Passenger sign-in opens this journey form directly; admin sign-in still opens `/admin`.
+   Passenger sign-in opens this dashboard form directly; admin sign-in still opens `/admin`.
 2. Dictate up to 60 seconds, or type a journey description. Browser speech recognition
    previews the transcript in the message box without calling Gemini. Stop dictation,
    review or edit the text, then press Send. Cancelling dictation restores the preceding draft.

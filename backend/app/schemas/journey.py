@@ -71,6 +71,7 @@ class JourneyAnalysisResponse(BaseModel):
     weather_conditions: List[Dict[str, Any]] = []
     policy_evidence: List[Dict[str, Any]] = []
     alternatives: List[Dict[str, Any]] = []
+    alternative_search: Dict[str, Any] = {}
     recommendation: str
     sources: List[Dict[str, Any]] = []
     warnings: List[str] = []

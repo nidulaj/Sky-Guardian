@@ -1,21 +1,8 @@
 import React from 'react';
-import { AlertTriangle, ArrowUpRight, Check, CloudSun, Quote } from 'lucide-react';
+import { AlertTriangle, ArrowRight, ArrowUpRight, ChevronDown, CloudSun, Quote } from 'lucide-react';
 import Badge, { statusLabel } from '@/components/ui/Badge';
-import type { AlternativeOption, PolicyEvidence, SourceRef, WeatherCondition } from '@/types/journey';
-import { formatFlightTime, formatMinutes, formatTravelDate } from '@/lib/flightTime';
-
-const pad2 = (n: number) => String(n).padStart(2, '0');
-
-function eligibilityLabel(value: string): string {
-  switch (value.toUpperCase()) {
-    case 'VERIFIED_ELIGIBLE':
-      return 'Eligible (policy found)';
-    case 'REQUIRES_AIRLINE_APPROVAL':
-      return 'Needs airline approval';
-    default:
-      return statusLabel(value);
-  }
-}
+import type { AlternativeOption, AlternativeSearchSummary, PolicyEvidence, SourceRef, WeatherCondition } from '@/types/journey';
+import { formatFlightTime, formatLocalTime, formatMinutes, formatTravelDate } from '@/lib/flightTime';
 
 function TimeText({ iso }: { iso?: string | null }) {
   const t = formatFlightTime(iso);
@@ -64,83 +51,113 @@ export function WeatherList({ items }: { items: WeatherCondition[] }) {
 
 /* ---------- Alternatives ---------- */
 
-export function AlternativesList({ items }: { items: AlternativeOption[] }) {
-  if (items.length === 0) {
-    return <p className="text-base text-ink-soft">No alternative routes were needed or found for this journey.</p>;
-  }
+function RouteTime({ iso, timeZone }: { iso?: string | null; timeZone?: string | null }) {
+  const time = formatLocalTime(iso, timeZone);
+  if (!time) return <span className="text-sm text-ink-muted">Time unconfirmed</span>;
+  return <>
+    <span className="block text-2xl font-semibold tabular-nums text-ink">{time.time}</span>
+    <span className="mt-1 block text-xs text-ink-muted">{time.date} · {time.zone}</span>
+  </>;
+}
+
+export function AlternativesList({ items, search }: { items: AlternativeOption[]; search?: AlternativeSearchSummary }) {
   const sorted = [...items].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  const emptyMessage = search?.status === 'unavailable'
+    ? 'Routes could not be checked. Ask the airline transfer desk for options.'
+    : search?.status === 'no_results'
+      ? 'No suitable route found in this search. Ask the airline for other options.'
+      : search?.status === 'not_needed'
+        ? 'No backup route needed for this journey.'
+        : 'No backup routes available. Ask the airline for options.';
   return (
-    <ol className="space-y-4">
+    <div className="min-w-0" data-testid="journey-alternatives">
+      {sorted.length > 0 && <div className="mb-4 text-sm text-ink-soft">
+        <p className="font-medium text-ink">Ask your airline to confirm seats, price and rebooking.</p>
+        {search?.origin && <p className="mt-1">Starting from <strong className="text-ink">{search.origin}</strong>. Confirm you can reach this airport.</p>}
+      </div>}
+      {sorted.length === 0 && <p role="status" className="border-l-2 border-coral py-2 pl-4 text-base text-ink-soft">{emptyMessage}</p>}
+    <ol className="space-y-3">
       {sorted.map((alt, i) => {
         const top = i === 0;
+        const firstLeg = alt.legs?.[0];
+        const lastLeg = alt.legs?.[alt.legs.length - 1];
+        const airports = firstLeg ? [firstLeg.origin, ...alt.legs!.map((leg) => leg.destination)] : [];
+        const limitedRisk = !alt.risk_confidence || ['low', 'unknown'].includes(alt.risk_confidence) || !alt.risk_level || alt.risk_level === 'UNKNOWN';
+        const risky = ['HIGH', 'VERY_HIGH'].includes(alt.risk_level ?? '');
         return (
           <li
             key={alt.option_id ?? i}
-            className={`grid grid-cols-[2.75rem_minmax(0,1fr)] sm:grid-cols-[4rem_minmax(0,1fr)] gap-x-3 sm:gap-x-5 rounded-3xl border p-5 sm:p-6 ${
-              top ? 'border-coral/60 bg-sand-50' : 'border-ink/10 bg-sand-100'
+            className={`min-w-0 rounded-lg border p-4 sm:p-5 ${
+              top ? 'border-coral/60 bg-sand-50' : 'border-ink/15 bg-sand-50'
             }`}
           >
-            <span className="display text-4xl sm:text-5xl font-light text-ink tabular-nums" aria-hidden="true">
-              {pad2(alt.rank ?? i + 1)}
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="sr-only">Option {alt.rank ?? i + 1}.</span>
-                {top && <span className="rounded-full bg-ink px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-sand-50">Top ranked</span>}
-                {alt.risk_level && <Badge status={alt.risk_level} label={`${statusLabel(alt.risk_level)} risk${alt.risk_score != null ? ` · ${alt.risk_score}/100` : ''}`} />}
-                {alt.policy_eligibility && <Badge status={alt.policy_eligibility} label={eligibilityLabel(alt.policy_eligibility)} />}
-              </div>
-              <h4 className="mt-3 text-lg font-semibold text-ink leading-snug">{alt.route_summary.replace(/\s*->\s*/g, ' → ')}</h4>
-
-              <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className={`font-semibold ${top ? 'text-coral' : 'text-ink-muted'}`}>{top ? 'Top match' : `Option ${alt.rank ?? i + 1}`}</span>
+              {alt.data_mode === 'demo' && <Badge status="DEMO_DATA" label="Sample only" />}
+              {alt.data_mode === 'timetable' && <span className="text-ink-muted">Schedule only</span>}
+              {(limitedRisk || risky) && <span className="inline-flex items-center gap-1 text-status-caution"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />{risky ? 'Higher disruption risk' : 'Limited risk data'}</span>}
+            </div>
+            <h4 className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-semibold leading-snug text-ink">
+              {airports.length ? airports.map((airport, index) => <React.Fragment key={`${airport}-${index}`}>
+                {index > 0 && <><ArrowRight className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" /><span className="sr-only">to</span></>}
+                <span>{airport}</span>
+              </React.Fragment>) : alt.route_summary.replace(/\s*->\s*/g, ' → ')}
+            </h4>
+            <p className="mt-1 break-words text-sm text-ink-soft">
+              {alt.duration_minutes != null && <>{formatMinutes(alt.duration_minutes)} · </>}
+              {alt.connections == null ? 'Stops unconfirmed' : alt.connections === 0 ? 'Direct' : `${alt.connections} stop${alt.connections > 1 ? 's' : ''}`}
+              {alt.legs?.length ? ` · ${alt.legs.map((leg) => leg.flight_number).join(' / ')}` : ''}
+            </p>
+              <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
                 <div>
-                  <dt className="eyebrow">Departs</dt>
-                  <dd className="mt-1"><TimeText iso={alt.departure} /></dd>
+                  <dt className="text-xs text-ink-muted">Leaves{firstLeg ? ` ${firstLeg.origin}` : ''}</dt>
+                  <dd className="mt-1"><RouteTime iso={alt.departure} timeZone={firstLeg?.origin_timezone} /></dd>
                 </div>
                 <div>
-                  <dt className="eyebrow">Arrives</dt>
-                  <dd className="mt-1"><TimeText iso={alt.arrival} /></dd>
-                </div>
-                <div>
-                  <dt className="eyebrow">Duration</dt>
-                  <dd className="mt-1 font-semibold text-ink">
-                    {alt.duration_minutes != null ? formatMinutes(alt.duration_minutes) : 'Not given'}
-                    {alt.connections != null && (
-                      <span className="font-normal text-ink-muted">
-                        {' · '}
-                        {alt.connections === 0 ? 'direct' : `${alt.connections} stop${alt.connections > 1 ? 's' : ''}`}
-                      </span>
-                    )}
-                  </dd>
+                  <dt className="text-xs text-ink-muted">Arrives{lastLeg ? ` ${lastLeg.destination}` : ''}</dt>
+                  <dd className="mt-1"><RouteTime iso={alt.arrival} timeZone={lastLeg?.destination_timezone} /></dd>
                 </div>
               </dl>
-
-              {(alt.ranking_reasons ?? []).length > 0 && (
-                <ul className="mt-4 space-y-1.5">
-                  {alt.ranking_reasons!.map((r, ri) => (
-                    <li key={ri} className="flex gap-2 text-sm text-ink-soft">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-status-safe" aria-hidden="true" />
-                      {r}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {(alt.warnings ?? []).length > 0 && (
-                <ul className="mt-3 space-y-1.5">
-                  {alt.warnings!.map((w, wi) => (
-                    <li key={wi} className="flex gap-2 text-sm text-status-caution">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                      {w}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {alt.price && <p className="mt-3 text-sm text-ink-muted">Price: {alt.price}</p>}
-            </div>
+              <p className="mt-3 text-sm text-status-caution">{alt.data_mode === 'demo' ? 'Sample flight. Not bookable.' : 'Seats & price unconfirmed.'}</p>
+              {(alt.connections ?? 0) > 0 && <p className="mt-1 text-xs text-ink-muted">Confirm transfer, baggage and entry rules.</p>}
+              <details className="group mt-3 border-t border-ink/10 text-sm text-ink-soft">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 font-medium text-ink [&::-webkit-details-marker]:hidden">
+                  Flight details <span className="sr-only">for option {alt.rank ?? i + 1}</span><ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                </summary>
+                {alt.legs?.map((flight, index) => <div key={`${flight.flight_number}-${index}`} className="mb-3 border-b border-ink/10 pb-3">
+                  <p className="font-medium text-ink">{flight.flight_number} · {flight.origin} → {flight.destination}</p>
+                  <p className="mt-1">{flight.airline || 'Airline unconfirmed'}</p>
+                  <p className="mt-1">Departs <TimeText iso={flight.estimated_departure || flight.scheduled_departure} /></p>
+                  <p className="mt-1">Arrives <TimeText iso={flight.estimated_arrival || flight.scheduled_arrival} /></p>
+                </div>)}
+                <p>Price: {alt.price || 'UNKNOWN'}</p>
+                <p className="mt-1">Seat availability: {alt.availability_status || 'UNKNOWN'}</p>
+                <p className="mt-1">Rebooking eligibility: {alt.policy_eligibility || 'UNKNOWN'}</p>
+                <p className="mt-1">Risk confidence: {alt.risk_confidence || 'unknown'}</p>
+                {(alt.ranking_reasons ?? []).length > 0 && <ul className="mt-3 list-disc space-y-1 pl-4">{alt.ranking_reasons!.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
+                {(alt.warnings ?? []).length > 0 && <ul className="mt-3 space-y-2">{alt.warnings!.map((warning, index) => <li key={index} className="flex gap-2 text-status-caution"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span className="min-w-0 break-words">{warning}</span></li>)}</ul>}
+                {alt.ranking_score != null && <p className="mt-3 font-medium text-ink">Ranking score: {alt.ranking_score.toFixed(2)} / 100</p>}
+                <dl className="mt-2 grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-[minmax(0,1fr)_auto]">
+                  {Object.entries(alt.ranking_factors ?? {}).map(([factor, score]) => <React.Fragment key={factor}>
+                    <dt className="break-words">{factor.replace(/_/g, ' ')}</dt>
+                    <dd>{Math.round(score * 100)}% / weight {Math.round((alt.ranking_weights?.[factor] ?? 0) * 100)}%</dd>
+                  </React.Fragment>)}
+                </dl>
+                {alt.ranking_config_version && <p className="mt-2">Ranking configuration: {alt.ranking_config_version}</p>}
+                {alt.sources?.map((source, si) => <p key={si} className="mt-2 break-words text-xs text-ink-muted">Source: {source.name}</p>)}
+                {alt.retrieved_at && <p className="mt-1 pb-3 text-xs text-ink-muted">Checked: <TimeText iso={alt.retrieved_at} /></p>}
+              </details>
           </li>
         );
       })}
     </ol>
+      {search && search.status !== 'not_needed' && <details className="mt-4 border-t border-ink/15 text-sm text-ink-soft">
+        <summary className="min-h-11 cursor-pointer py-3 font-medium text-ink">Search limits & notes</summary>
+        {search.earliest_departure && <p className="mb-2">Earliest departure: <TimeText iso={search.earliest_departure} /></p>}
+        {search.status === 'partial' && <p className="mb-2">Limited search. Other routes may exist.</p>}
+        {(search.warnings ?? []).map((warning) => <p key={warning} className="mb-2 break-words">{warning}</p>)}
+      </details>}
+    </div>
   );
 }
 

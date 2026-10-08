@@ -53,10 +53,13 @@ class SupervisorOrchestrator:
         risk_score = state.risk_analysis.get("score") if state.risk_analysis else None
         threshold = self.risk_agent.config.triggers.recovery_trigger_threshold
         needs_recovery = (
+            any(f.get("status") == "CANCELLED" for f in state.flight_results) or
             (risk_score is not None and risk_score >= threshold) or
             any(c.get("status") in ["HIGH_RISK", "LIKELY_MISSED", "MISSED"] for c in state.connection_results)
         )
 
+        state.alternative_options, state.recommended_option = [], None
+        state.alternative_search = {"status": "not_needed"}
         if needs_recovery:
             # Step 5a: Policy Agent
             await self.policy_agent.execute(state)
@@ -71,7 +74,7 @@ class SupervisorOrchestrator:
 
         state.is_demo_data = any(f.get("data_mode") == "demo" for f in state.flight_results) or any(
             w.get("is_mock") and w.get("status") == "available" for w in state.weather_results
-        )
+        ) or any(option.get("data_mode") == "demo" for option in state.alternative_options)
 
         telemetry_sources = [
             {"name": f["source"], "type": "Aviation Data",
