@@ -1,10 +1,13 @@
 from datetime import date
 
 from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
+from pydantic import ValidationError
 
 from app.agents.voice_agent import AUDIO_TYPES, LANGUAGES, MAX_AUDIO_BYTES, VoiceAgent, VoiceServiceError
+from app.agents.voice_chat import VoiceChatAgent
 from app.schemas.voice import (
     VoiceBriefingRequest, VoiceBriefingResponse, VoiceDraftResponse, VoiceLanguage, VoiceTextRequest,
+    VoiceChatContext, VoiceChatRequest, VoiceChatResponse,
 )
 
 router = APIRouter(prefix="/api/voice", tags=["Voice Agent"])
@@ -55,3 +58,35 @@ async def transcribe_audio(
 async def speak_briefing(request: VoiceBriefingRequest, response: Response):
     response.headers["Cache-Control"] = "no-store"
     return await voice_agent.briefing(request.analysis, request.language)
+
+
+@router.post("/chat", response_model=VoiceChatResponse)
+async def chat_text(request: VoiceChatRequest, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return await VoiceChatAgent(voice_agent).chat(request, text=request.text)
+    except VoiceServiceError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from None
+
+
+@router.post("/chat/audio", response_model=VoiceChatResponse)
+async def chat_audio(response: Response, audio: UploadFile = File(...), context: str = Form(...)):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        try:
+            request = VoiceChatContext.model_validate_json(context)
+        except ValidationError:
+            raise HTTPException(status_code=422, detail="Invalid conversation context.") from None
+        mime_type = AUDIO_TYPES.get((audio.content_type or "").split(";")[0].strip().lower())
+        if not mime_type:
+            raise HTTPException(status_code=415, detail="Use a supported audio recording.")
+        data = await audio.read(MAX_AUDIO_BYTES + 1)
+        if not data:
+            raise HTTPException(status_code=400, detail="The recording is empty. Please record again.")
+        if len(data) > MAX_AUDIO_BYTES:
+            raise HTTPException(status_code=413, detail="Use a shorter recording (up to 8 MB).")
+        return await VoiceChatAgent(voice_agent).chat(request, audio=data, mime_type=mime_type)
+    except VoiceServiceError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from None
+    finally:
+        await audio.close()

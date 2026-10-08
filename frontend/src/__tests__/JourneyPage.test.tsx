@@ -102,11 +102,33 @@ function sentLegs(fetchMock: ReturnType<typeof mockAnalyze>) {
 const dateInput = (i: number) => document.getElementById(`leg-${i}-travel_date`) as HTMLInputElement;
 
 async function runAnalysis() {
+  for (const [i, flight] of [
+    { flight_number: 'UL001', origin: 'CMB', destination: 'KUL' },
+    { flight_number: 'XX123', origin: 'KUL', destination: 'NRT' },
+  ].entries()) {
+    for (const [field, value] of Object.entries(flight)) {
+      fireEvent.change(document.getElementById(`leg-${i}-${field}`)!, { target: { value } });
+    }
+  }
   fireEvent.click(screen.getByRole('button', { name: /Check my journey/ }));
   return screen.findByTestId('journey-weather-panel');
 }
 
 describe('Journey page travel date', () => {
+  it('starts with empty flight details and no sample journey controls', () => {
+    mockAnalyze(true);
+    render(<NewJourneyPage />);
+
+    expect(screen.queryByText('Try a sample journey')).not.toBeInTheDocument();
+    expect(screen.queryByText('Demo data')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Likely missed connection|Safe connection|Cancelled flight/ })).not.toBeInTheDocument();
+    for (const i of [0, 1]) {
+      for (const field of ['flight_number', 'origin', 'destination']) {
+        expect(document.getElementById(`leg-${i}-${field}`)).toHaveValue('');
+      }
+    }
+  });
+
   it('defaults every leg to today and sends it as travel_date', async () => {
     const fetchMock = mockAnalyze(true);
     render(<NewJourneyPage />);

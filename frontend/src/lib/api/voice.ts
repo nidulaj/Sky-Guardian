@@ -1,14 +1,14 @@
 import { API_BASE_URL, ApiError } from './client';
 import { todayISODate } from '@/lib/date';
 import type { JourneyAnalysisResponse } from '@/types/journey';
-import type { VoiceBriefing, VoiceConfig, VoiceDraft, VoiceLanguage } from '@/types/voice';
+import type { VoiceBriefing, VoiceChatContext, VoiceChatReply, VoiceConfig, VoiceDraft, VoiceLanguage } from '@/types/voice';
 
 async function voiceRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const timeout = new AbortController();
   const cancel = () => timeout.abort();
   init.signal?.addEventListener('abort', cancel, { once: true });
   if (init.signal?.aborted) timeout.abort();
-  const timer = window.setTimeout(cancel, 100000);
+  const timer = window.setTimeout(cancel, 180000);
   try {
     const response = await fetch(`${API_BASE_URL}/api/voice/${path}`, { ...init, signal: timeout.signal });
     if (!response.ok) {
@@ -51,4 +51,19 @@ export function getVoiceBriefing(analysis: JourneyAnalysisResponse, language: Vo
     method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
     body: JSON.stringify({ analysis, language }),
   });
+}
+
+export function sendVoiceChat(text: string, context: VoiceChatContext, signal?: AbortSignal) {
+  return voiceRequest<VoiceChatReply>('chat', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
+    body: JSON.stringify({ ...context, text, reference_date: todayISODate() }),
+  });
+}
+
+export function sendVoiceChatAudio(audio: Blob, context: VoiceChatContext, signal?: AbortSignal) {
+  const data = new FormData();
+  const extension = audio.type.includes('mp4') ? 'm4a' : audio.type.includes('ogg') ? 'ogg' : 'webm';
+  data.append('audio', audio, `message.${extension}`);
+  data.append('context', JSON.stringify({ ...context, reference_date: todayISODate() }));
+  return voiceRequest<VoiceChatReply>('chat/audio', { method: 'POST', body: data, signal });
 }

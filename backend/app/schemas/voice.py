@@ -52,3 +52,43 @@ class VoiceBriefingResponse(BaseModel):
     audio_base64: str | None = None
     audio_mime_type: str | None = None
     warnings: list[str] = Field(default_factory=list)
+
+
+class VoiceChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str = Field(min_length=1, max_length=4000)
+
+
+class VoiceChatContext(BaseModel):
+    language: VoiceLanguage = "en"
+    reference_date: date
+    history: list[VoiceChatMessage] = Field(default_factory=list, max_length=20)
+    legs: list[VoiceLegDraft] = Field(default_factory=list, max_length=6)
+    analysis: JourneyAnalysisResponse | None = None
+
+
+class VoiceChatRequest(VoiceTextRequest, VoiceChatContext):
+    pass
+
+
+class VoiceChatPlan(BaseModel):
+    transcript: str = Field(min_length=1, max_length=4000)
+    action: Literal["answer", "flight", "weather", "policy", "journey", "read_summary"]
+    legs: list[VoiceLegDraft] = Field(default_factory=list, max_length=6)
+    airport: str | None = Field(default=None, max_length=10)
+    weather_time: str | None = Field(default=None, max_length=40)
+    query: str = Field(default="", max_length=1000)
+
+
+class VoiceChatSource(BaseModel):
+    name: str
+    url: str | None = None
+    verified: bool = False
+    data_mode: str | None = None
+
+
+class VoiceChatResponse(VoiceBriefingResponse):
+    transcript: str
+    legs: list[VoiceLegDraft] = Field(default_factory=list)
+    missing_fields: list[str] = Field(default_factory=list)
+    sources: list[VoiceChatSource] = Field(default_factory=list)

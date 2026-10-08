@@ -1,4 +1,4 @@
-import type { FlightLegInput } from './journey';
+import type { FlightLegInput, JourneyAnalysisResponse } from './journey';
 
 export type VoiceLanguage = 'en' | 'si' | 'ta';
 
@@ -25,4 +25,18 @@ export interface VoiceBriefing {
   audio_base64: string | null;
   audio_mime_type: string | null;
   warnings: string[];
+}
+
+export interface VoiceChatContext {
+  language: VoiceLanguage;
+  history: { role: 'user' | 'assistant'; text: string }[];
+  legs: VoiceDraft['legs'];
+  analysis: JourneyAnalysisResponse | null;
+}
+
+export interface VoiceChatReply extends VoiceBriefing {
+  transcript: string;
+  legs: VoiceDraft['legs'];
+  missing_fields: string[];
+  sources: { name: string; url?: string | null; verified: boolean; data_mode?: string | null }[];
 }

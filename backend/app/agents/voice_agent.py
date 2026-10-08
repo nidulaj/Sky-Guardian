@@ -239,6 +239,12 @@ class VoiceAgent:
                 text, spoken_language = translated, language
             except VoiceServiceError:
                 warnings.append("Translation is unavailable. The briefing is in English.")
+        speech = await self.speak(text, spoken_language)
+        speech.warnings = warnings + speech.warnings
+        return speech
+
+    async def speak(self, text: str, language: VoiceLanguage) -> VoiceBriefingResponse:
+        warnings = []
         audio_base64 = None
         try:
             voice_config = {"voice": self.config.VOICE_TTS_VOICE}
@@ -272,5 +278,5 @@ class VoiceAgent:
             warnings.append(str(error))
         except (ValueError, KeyError, StopIteration, TypeError):
             warnings.append("Spoken audio was unavailable. Your written briefing is still available.")
-        return VoiceBriefingResponse(text=text, language=spoken_language, audio_base64=audio_base64,
+        return VoiceBriefingResponse(text=text, language=language, audio_base64=audio_base64,
                                      audio_mime_type="audio/wav" if audio_base64 else None, warnings=warnings)

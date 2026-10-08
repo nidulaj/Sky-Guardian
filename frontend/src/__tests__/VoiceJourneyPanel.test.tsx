@@ -1,127 +1,149 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import VoiceJourneyPanel from '@/components/voice/VoiceJourneyPanel';
-import { getVoiceBriefing, getVoiceConfig, interpretVoiceText, transcribeVoice } from '@/lib/api/voice';
+import { getVoiceConfig, sendVoiceChat, sendVoiceChatAudio } from '@/lib/api/voice';
 import type { JourneyAnalysisResponse } from '@/types/journey';
-import type { VoiceDraft } from '@/types/voice';
+import type { VoiceChatReply } from '@/types/voice';
 
-vi.mock('@/lib/api/voice', () => ({
-  getVoiceConfig: vi.fn(), interpretVoiceText: vi.fn(), transcribeVoice: vi.fn(), getVoiceBriefing: vi.fn(),
-}));
+vi.mock('@/lib/api/voice', () => ({ getVoiceConfig: vi.fn(), sendVoiceChat: vi.fn(), sendVoiceChatAudio: vi.fn() }));
 
-const draft: VoiceDraft = {
-  transcript: 'UL001 from CMB to KUL', intent: 'analyze_journey', language: 'en',
-  legs: [{ flight_number: 'UL001', origin: 'CMB', destination: 'KUL', travel_date: null }],
-  missing_fields: ['Flight 1: travel date'], warnings: [], requires_review: true,
+const reply: VoiceChatReply = {
+  transcript: 'UL226 from DXB to CMB', text: 'What is your departure date?', language: 'en',
+  legs: [{ flight_number: 'UL226', origin: 'DXB', destination: 'CMB', travel_date: null }],
+  missing_fields: ['Flight 1: travel date'], warnings: [], sources: [], audio_base64: null, audio_mime_type: null,
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getVoiceConfig).mockResolvedValue({ available: true, languages: { en: 'English', si: 'Sinhala', ta: 'Tamil' }, max_audio_bytes: 8388608, max_recording_seconds: 60 });
-  vi.mocked(interpretVoiceText).mockResolvedValue(draft);
+  vi.mocked(sendVoiceChat).mockResolvedValue(reply);
 });
 afterEach(() => vi.unstubAllGlobals());
 
-async function open() {
-  fireEvent.click(screen.getByRole('button', { name: 'Voice assistant' }));
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Record journey' })).toBeEnabled());
+async function ready() {
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Record message' })).toBeEnabled());
 }
-
 function setup(analysis: JourneyAnalysisResponse | null = null) {
   const onDraft = vi.fn();
   const onLanguageChange = vi.fn();
   const view = render(<VoiceJourneyPanel language="en" onLanguageChange={onLanguageChange} onDraft={onDraft} analysis={analysis} />);
   return { onDraft, onLanguageChange, ...view };
 }
-
-async function describeJourney() {
-  fireEvent.change(screen.getByLabelText('Journey description'), { target: { value: draft.transcript } });
-  fireEvent.click(screen.getByRole('button', { name: 'Interpret journey description' }));
+function send(text = reply.transcript) {
+  fireEvent.change(screen.getByLabelText('Message SkyGuardian'), { target: { value: text } });
+  fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
 }
 
-describe('Voice journey input', () => {
-  it('does not call the backend until opened', () => {
-    setup();
-    expect(getVoiceConfig).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText('Journey description')).not.toBeInTheDocument();
+describe('Conversational voice assistant', () => {
+  it('opens as a chat and displays both sides of a conversation', async () => {
+    setup(); await ready(); send();
+    const log = screen.getByRole('log', { name: 'Travel conversation' });
+    expect(within(log).getByText(reply.transcript)).toBeInTheDocument();
+    expect(await within(log).findByText(reply.text)).toBeInTheDocument();
+    expect(screen.getByLabelText('Message SkyGuardian')).toHaveValue('');
   });
 
-  it('requires an explicit review action and keeps missing dates blank', async () => {
-    const { onDraft } = setup();
-    await open();
-    await describeJourney();
-    await screen.findByText('Journey draft');
+  it('sends history and known legs for a follow-up without applying the draft automatically', async () => {
+    const { onDraft } = setup(); await ready(); send();
+    await screen.findByText(reply.text);
+    send('Tomorrow');
+    await waitFor(() => expect(sendVoiceChat).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(sendVoiceChat).mock.calls[1][1]).toMatchObject({
+      history: [{ role: 'user', text: reply.transcript }, { role: 'assistant', text: reply.text }], legs: reply.legs,
+    });
     expect(onDraft).not.toHaveBeenCalled();
-    expect(screen.getByText('Date needed')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Use these flight details' })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: 'Use these flight details' }));
-    expect(onDraft).toHaveBeenCalledWith([{ flight_number: 'UL001', origin: 'CMB', destination: 'KUL', travel_date: '' }]);
-    expect(getVoiceBriefing).not.toHaveBeenCalled();
+    expect(onDraft).toHaveBeenCalledWith([{ flight_number: 'UL226', origin: 'DXB', destination: 'CMB', travel_date: '' }]);
   });
 
-  it('discards the old draft when the transcript changes', async () => {
-    setup(); await open(); await describeJourney();
-    await screen.findByText('Journey draft');
-    fireEvent.change(screen.getByLabelText('Journey description'), { target: { value: 'different flights' } });
-    expect(screen.queryByRole('button', { name: 'Use these flight details' })).not.toBeInTheDocument();
+  it('clears history and flight details for a new conversation', async () => {
+    setup(); await ready(); send(); await screen.findByText(reply.text);
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
+    expect(screen.queryByText(reply.text)).not.toBeInTheDocument();
+    send('Hello');
+    expect(vi.mocked(sendVoiceChat).mock.calls[1][1]).toMatchObject({ history: [], legs: [] });
   });
 
-  it('offers the three requested languages', async () => {
-    const { onLanguageChange } = setup(); await open();
+  it('offers English, Sinhala and Tamil', async () => {
+    const { onLanguageChange } = setup(); await ready();
     fireEvent.click(screen.getByRole('button', { name: 'Sinhala' }));
     expect(onLanguageChange).toHaveBeenCalledWith('si');
     fireEvent.click(screen.getByRole('button', { name: 'Tamil' }));
     expect(onLanguageChange).toHaveBeenCalledWith('ta');
   });
 
-  it('keeps input disabled when Gemini is not configured', async () => {
+  it('disables sends and recording when unconfigured', async () => {
     vi.mocked(getVoiceConfig).mockResolvedValue({ available: false, languages: { en: 'English', si: 'Sinhala', ta: 'Tamil' }, max_audio_bytes: 8388608, max_recording_seconds: 60 });
-    setup(); fireEvent.click(screen.getByRole('button', { name: 'Voice assistant' }));
-    await screen.findByText(/Voice input is currently unavailable/);
-    expect(screen.getByRole('button', { name: 'Record journey' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Interpret journey description' })).toBeDisabled();
+    setup(); await screen.findByText(/Voice chat is currently unavailable/);
+    expect(screen.getByRole('button', { name: 'Record message' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
   });
 
-  it('displays a recoverable error when microphone permission is denied', async () => {
+  it('handles microphone permission denial while preserving typed chat', async () => {
     vi.stubGlobal('MediaRecorder', class {});
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn().mockRejectedValue(new DOMException('Denied', 'NotAllowedError')) } });
-    setup(); await open();
-    fireEvent.click(screen.getByRole('button', { name: 'Record journey' }));
+    setup(); await ready(); fireEvent.click(screen.getByRole('button', { name: 'Record message' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Microphone access was denied');
-    expect(transcribeVoice).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('Journey description')).toBeEnabled();
+    expect(sendVoiceChatAudio).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Message SkyGuardian')).toBeEnabled();
   });
 
-  it('ignores a response after cancellation', async () => {
-    let resolve!: (value: VoiceDraft) => void;
-    vi.mocked(interpretVoiceText).mockImplementation(() => new Promise((done) => { resolve = done; }));
-    const { onDraft } = setup(); await open(); await describeJourney();
+  it('ignores a reply after cancellation', async () => {
+    let resolve!: (value: VoiceChatReply) => void;
+    vi.mocked(sendVoiceChat).mockImplementation(() => new Promise((done) => { resolve = done; }));
+    setup(); await ready(); send();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel voice request' }));
-    await act(async () => resolve(draft));
-    expect(screen.queryByText('Journey draft')).not.toBeInTheDocument();
-    expect(onDraft).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Interpret journey description' })).toBeEnabled();
+    await act(async () => resolve(reply));
+    expect(screen.queryByText(reply.text)).not.toBeInTheDocument();
   });
 
-  it('does not make a briefing request without a journey assessment', async () => {
-    vi.mocked(interpretVoiceText).mockResolvedValue({ ...draft, intent: 'read_summary', legs: [] });
-    setup(); await open(); await describeJourney();
-    await screen.findByText('Check a journey first to hear its assessment.');
-    expect(getVoiceBriefing).not.toHaveBeenCalled();
+  it('sends the displayed assessment as context when asked', async () => {
+    const analysis = { journey_id: 'j1' } as JourneyAnalysisResponse;
+    setup(analysis); await ready(); fireEvent.click(screen.getByRole('button', { name: 'Discuss this assessment' }));
+    expect(sendVoiceChat).toHaveBeenCalledWith('Explain my displayed journey assessment.', expect.objectContaining({ analysis }), expect.any(AbortSignal));
+    await screen.findByText(reply.text);
   });
 
-  it('keeps the written briefing when audio fails', async () => {
-    vi.mocked(getVoiceBriefing).mockResolvedValue({ text: 'Demo assessment. Risk: 78 out of 100.', language: 'en', audio_base64: null, audio_mime_type: null, warnings: ['Audio unavailable'] });
-    setup({ journey_id: 'j1' } as JourneyAnalysisResponse); await open();
-    fireEvent.click(screen.getByRole('button', { name: 'Prepare spoken assessment' }));
-    await screen.findByText('Demo assessment. Risk: 78 out of 100.');
-    expect(screen.getByText(/Generated audio is unavailable/)).toBeInTheDocument();
+  it('keeps written replies and source labels when audio is unavailable', async () => {
+    vi.mocked(sendVoiceChat).mockResolvedValue({ ...reply, warnings: ['Audio unavailable'],
+      sources: [{ name: 'MockWeatherProvider', data_mode: 'demo', verified: false }] });
+    setup(); await ready(); send();
+    await screen.findByText(reply.text);
+    expect(screen.getByText('Audio unavailable')).toBeInTheDocument();
+    expect(screen.getByText('MockWeatherProvider (demo) - unverified')).toBeInTheDocument();
   });
 
-  it('shows provider errors without replacing journey details', async () => {
-    vi.mocked(interpretVoiceText).mockRejectedValue(new Error('Gemini quota exhausted.'));
-    const { onDraft } = setup(); await open(); await describeJourney();
+  it('attempts automatic spoken playback and releases audio on reset', async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+    URL.createObjectURL = vi.fn(() => 'blob:reply');
+    URL.revokeObjectURL = vi.fn();
+    vi.mocked(sendVoiceChat).mockResolvedValue({ ...reply, audio_base64: btoa('wav'), audio_mime_type: 'audio/wav' });
+    setup(); await ready(); send();
+    await waitFor(() => expect(play).toHaveBeenCalled());
+    expect(screen.getByLabelText('Spoken reply')).toHaveAttribute('src', 'blob:reply');
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:reply');
+    play.mockRestore();
+  });
+
+  it('restores typed text after provider errors', async () => {
+    vi.mocked(sendVoiceChat).mockRejectedValue(new Error('Gemini quota exhausted.'));
+    setup(); await ready(); send();
     expect(await screen.findByRole('alert')).toHaveTextContent('Gemini quota exhausted.');
-    expect(onDraft).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Message SkyGuardian')).toHaveValue(reply.transcript);
+  });
+
+  it('sends Enter but preserves Shift+Enter for a newline', async () => {
+    setup(); await ready();
+    const input = screen.getByLabelText('Message SkyGuardian');
+    fireEvent.change(input, { target: { value: 'Hello' } });
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
+    expect(sendVoiceChat).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(sendVoiceChat).toHaveBeenCalledTimes(1);
+    await screen.findByText(reply.text);
   });
 });

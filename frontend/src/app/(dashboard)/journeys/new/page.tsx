@@ -31,20 +31,6 @@ function connectionAirport(flights: FlightResult[]): string | undefined {
   return arrivesAt || departsFrom || undefined;
 }
 
-const leg = (flight_number: string, origin: string, destination: string): FlightLegInput => ({
-  flight_number,
-  origin,
-  destination,
-  travel_date: DEFAULT_TRAVEL_DATE,
-});
-
-// Sample journeys that the demo (mock) data provider knows about.
-const DEMOS: { id: string; label: string; tone: string; legs: FlightLegInput[] }[] = [
-  { id: 'missed', label: 'Likely missed connection', tone: 'bg-status-danger', legs: [leg('UL001', 'CMB', 'KUL'), leg('XX123', 'KUL', 'NRT')] },
-  { id: 'safe', label: 'Safe connection', tone: 'bg-status-safe', legs: [leg('UL306', 'CMB', 'SIN'), leg('SQ638', 'SIN', 'NRT')] },
-  { id: 'cancelled', label: 'Cancelled flight', tone: 'bg-status-high', legs: [leg('UL001', 'CMB', 'KUL'), leg('UL504', 'KUL', 'NRT')] },
-];
-
 const FIELD_ORDER: LegField[] = ['origin', 'destination', 'flight_number', 'travel_date'];
 
 function SectionTitle({ n, label, id }: { n: number; label: string; id?: string }) {
@@ -59,7 +45,9 @@ function SectionTitle({ n, label, id }: { n: number; label: string; id?: string 
 }
 
 export default function NewJourneyPage() {
-  const [legs, setLegs] = useState<FlightLegInput[]>(DEMOS[0].legs.map((l) => ({ ...l })));
+  const [legs, setLegs] = useState<FlightLegInput[]>(() =>
+    Array.from({ length: 2 }, () => ({ flight_number: '', origin: '', destination: '', travel_date: DEFAULT_TRAVEL_DATE })),
+  );
   const [errors, setErrors] = useState<LegErrors[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -151,35 +139,6 @@ export default function NewJourneyPage() {
         accent="connection?"
         description="Enter each flight in your trip. SkyGuardian checks flight status, transfer time and airport weather, then explains what to do if something goes wrong."
       />
-
-      {/* Quick demos */}
-      <section aria-labelledby="demo-title" className="mt-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 id="demo-title" className="eyebrow">
-            Try a sample journey
-          </h2>
-          <Badge status="DEMO_DATA" label="Demo data" />
-        </div>
-        <p className="mt-2 text-sm text-ink-muted">Fills in the form and runs a check against sample flights dated today, so live weather forecasts are available.</p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          {DEMOS.map((demo) => (
-            <button
-              key={demo.id}
-              type="button"
-              onClick={() => void runCheck(demo.legs.map((l) => ({ ...l })))}
-              disabled={loading}
-              className="inline-flex min-h-11 items-center gap-3 rounded-full border border-ink/15 bg-sand-50 px-4 py-2 text-left text-base text-ink transition-colors hover:border-ink/50 disabled:opacity-50"
-            >
-              <span className={`h-2 w-2 shrink-0 rounded-full ${demo.tone}`} aria-hidden="true" />
-              <span>{demo.label}</span>
-              <span className="font-mono text-sm text-ink-muted">
-                <span className="sr-only">: </span>
-                {demo.legs[0].origin}→{demo.legs.map((l) => l.destination).join('→')}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
 
       <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-8 xl:gap-12">
         <div className="lg:col-span-5">
