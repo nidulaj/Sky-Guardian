@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { UserProfile, LoginPayload, RegisterPayload } from '@/types/auth';
-import { loginApi, registerApi, getMeApi } from '@/lib/api/client';
+import { loginApi, registerApi, getMeApi, updateMeApi } from '@/lib/api/client';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -14,6 +14,12 @@ interface AuthContextType {
   login: (payload: LoginPayload) => Promise<UserProfile>;
   register: (payload: RegisterPayload) => Promise<UserProfile>;
   logout: () => void;
+  updateProfile?: (payload: {
+    first_name?: string;
+    last_name?: string;
+    phone_number?: string;
+    preferred_language?: string;
+  }) => Promise<UserProfile>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -96,6 +102,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(USER_KEY);
   };
 
+  const updateProfile = async (payload: {
+    first_name?: string;
+    last_name?: string;
+    phone_number?: string;
+    preferred_language?: string;
+  }): Promise<UserProfile> => {
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+    const updated = await updateMeApi(token, payload);
+    setUser(updated);
+    localStorage.setItem(USER_KEY, JSON.stringify(updated));
+    return updated;
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -106,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     register,
     logout,
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

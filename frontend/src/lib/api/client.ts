@@ -149,6 +149,31 @@ export async function getMeApi(token: string): Promise<UserProfile> {
   return handleResponse<UserProfile>(response, 'Failed to fetch user profile.');
 }
 
+export async function updateMeApi(
+  token: string,
+  payload: {
+    first_name?: string;
+    last_name?: string;
+    phone_number?: string;
+    preferred_language?: string;
+  }
+): Promise<UserProfile> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new ApiError('Cannot connect to authentication service to update profile.');
+  }
+  return handleResponse<UserProfile>(response, 'Failed to update user profile.');
+}
+
 /* ============================================================
    RAG & KNOWLEDGE BASE API (Passenger & Admin)
 ============================================================ */

@@ -1,18 +1,15 @@
 'use client';
 
 import React, { useEffect, useId, useState } from 'react';
+import Link from 'next/link';
 import PageHeader from '@/components/ui/PageHeader';
-import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
-import { Check, Info, ShieldCheck } from 'lucide-react';
+import { Check, Info, ShieldCheck, User } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 const STORAGE_KEY = 'skyguardian.settings.v1';
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface Prefs {
-  name: string;
-  email: string;
   language: 'en' | 'si' | 'ta';
   alertAtRisk: boolean;
   alertDayBefore: boolean;
@@ -22,8 +19,6 @@ interface Prefs {
 }
 
 const DEFAULTS: Prefs = {
-  name: '',
-  email: '',
   language: 'en',
   alertAtRisk: true,
   alertDayBefore: false,
@@ -128,7 +123,6 @@ function Section({
 export default function SettingsPage() {
   const { user, isAuthenticated } = useAuth();
   const [prefs, setPrefs] = useState<Prefs>(DEFAULTS);
-  const [emailError, setEmailError] = useState<string>();
   const [message, setMessage] = useState('');
   const [dirty, setDirty] = useState(false);
 
@@ -136,12 +130,11 @@ export default function SettingsPage() {
     const stored = readStored();
     if (stored) {
       setPrefs(stored);
-    } else if (user) {
-      setPrefs((p) => ({
-        ...p,
-        name: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : '',
-        email: user.email || '',
-      }));
+    } else if (user?.preferred_language) {
+      const lang = user.preferred_language as Prefs['language'];
+      if (['en', 'si', 'ta'].includes(lang)) {
+        setPrefs((p) => ({ ...p, language: lang }));
+      }
     }
   }, [user]);
 
@@ -153,15 +146,8 @@ export default function SettingsPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    const email = prefs.email.trim();
-    if (email && !EMAIL_RE.test(email)) {
-      setEmailError('Enter an email address like name@example.com, or leave it empty.');
-      document.getElementById('settings-email')?.focus();
-      return;
-    }
-    setEmailError(undefined);
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prefs, email }));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
       setMessage('Preferences saved in this browser.');
     } catch {
       setMessage('Your browser blocked local storage, so these choices will reset when you leave this page.');
@@ -176,9 +162,12 @@ export default function SettingsPage() {
       /* storage unavailable: nothing to clear */
     }
     setPrefs(DEFAULTS);
-    setEmailError(undefined);
     setDirty(false);
     setMessage('Settings reset to defaults and cleared from this browser.');
+  };
+
+  const handleOpenProfile = () => {
+    window.dispatchEvent(new CustomEvent('skyguardian:open-profile'));
   };
 
   return (
@@ -189,6 +178,29 @@ export default function SettingsPage() {
         accent="preferences."
         description="Choose how SkyGuardian talks to you and what it keeps. Every option is explained in plain words."
       />
+
+      {/* Profile Notice & Shortcut Card */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-ink/10 bg-sand-50 p-5 sm:p-6 shadow-xs">
+        <div className="flex items-start gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-coral-soft/50 text-coral-deep">
+            <User className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-base text-ink">Personal Passenger Profile</h3>
+            <p className="text-sm text-ink-soft mt-0.5 leading-relaxed">
+              Your name, email address, SMS disruption alert numbers, and session security are managed on your dedicated Passenger Profile page.
+            </p>
+          </div>
+        </div>
+        {isAuthenticated && (
+          <Link
+            href="/profile"
+            className="inline-flex h-10 items-center justify-center rounded-full border border-ink/15 bg-sand-100 px-5 text-xs font-semibold text-ink transition-colors hover:bg-sand-200 shrink-0"
+          >
+            Open Profile
+          </Link>
+        )}
+      </div>
 
       <div role="note" className="flex items-start gap-3 rounded-2xl border border-ink/10 bg-mist-soft px-5 py-4">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-mist-deep" aria-hidden="true" />
@@ -217,54 +229,7 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSave} noValidate>
         <Section
-          index="01 / Profile"
-          title="About you"
-          description={
-            isAuthenticated && user
-              ? 'Your authenticated passenger identity linked with Supabase.'
-              : 'Used to address you and to send flight alerts.'
-          }
-        >
-          <div className="grid gap-5">
-            <Input
-              id="settings-name"
-              label="Your name"
-              autoComplete="name"
-              value={prefs.name}
-              onChange={(e) => update('name', e.target.value)}
-              placeholder="e.g. Amara Perera"
-            />
-            <Input
-              id="settings-email"
-              label="Email for alerts"
-              type="email"
-              autoComplete="email"
-              inputMode="email"
-              value={prefs.email}
-              onChange={(e) => {
-                update('email', e.target.value);
-                if (emailError) setEmailError(undefined);
-              }}
-              error={emailError}
-              helperText={isAuthenticated ? "Linked to your active user account." : "We will never share your email."}
-              placeholder="name@example.com"
-            />
-            {isAuthenticated && user?.phone_number && (
-              <Input
-                id="settings-phone"
-                label="Registered Phone Number"
-                type="tel"
-                value={user.phone_number}
-                readOnly
-                helperText="Verified during registration for flight delay notifications."
-              />
-            )}
-          </div>
-        </Section>
-
-
-        <Section
-          index="02 / Language"
+          index="01 / Language"
           title="Preferred language"
           description="Explanations and recommendations are written in this language where supported. Flight numbers and airport codes stay the same."
         >
@@ -310,7 +275,7 @@ export default function SettingsPage() {
         </Section>
 
         <Section
-          index="03 / Notifications"
+          index="02 / Notifications"
           title="Alerts"
           description="Decide when SkyGuardian should get in touch. Alerts start working once accounts are connected."
         >
@@ -349,7 +314,7 @@ export default function SettingsPage() {
         </Section>
 
         <Section
-          index="04 / Data & privacy"
+          index="03 / Data & privacy"
           title="What we keep"
           description="SkyGuardian only needs flight numbers, dates and airports to check a journey."
         >
