@@ -1,4 +1,6 @@
+import asyncio
 import logging
+from collections import Counter
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 
@@ -248,14 +250,29 @@ class PgVectorStore(BaseKnowledgeStore):
         if not self._is_connected:
             return await self._memory_fallback.list_documents()
 
-        try:
+        def _sync_list():
             res = self._supabase.table("rag_documents").select("*").order("created_at", desc=True).execute()
+            rows = res.data or []
+            if not rows:
+                return []
+
+            # Batch query chunk counts across all documents in a single fast query
+            # instead of running N sequential network round-trips!
+            chunk_counts = Counter()
+            try:
+                chunk_res = self._supabase.table("rag_chunks").select("document_id").execute()
+                for c in (chunk_res.data or []):
+                    did = c.get("document_id")
+                    if did:
+                        chunk_counts[did] += 1
+            except Exception as ce:
+                logger.warning(f"Batch chunk counting failed: {ce}")
+
             docs = []
-            for row in (res.data or []):
-                chunk_count_res = self._supabase.table("rag_chunks").select("id", count="exact").eq("document_id", row["id"]).execute()
-                total_chunks = chunk_count_res.count if chunk_count_res.count is not None else len(chunk_count_res.data or [])
+            for row in rows:
+                doc_id = row["id"]
                 docs.append({
-                    "doc_id": row["id"],
+                    "doc_id": doc_id,
                     "title": row.get("title"),
                     "airline": row.get("airline"),
                     "airline_code": row.get("airline_code"),
@@ -266,11 +283,14 @@ class PgVectorStore(BaseKnowledgeStore):
                     "file_name": row.get("file_name"),
                     "mime_type": row.get("mime_type"),
                     "verified": row.get("verified", True),
-                    "total_chunks": total_chunks,
+                    "total_chunks": chunk_counts.get(doc_id, 0),
                     "created_at": row.get("created_at"),
                     "updated_at": row.get("updated_at")
                 })
             return docs
+
+        try:
+            return await asyncio.to_thread(_sync_list)
         except Exception as e:
             logger.error(f"Error listing documents from Supabase: {e}")
             return await self._memory_fallback.list_documents()
@@ -279,19 +299,34 @@ class PgVectorStore(BaseKnowledgeStore):
         if not self._is_connected:
             return await self._memory_fallback.delete_document(doc_id)
 
-        try:
-            # Delete file from storage bucket if present
-            doc_res = self._supabase.table("rag_documents").select("storage_path").eq("id", doc_id).execute()
-            if doc_res.data and doc_res.data[0].get("storage_path"):
-                storage_path = doc_res.data[0]["storage_path"]
-                try:
-                    self._supabase.storage.from_(settings.SUPABASE_STORAGE_BUCKET).remove([storage_path])
-                except Exception as se:
-                    logger.warning(f"Could not delete storage file {storage_path}: {se}")
+        def _sync_delete():
+            # 1. Clean up file from storage bucket if present
+            try:
+                doc_res = self._supabase.table("rag_documents").select("storage_path").eq("id", doc_id).execute()
+                if doc_res.data and doc_res.data[0].get("storage_path"):
+                    storage_path = doc_res.data[0]["storage_path"]
+                    try:
+                        self._supabase.storage.from_(settings.SUPABASE_STORAGE_BUCKET).remove([storage_path])
+                    except Exception as se:
+                        logger.warning(f"Could not delete storage file {storage_path}: {se}")
+            except Exception as e:
+                logger.warning(f"Error checking storage_path for {doc_id}: {e}")
 
-            # Delete doc (cascade deletes chunks via foreign key)
+            # 2. Explicitly delete vector chunks for fast, reliable cleanup
+            try:
+                self._supabase.table("rag_chunks").delete().eq("document_id", doc_id).execute()
+            except Exception as ce:
+                logger.warning(f"Could not delete chunks for document {doc_id}: {ce}")
+
+            # 3. Delete document record (also triggers cascade if configured)
             self._supabase.table("rag_documents").delete().eq("id", doc_id).execute()
             return True
+
+        try:
+            result = await asyncio.to_thread(_sync_delete)
+            # Ensure memory fallback cache is also purged
+            await self._memory_fallback.delete_document(doc_id)
+            return result
         except Exception as e:
             logger.error(f"Error deleting document {doc_id} from Supabase: {e}")
             return await self._memory_fallback.delete_document(doc_id)
@@ -300,13 +335,16 @@ class PgVectorStore(BaseKnowledgeStore):
         if not self._is_connected:
             return await self._memory_fallback.count()
 
-        try:
+        def _sync_count():
             docs_res = self._supabase.table("rag_documents").select("id", count="exact").execute()
             chunks_res = self._supabase.table("rag_chunks").select("id", count="exact").execute()
             return {
                 "documents": docs_res.count if docs_res.count is not None else len(docs_res.data or []),
                 "chunks": chunks_res.count if chunks_res.count is not None else len(chunks_res.data or [])
             }
+
+        try:
+            return await asyncio.to_thread(_sync_count)
         except Exception as e:
             logger.error(f"Error getting count from Supabase: {e}")
             return await self._memory_fallback.count()

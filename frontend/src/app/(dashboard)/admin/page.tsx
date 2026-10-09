@@ -429,8 +429,47 @@ export default function AdminPortalPage() {
   const [documents, setDocuments] = useState<RAGDocument[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
-  const [errorNotice, setErrorNotice] = useState<string | null>(null);
-  const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  // Premium floating notification popup state
+  const [notice, setNotice] = useState<{
+    id: string;
+    type: 'success' | 'error' | 'info';
+    title: string;
+    message: string;
+    fileName?: string;
+    badge?: string;
+    actionText?: string;
+    onAction?: () => void;
+  } | null>(null);
+  const [noticeProgress, setNoticeProgress] = useState(100);
+  const [isNoticePaused, setIsNoticePaused] = useState(false);
+
+  // Auto-dismiss countdown timer for notice popup (7 seconds)
+  useEffect(() => {
+    if (!notice) {
+      setNoticeProgress(100);
+      return;
+    }
+
+    setNoticeProgress(100);
+    const totalDuration = 7000;
+    const intervalTime = 50;
+    const step = (intervalTime / totalDuration) * 100;
+
+    const interval = setInterval(() => {
+      if (!isNoticePaused) {
+        setNoticeProgress((prev) => {
+          if (prev <= 0) {
+            clearInterval(interval);
+            setNotice(null);
+            return 0;
+          }
+          return Math.max(0, prev - step);
+        });
+      }
+    }, intervalTime);
+
+    return () => clearInterval(interval);
+  }, [notice, isNoticePaused]);
 
   // Upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -449,12 +488,23 @@ export default function AdminPortalPage() {
   const [testLoading, setTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<AskQuestionResponse | null>(null);
 
-  // Delete state
+  // Delete confirmation modal state
+  const [docToDelete, setDocToDelete] = useState<RAGDocument | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Close delete confirmation modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && docToDelete && !deletingId) {
+        setDocToDelete(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [docToDelete, deletingId]);
 
   // Fetch initial data
   const refreshData = async () => {
-    setErrorNotice(null);
     setLoadingStats(true);
     setLoadingDocs(true);
 
@@ -472,7 +522,12 @@ export default function AdminPortalPage() {
       setDocuments(docsRes);
     } catch (err: any) {
       console.error('Failed to load documents:', err);
-      setErrorNotice('Could not load documents from policy repository. Ensure backend is running.');
+      setNotice({
+        id: Date.now().toString(),
+        type: 'error',
+        title: 'Policy Vault Connection Issue',
+        message: 'Could not load documents from policy repository. Ensure backend is running.',
+      });
     } finally {
       setLoadingDocs(false);
     }
@@ -503,13 +558,16 @@ export default function AdminPortalPage() {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
-      setErrorNotice('Please select a PDF, TXT, or MD document to upload.');
+      setNotice({
+        id: Date.now().toString(),
+        type: 'error',
+        title: 'No Document Selected',
+        message: 'Please choose a PDF, TXT, or MD policy document to upload.',
+      });
       return;
     }
 
     setUploading(true);
-    setErrorNotice(null);
-    setSuccessNotice(null);
 
     const formData = new FormData();
     formData.append('file', selectedFile);
@@ -522,7 +580,19 @@ export default function AdminPortalPage() {
 
     try {
       const result = await uploadRAGDocument(formData, token || undefined);
-      setSuccessNotice(`Document "${selectedFile.name}" indexed successfully (${result.chunks_created || 0} policy clauses extracted).`);
+      const clausesCount = result.chunks_created || 0;
+      setNotice({
+        id: Date.now().toString(),
+        type: 'success',
+        title: 'Policy Document Indexed',
+        message: 'Document analyzed, vectorized, and active in the policy knowledge base.',
+        fileName: selectedFile.name,
+        badge: `${clausesCount} Policy Clauses Extracted`,
+        actionText: 'View in Vault',
+        onAction: () => {
+          document.getElementById('library-heading')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
+      });
 
       // Reset upload form
       setSelectedFile(null);
@@ -535,27 +605,66 @@ export default function AdminPortalPage() {
       // Refresh list
       await refreshData();
     } catch (err: any) {
-      setErrorNotice(err.message || 'Failed to upload and index document.');
+      setNotice({
+        id: Date.now().toString(),
+        type: 'error',
+        title: 'Ingestion Failed',
+        message: err.message || 'Failed to upload and index document into the policy vault.',
+      });
     } finally {
       setUploading(false);
     }
   };
 
-  // Handle document deletion
-  const handleDelete = async (docId: string, title?: string) => {
-    const confirmDelete = window.confirm(`Are you sure you want to delete "${title || docId}"? This will permanently remove the document and its indexed rules from the policy vault.`);
-    if (!confirmDelete) return;
+  // Open premium delete confirmation modal
+  const handleRequestDelete = (doc: RAGDocument) => {
+    if (deletingId) return;
+    setDocToDelete(doc);
+  };
 
-    setDeletingId(docId);
-    setErrorNotice(null);
-    setSuccessNotice(null);
+  // Execute document removal from vault
+  const confirmDeleteDoc = async () => {
+    if (!docToDelete || deletingId) return;
+
+    const target = docToDelete;
+    setDeletingId(target.doc_id);
 
     try {
-      await deleteRAGDocument(docId, token || undefined);
-      setSuccessNotice(`Document successfully removed from the policy vault.`);
+      await deleteRAGDocument(target.doc_id, token || undefined);
+
+      // Optimistic instant UI update
+      setDocuments((prev) => prev.filter((d) => d.doc_id !== target.doc_id));
+      setStats((prev) =>
+        prev
+          ? {
+              ...prev,
+              documents: Math.max(0, prev.documents - 1),
+              chunks: Math.max(0, prev.chunks - (target.total_chunks || 1)),
+            }
+          : null
+      );
+
+      // Dismiss modal immediately
+      setDocToDelete(null);
+
+      // Show luxury toast notification
+      setNotice({
+        id: Date.now().toString(),
+        type: 'info',
+        title: 'Policy Removed',
+        message: `"${target.title || target.doc_id}" has been removed from the active policy vault.`,
+        badge: 'Vault Synchronized',
+      });
+
+      // Background sync to ensure exact server consistency
       await refreshData();
     } catch (err: any) {
-      setErrorNotice(err.message || 'Failed to delete document.');
+      setNotice({
+        id: Date.now().toString(),
+        type: 'error',
+        title: 'Deletion Failed',
+        message: err.message || 'Failed to delete document from the policy vault.',
+      });
     } finally {
       setDeletingId(null);
     }
@@ -651,19 +760,285 @@ export default function AdminPortalPage() {
         }
       />
 
-      {/* Notifications */}
-      {successNotice && (
-        <div role="status" className="flex items-start gap-3 rounded-2xl border border-status-safe/30 bg-status-safe-bg p-4 text-status-safe">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-          <p className="text-sm font-medium leading-relaxed">{successNotice}</p>
+      {/* PREMIUM DELETION CONFIRMATION MODAL */}
+      {docToDelete && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-sand-950/70 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !deletingId) {
+              setDocToDelete(null);
+            }
+          }}
+        >
+          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-ink/15 bg-sand-50/98 backdrop-blur-2xl p-6 sm:p-8 shadow-[0_25px_60px_-15px_rgba(26,23,20,0.5),0_0_0_1px_rgba(255,255,255,0.8)_inset] animate-in zoom-in-95 duration-200">
+            {/* Ambient Radial Aura Glow */}
+            <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-status-danger/15 blur-3xl pointer-events-none" />
+
+            {/* Header Close Button */}
+            <button
+              type="button"
+              onClick={() => !deletingId && setDocToDelete(null)}
+              disabled={!!deletingId}
+              className="absolute top-5 right-5 h-8 w-8 flex items-center justify-center rounded-full text-ink-muted hover:text-ink hover:bg-sand-200 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              aria-label="Dismiss dialog"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            {/* Modal Body */}
+            <div className="space-y-6">
+              {/* Alert Badge & Header */}
+              <div className="flex items-start gap-4">
+                <div className="relative shrink-0">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-status-danger-bg border border-status-danger/30 text-status-danger shadow-inner">
+                    <Trash2 className="h-6 w-6 stroke-[2.2]" />
+                  </div>
+                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-danger opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-status-danger" />
+                  </span>
+                </div>
+
+                <div className="space-y-1 pr-6">
+                  <span className="font-mono text-[10px] tracking-widest uppercase font-bold text-status-danger">
+                    Security Clearance / Irreversible Action
+                  </span>
+                  <h3 id="delete-dialog-title" className="font-sans font-semibold text-xl text-ink leading-tight">
+                    Remove Document from Vault
+                  </h3>
+                </div>
+              </div>
+
+              {/* Document Summary Card */}
+              <div className="rounded-2xl border border-ink/10 bg-sand-100/90 p-4 space-y-2.5">
+                <div className="space-y-1">
+                  <p className="font-semibold text-ink text-sm sm:text-base leading-snug">
+                    {docToDelete.title || docToDelete.doc_id}
+                  </p>
+                  <p className="font-mono text-[11px] text-ink-muted">
+                    Document ID: {docToDelete.doc_id}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {docToDelete.airline && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-sand-200 px-2.5 py-0.5 text-xs font-medium text-coral">
+                      {docToDelete.airline}
+                      {docToDelete.airline_code && ` (${docToDelete.airline_code})`}
+                    </span>
+                  )}
+                  {docToDelete.airport ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-sand-200 px-2.5 py-0.5 text-xs font-mono text-ink-soft">
+                      <Plane className="h-3 w-3" />
+                      {docToDelete.airport}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-sand-200 px-2.5 py-0.5 text-xs font-mono text-ink-muted">
+                      Global Carrier
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 rounded-full bg-status-danger-bg border border-status-danger/20 px-2.5 py-0.5 text-xs font-mono font-medium text-status-danger">
+                    <Layers className="h-3 w-3" />
+                    {docToDelete.total_chunks ?? '1+'} vector rules
+                  </span>
+                </div>
+              </div>
+
+              {/* Explanatory text */}
+              <p className="text-xs text-ink-muted leading-relaxed">
+                Are you sure you want to permanently remove this carriage policy? This will remove the source document, erase indexed vector chunks from pgvector, and cease real-time automated disruption assessments referencing this document.
+              </p>
+
+              {/* In-Flight Removal Progress Stripe */}
+              {deletingId && (
+                <div className="space-y-2 rounded-xl bg-status-danger-bg/50 border border-status-danger/20 p-3">
+                  <div className="flex items-center gap-2 text-xs font-mono text-status-danger">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Removing vector embeddings and storage files...</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-status-danger/20 rounded-full overflow-hidden">
+                    <div className="h-full bg-status-danger rounded-full animate-pulse w-full" />
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setDocToDelete(null)}
+                  disabled={!!deletingId}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={confirmDeleteDoc}
+                  disabled={!!deletingId}
+                  className="bg-red-600 hover:bg-red-700 text-white border-transparent shadow-md shadow-red-600/25 disabled:opacity-50"
+                >
+                  {deletingId ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      <span>Removing Document...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Remove Document</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {errorNotice && (
-        <div role="alert" className="flex items-start gap-3 rounded-2xl border border-status-danger/30 bg-status-danger-bg p-4 text-status-danger">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-          <p className="text-sm font-medium leading-relaxed">{errorNotice}</p>
-        </div>
+      {/* LUXURY FLOATING NOTIFICATION POPUP */}
+      {notice && (
+        <aside
+          role="status"
+          aria-live="polite"
+          className="fixed top-6 right-6 z-50 w-full max-w-[440px] px-4 sm:px-0 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300 ease-out"
+        >
+          <div
+            onMouseEnter={() => setIsNoticePaused(true)}
+            onMouseLeave={() => setIsNoticePaused(false)}
+            className="pointer-events-auto relative overflow-hidden rounded-3xl border border-ink/15 bg-sand-50/95 backdrop-blur-2xl p-5 shadow-[0_25px_60px_-15px_rgba(26,23,20,0.35),0_0_0_1px_rgba(255,255,255,0.8)_inset] transition-all duration-300"
+          >
+            {/* Ambient Radial Aura Glow */}
+            <div
+              className={`absolute -top-12 -left-12 h-36 w-36 rounded-full blur-2xl pointer-events-none ${
+                notice.type === 'success'
+                  ? 'bg-emerald-500/20'
+                  : notice.type === 'error'
+                  ? 'bg-status-danger/25'
+                  : 'bg-sand-400/25'
+              }`}
+            />
+
+            <div className="relative flex items-start gap-4">
+              {/* Status Icon Badge with Dual Ring & Pulse */}
+              <div className="relative shrink-0">
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-2xl shadow-inner ${
+                    notice.type === 'success'
+                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-700'
+                      : notice.type === 'error'
+                      ? 'bg-status-danger-bg border border-status-danger/30 text-status-danger'
+                      : 'bg-sand-200 border border-ink/15 text-ink'
+                  }`}
+                >
+                  {notice.type === 'success' ? (
+                    <CheckCircle2 className="h-6 w-6 stroke-[2.2]" />
+                  ) : notice.type === 'error' ? (
+                    <AlertCircle className="h-6 w-6 stroke-[2.2]" />
+                  ) : (
+                    <Layers className="h-6 w-6 stroke-[2.2]" />
+                  )}
+                </div>
+                {notice.type === 'success' && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                )}
+              </div>
+
+              {/* Main Content Area */}
+              <div className="flex-1 min-w-0 space-y-2">
+                {/* Eyebrow & Close Button */}
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className={`font-mono text-[10px] tracking-widest uppercase font-bold ${
+                      notice.type === 'success'
+                        ? 'text-emerald-700'
+                        : notice.type === 'error'
+                        ? 'text-status-danger'
+                        : 'text-ink-muted'
+                    }`}
+                  >
+                    {notice.type === 'success'
+                      ? '01 / Vault Synchronized'
+                      : notice.type === 'error'
+                      ? 'System Warning'
+                      : 'Policy Vault Update'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setNotice(null)}
+                    className="h-6 w-6 -mr-1 -mt-1 flex items-center justify-center rounded-full text-ink-muted hover:text-ink hover:bg-sand-200/80 transition-colors"
+                    aria-label="Dismiss notification"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {/* Title */}
+                <h4 className="font-sans font-bold text-ink text-sm sm:text-base leading-snug">
+                  {notice.title}
+                </h4>
+
+                {/* Monospace File Pill */}
+                {notice.fileName && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sand-100/90 border border-ink/10 text-xs text-ink font-mono shadow-sm">
+                    <FileText className="h-3.5 w-3.5 text-coral shrink-0" />
+                    <span className="truncate font-semibold">{notice.fileName}</span>
+                  </div>
+                )}
+
+                {/* Subtitle / Message */}
+                <p className="text-xs text-ink-soft leading-relaxed">
+                  {notice.message}
+                </p>
+
+                {/* Footer: Badge and Quick Action */}
+                {(notice.badge || notice.actionText) && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-ink/5">
+                    {notice.badge && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-0.5 text-[11px] font-mono font-medium text-emerald-800">
+                        <Sparkles className="h-3 w-3 text-emerald-600" />
+                        {notice.badge}
+                      </span>
+                    )}
+                    {notice.actionText && notice.onAction && (
+                      <button
+                        type="button"
+                        onClick={notice.onAction}
+                        className="inline-flex items-center gap-1 font-mono text-[11px] font-bold uppercase tracking-wider text-ink hover:text-coral transition-colors ml-auto"
+                      >
+                        {notice.actionText}
+                        <ArrowRight className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Animated Progress Timer Line */}
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-ink/5 overflow-hidden">
+              <div
+                className={`h-full transition-all duration-75 ease-linear ${
+                  notice.type === 'success'
+                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                    : notice.type === 'error'
+                    ? 'bg-status-danger'
+                    : 'bg-ink'
+                }`}
+                style={{ width: `${noticeProgress}%` }}
+              />
+            </div>
+          </div>
+        </aside>
       )}
 
       {/* SECTION 1: POLICY INTELLIGENCE & COVERAGE OVERVIEW */}
@@ -909,48 +1284,65 @@ export default function AdminPortalPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ink/10">
-                  {filteredDocs.map((doc) => (
-                    <tr key={doc.doc_id} className="hover:bg-sand-50/50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="space-y-0.5">
-                          <p className="font-semibold text-ink text-base">{doc.title}</p>
-                          <div className="flex items-center gap-2 text-xs text-ink-muted">
-                            {doc.airline && <span className="font-medium text-coral">{doc.airline}</span>}
-                            {doc.airline_code && <span className="font-mono">({doc.airline_code})</span>}
-                            <span>· ID: {doc.doc_id}</span>
+                  {filteredDocs.map((doc) => {
+                    const isRowDeleting = deletingId === doc.doc_id;
+                    return (
+                      <tr
+                        key={doc.doc_id}
+                        className={`hover:bg-sand-50/50 transition-colors ${
+                          isRowDeleting ? 'opacity-40 bg-status-danger-bg/20' : ''
+                        }`}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="space-y-0.5">
+                            <p className="font-semibold text-ink text-base">{doc.title}</p>
+                            <div className="flex items-center gap-2 text-xs text-ink-muted">
+                              {doc.airline && <span className="font-medium text-coral">{doc.airline}</span>}
+                              {doc.airline_code && <span className="font-mono">({doc.airline_code})</span>}
+                              <span>· ID: {doc.doc_id}</span>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {doc.airport ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-sand-200 px-3 py-1 text-xs font-mono font-medium text-ink-soft">
-                            <Plane className="h-3 w-3" />
-                            {doc.airport}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-ink-muted font-mono">Global / Multi-hub</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 font-mono font-semibold text-ink">
-                        {doc.total_chunks ?? '1+'} rules
-                      </td>
-                      <td className="px-6 py-4 text-xs font-mono text-ink-muted max-w-xs truncate">
-                        {doc.jurisdiction || doc.source_url || 'Verified Carriage Rules'}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(doc.doc_id, doc.title)}
-                          disabled={deletingId === doc.doc_id}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-status-danger/30 px-3 py-1.5 text-xs font-medium text-status-danger hover:bg-status-danger-bg transition-colors disabled:opacity-50"
-                          title="Remove from policy vault"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          {deletingId === doc.doc_id ? 'Deleting...' : 'Delete'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-4">
+                          {doc.airport ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-sand-200 px-3 py-1 text-xs font-mono font-medium text-ink-soft">
+                              <Plane className="h-3 w-3" />
+                              {doc.airport}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-ink-muted font-mono">Global / Multi-hub</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 font-mono font-semibold text-ink">
+                          {doc.total_chunks ?? '1+'} rules
+                        </td>
+                        <td className="px-6 py-4 text-xs font-mono text-ink-muted max-w-xs truncate">
+                          {doc.jurisdiction || doc.source_url || 'Verified Carriage Rules'}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleRequestDelete(doc)}
+                            disabled={!!deletingId}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-status-danger/30 px-3 py-1.5 text-xs font-medium text-status-danger hover:bg-status-danger-bg transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                            title="Remove from policy vault"
+                          >
+                            {isRowDeleting ? (
+                              <>
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                <span>Removing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span>Delete</span>
+                              </>
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
