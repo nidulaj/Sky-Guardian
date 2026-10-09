@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import Badge from '@/components/ui/Badge';
-import { ArrowRight, Info, Inbox, Trash2, RotateCcw, ShieldCheck, Database, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowRight, Inbox, Trash2, RotateCcw, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import {
   getJourneyHistory,
@@ -295,19 +295,6 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {/* Persistence Info Banner */}
-      <div role="note" className="flex items-start gap-3 rounded-2xl border border-ink/10 bg-mist-soft px-5 py-4">
-        <Database className="mt-0.5 h-5 w-5 shrink-0 text-mist-deep" aria-hidden="true" />
-        <div className="text-base text-ink space-y-1">
-          <p>
-            <strong className="font-semibold">Automatic saving active.</strong>{' '}
-            <span className="text-ink-soft">
-              Every flight itinerary you assess on your Dashboard is securely logged with all multi-agent risk calculations,
-              weather evaluations, and airline policy advice.
-            </span>
-          </p>
-        </div>
-      </div>
 
       <section aria-labelledby="checks-heading" className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
