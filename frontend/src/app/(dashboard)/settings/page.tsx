@@ -5,6 +5,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { Check, Info, ShieldCheck } from 'lucide-react';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 const STORAGE_KEY = 'skyguardian.settings.v1';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -123,8 +124,6 @@ function Section({
     </section>
   );
 }
-
-import { useAuth } from '@/lib/auth/AuthContext';
 
 export default function SettingsPage() {
   const { user, isAuthenticated } = useAuth();

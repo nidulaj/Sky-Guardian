@@ -638,8 +638,8 @@ export default function AdminPortalPage() {
         prev
           ? {
               ...prev,
-              documents: Math.max(0, prev.documents - 1),
-              chunks: Math.max(0, prev.chunks - (target.total_chunks || 1)),
+              total_documents: Math.max(0, prev.total_documents - 1),
+              total_chunks: Math.max(0, prev.total_chunks - (target.total_chunks || 1)),
             }
           : null
       );
@@ -682,7 +682,12 @@ export default function AdminPortalPage() {
       const res = await askRagQuestion(testQuery.trim(), 3, 0.15);
       setTestResult(res);
     } catch (err: any) {
-      setErrorNotice(err.message || 'RAG query failed.');
+      setNotice({
+        id: Date.now().toString(),
+        type: 'error',
+        title: 'Query Failed',
+        message: err.message || 'RAG query failed.',
+      });
     } finally {
       setTestLoading(false);
     }
