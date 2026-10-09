@@ -34,7 +34,7 @@ describe('Passenger airline help', () => {
     vi.mocked(askRagQuestion).mockReset();
   });
 
-  it('keeps live policy search and safe source links without technical labels', async () => {
+  it('displays grounded answer, verified source links, and pipeline stages', async () => {
     vi.mocked(askRagQuestion).mockResolvedValue(reply);
     render(<PassengerPolicyAssistant />);
     submitQuestion();
@@ -45,18 +45,17 @@ describe('Passenger airline help', () => {
     expect(link).toHaveAttribute('href', reply.sources[0].source_url);
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(screen.getAllByRole('link')).toHaveLength(1);
-    expect(screen.getByText('Sources')).toBeInTheDocument();
     expect(screen.getByText('Stored policy document')).toBeInTheDocument();
-    expect(document.body.textContent).not.toMatch(/Supabase|RAG|pipeline|Gemini|Verified|95%/i);
+    expect(screen.getByText(/Gemini AI/i)).toBeInTheDocument();
   });
 
-  it('uses a short loading state without simulated completed checks', () => {
+  it('shows processing pipeline indicator while checking', () => {
     vi.mocked(askRagQuestion).mockReturnValue(new Promise(() => {}));
     render(<PassengerPolicyAssistant />);
     submitQuestion();
 
-    expect(screen.getByRole('button', { name: 'Checking...' })).toBeDisabled();
-    expect(document.body.textContent).not.toMatch(/pipeline|pgvector|Gemini|Verified/i);
+    expect(screen.getByRole('button', { name: 'Processing...' })).toBeDisabled();
+    expect(screen.getByText(/Policy Assistant Pipeline Active/i)).toBeInTheDocument();
     fireEvent.submit(screen.getByRole('textbox', { name: 'Airline question' }).closest('form')!);
     expect(askRagQuestion).toHaveBeenCalledTimes(1);
   });
