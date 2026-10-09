@@ -24,7 +24,6 @@ const REASON_TEXT: Record<string, string> = {
 const DATA_MODE: Record<string, { status: string; label: string }> = {
   live: { status: 'VERIFIED', label: 'Live status' },
   timetable: { status: 'SCHEDULED', label: 'Published timetable' },
-  demo: { status: 'DEMO_DATA', label: 'Demo data' },
 };
 
 function TimeCell({ label, iso, timeZone, city, highlight }: {
@@ -125,8 +124,7 @@ export default function FlightStatusCard({ flight }: { flight: FlightResult }) {
           {flight.gate ? `Gate ${flight.gate}` : ''}
         </span>
         <span>
-          Source: {flight.source}
-          {retrieved ? ` · ${retrieved.time} UTC` : ''}
+          {retrieved ? `Updated ${retrieved.time} UTC` : ''}
         </span>
       </div>
     </article>

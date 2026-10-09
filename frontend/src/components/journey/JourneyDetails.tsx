@@ -50,7 +50,6 @@ export function WeatherList({ items }: { items: WeatherCondition[] }) {
                   {warning}
                 </p>
               ))}
-              {w.source && <p className="mt-1 text-sm text-ink-muted">Source: {w.source}</p>}
             </div>
             <div className="col-start-2 mt-2 sm:col-start-auto sm:mt-0">
               <Badge status={severity} label={`${statusLabel(severity)} impact`} />
@@ -86,7 +85,7 @@ export function AlternativesList({ items }: { items: AlternativeOption[] }) {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="sr-only">Option {alt.rank ?? i + 1}.</span>
-                {top && <span className="rounded-full bg-ink px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-sand-50">Top ranked</span>}
+                {top && <span className="rounded-full bg-ink px-2.5 py-1 font-mono text-xs uppercase tracking-[0.08em] text-sand-50">Top ranked</span>}
                 {alt.risk_level && <Badge status={alt.risk_level} label={`${statusLabel(alt.risk_level)} risk${alt.risk_score != null ? ` · ${alt.risk_score}/100` : ''}`} />}
                 {alt.policy_eligibility && <Badge status={alt.policy_eligibility} label={eligibilityLabel(alt.policy_eligibility)} />}
               </div>
@@ -216,7 +215,6 @@ export function SourcesList({ items }: { items: SourceRef[] }) {
             </span>
             <span className="flex items-center gap-2 text-sm text-ink-muted">
               {s.type}
-              {/mock|demo|sample/i.test(s.name) && <Badge status="DEMO_DATA" label="Demo data" />}
             </span>
           </li>
         );

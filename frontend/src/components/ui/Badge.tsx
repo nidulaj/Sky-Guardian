@@ -74,7 +74,7 @@ interface BadgeProps {
 export default function Badge({ status, label, className = '' }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[11px] font-medium uppercase tracking-[0.08em] whitespace-nowrap ${TONES[statusTone(status)]} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-xs font-medium uppercase tracking-[0.08em] whitespace-nowrap ${TONES[statusTone(status)]} ${className}`}
     >
       <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden="true" />
       {label || statusLabel(status)}

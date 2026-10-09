@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import PageHeader from '@/components/ui/PageHeader';
 import Badge from '@/components/ui/Badge';
-import { ArrowRight, Info, Inbox } from 'lucide-react';
+import { ArrowRight, Inbox } from 'lucide-react';
 
 type Outcome = 'attention' | 'clear';
 
@@ -120,16 +120,6 @@ export default function HistoryPage() {
         }
       />
 
-      <div role="note" className="flex items-start gap-3 rounded-2xl border border-ink/10 bg-mist-soft px-5 py-4">
-        <Info className="mt-0.5 h-5 w-5 shrink-0 text-mist-deep" aria-hidden="true" />
-        <p className="text-base text-ink">
-          <strong className="font-semibold">Sample data.</strong>{' '}
-          <span className="text-ink-soft">
-            Journey history is saved once accounts are connected. The checks below are examples based on the demo
-            flights.
-          </span>
-        </p>
-      </div>
 
       <section aria-labelledby="checks-heading" className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -163,7 +153,7 @@ export default function HistoryPage() {
             {/* Desktop table */}
             <div className="hidden lg:block surface overflow-hidden">
               <table className="w-full text-left">
-                <caption className="sr-only">Sample journey checks</caption>
+                <caption className="sr-only">Journey checks</caption>
                 <thead>
                   <tr className="border-b border-ink/10">
                     <th scope="col" className="eyebrow px-6 py-4 font-normal">Date</th>

@@ -7,7 +7,7 @@ import WindowIllustration from '@/components/ui/WindowIllustration';
 const FACTS = [
   { label: 'Agents', value: '7 specialists, one answer' },
   { label: 'Risk score', value: 'Open formula, 0–100' },
-  { label: 'Sample trip', value: 'CMB → KUL → NRT' },
+  { label: 'Example trip', value: 'CMB → KUL → NRT' },
 ];
 
 export default function Hero() {
@@ -38,7 +38,7 @@ export default function Hero() {
 
         <div className="relative mx-auto max-w-7xl px-5 pt-28 sm:px-8 sm:pt-36 lg:pt-44">
           <div className="relative z-10 max-w-xl lg:max-w-[540px] xl:max-w-2xl">
-            <p className="animate-fade-up font-mono text-[11px] uppercase tracking-label text-white/80">
+            <p className="animate-fade-up font-mono text-xs uppercase tracking-label text-white/80">
               Flight disruption intelligence · for connecting trips
             </p>
             <h1
@@ -78,7 +78,7 @@ export default function Hero() {
           <dl className="relative z-10 mt-0 hidden grid-cols-3 gap-8 border-t border-white/15 py-8 lg:mt-24 lg:grid lg:max-w-[58%]">
             {FACTS.map((fact) => (
               <div key={fact.label}>
-                <dt className="font-mono text-[11px] uppercase tracking-label text-white/70">{fact.label}</dt>
+                <dt className="font-mono text-xs uppercase tracking-label text-white/70">{fact.label}</dt>
                 <dd className="mt-2 text-base text-white">{fact.value}</dd>
               </div>
             ))}

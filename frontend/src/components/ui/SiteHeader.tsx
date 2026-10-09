@@ -85,7 +85,7 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
                 key={link.href}
                 href={link.href}
                 aria-current={active ? 'page' : undefined}
-                className={`inline-flex min-h-11 items-center font-mono text-[11px] uppercase tracking-label transition-colors ${
+                className={`inline-flex min-h-11 items-center font-mono text-xs uppercase tracking-label transition-colors ${
                   active ? (overlay ? 'text-white' : 'text-ink underline underline-offset-8 decoration-coral') : linkTone
                 }`}
               >
@@ -145,12 +145,12 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
             </div>
           ) : (
             <>
-              <Link href="/login" className={`inline-flex min-h-11 items-center font-mono text-[11px] uppercase tracking-label ${linkTone}`}>
+              <Link href="/login" className={`inline-flex min-h-11 items-center font-mono text-xs uppercase tracking-label ${linkTone}`}>
                 Sign in
               </Link>
               <Link
                 href="/register"
-                className={`inline-flex min-h-11 items-center font-mono text-[11px] uppercase tracking-label text-coral hover:text-coral-deep`}
+                className={`inline-flex min-h-11 items-center font-mono text-xs uppercase tracking-label text-coral hover:text-coral-deep`}
               >
                 Register
               </Link>

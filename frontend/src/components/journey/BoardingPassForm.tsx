@@ -262,7 +262,7 @@ export default function BoardingPassForm({ legs, errors, formError, loading, onC
             aria-hidden="true"
           />
 
-          <p className="font-mono text-[11px] uppercase tracking-label text-white">Your route</p>
+          <p className="font-mono text-xs uppercase tracking-label text-white">Your route</p>
           <p className="display mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-4xl text-white">
             <span className="sr-only">{`Route: ${codes.join(' to ')}`}</span>
             {codes.map((code, i) => (
@@ -274,11 +274,11 @@ export default function BoardingPassForm({ legs, errors, formError, loading, onC
           </p>
 
           <dl className="mt-5 border-t border-white/30 pt-4 grid grid-cols-2 gap-y-3 text-sm">
-            <dt className="font-mono text-[11px] uppercase tracking-label text-white self-center">Departs</dt>
+            <dt className="font-mono text-xs uppercase tracking-label text-white self-center">Departs</dt>
             <dd className="text-right">{firstDate ?? 'Choose a date'}</dd>
-            <dt className="font-mono text-[11px] uppercase tracking-label text-white self-center">Flights</dt>
+            <dt className="font-mono text-xs uppercase tracking-label text-white self-center">Flights</dt>
             <dd className="text-right">{legs.length}</dd>
-            <dt className="font-mono text-[11px] uppercase tracking-label text-white self-center">Connections</dt>
+            <dt className="font-mono text-xs uppercase tracking-label text-white self-center">Connections</dt>
             <dd className="text-right">{connections === 0 ? 'Direct' : connections}</dd>
           </dl>
 

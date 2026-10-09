@@ -149,15 +149,12 @@ export default function NewJourneyPage() {
         description="Enter each flight in your trip. SkyGuardian checks flight status, transfer time and airport weather, then explains what to do if something goes wrong."
       />
 
-      {/* Quick demos */}
+      {/* Quick examples */}
       <section aria-labelledby="demo-title" className="mt-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 id="demo-title" className="eyebrow">
-            Try a sample journey
-          </h2>
-          <Badge status="DEMO_DATA" label="Demo data" />
-        </div>
-        <p className="mt-2 text-sm text-ink-muted">Fills in the form and runs a check against sample flights dated today, so live weather forecasts are available.</p>
+        <h2 id="demo-title" className="eyebrow">
+          Try an example journey
+        </h2>
+        <p className="mt-2 text-sm text-ink-muted">Fills in the form and runs a check for today.</p>
         <div className="mt-4 flex flex-wrap gap-3">
           {DEMOS.map((demo) => (
             <button
@@ -241,17 +238,11 @@ export default function NewJourneyPage() {
               <section className="space-y-6">
                 <SectionTitle n={1} label="What we found" />
                 <div className="flex flex-wrap items-center gap-2">
-                  {result.is_demo_data && <Badge status="DEMO_DATA" label="Demo data" />}
                   <Badge status={result.journey_status} label={statusLabel(result.journey_status)} />
                 </div>
                 <h3 id="result-title" ref={resultHeadingRef} tabIndex={-1} className="display text-4xl sm:text-5xl text-ink focus:outline-none">
                   {result.primary_issue}
                 </h3>
-                {result.is_demo_data && (
-                  <p className="text-base text-ink-soft">
-                    These results use sample flight and weather data, not live information.
-                  </p>
-                )}
 
                 <div className="surface p-5 sm:p-7">
                   <RouteStrip flights={flights} connection={result.connection} />

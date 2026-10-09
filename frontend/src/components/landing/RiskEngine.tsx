@@ -129,7 +129,7 @@ export default function RiskEngine() {
 
               {/* Worked example */}
               <div className="mt-6 rounded-2xl border border-sand-50/10 bg-sand-50/5 p-5">
-                <p className="eyebrow text-sand-300">Worked example · demo journey CMB → KUL → NRT</p>
+                <p className="eyebrow text-sand-300">Worked example · CMB → KUL → NRT</p>
                 <ul className="mt-4 grid gap-3 sm:grid-cols-3">
                   {EXAMPLE.map((row) => (
                     <li key={row.label}>
@@ -202,7 +202,7 @@ export default function RiskEngine() {
                   </span>
                   <div>
                     <p className="text-lg font-medium text-white">{label} score</p>
-                    <p className="font-mono text-[11px] uppercase tracking-label text-sand-300">{source}</p>
+                    <p className="font-mono text-xs uppercase tracking-label text-sand-300">{source}</p>
                   </div>
                 </div>
                 <dl className="mt-4 divide-y divide-sand-50/10 text-sm">

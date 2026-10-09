@@ -5,12 +5,12 @@ const STEPS = [
   {
     label: 'You',
     title: 'Tell us your flights.',
-    body: 'Add each flight number and travel date. A sample journey is ready if you just want to look around.',
+    body: 'Add each flight number and travel date.',
   },
   {
     label: 'Flight agent',
     title: 'We check live status.',
-    body: 'Schedules, delays and cancellations for every leg, from a flight data API (sample data in demo mode).',
+    body: 'Schedules, delays and cancellations for every leg, from a flight data API.',
   },
   {
     label: 'Connection agent',
@@ -67,7 +67,7 @@ export default function HowItWorks() {
                 >
                   {/* Step numeral (large screens) */}
                   <div className="hidden pt-7 lg:block">
-                    <p className="font-mono text-[11px] uppercase tracking-label text-ink-soft">Step</p>
+                    <p className="font-mono text-xs uppercase tracking-label text-ink-soft">Step</p>
                     <p className="display mt-1 text-7xl font-light text-ink xl:text-8xl" aria-hidden="true">
                       {n}
                     </p>
@@ -85,7 +85,7 @@ export default function HowItWorks() {
 
                   {/* Content */}
                   <div className="grid gap-3 border-t border-ink/20 pb-10 pt-6 sm:pb-12 md:grid-cols-[180px_1fr] md:gap-8 lg:grid-cols-[170px_minmax(0,1fr)_minmax(0,0.9fr)] lg:pb-16">
-                    <p className="font-mono text-[11px] uppercase tracking-label text-ink-soft md:pt-3">
+                    <p className="font-mono text-xs uppercase tracking-label text-ink-soft md:pt-3">
                       <span className="lg:hidden">Step {n} · </span>
                       {step.label}
                     </p>

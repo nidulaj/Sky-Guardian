@@ -62,8 +62,8 @@ const config: Config = {
         mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       letterSpacing: {
-        display: '-0.045em',
-        label: '0.16em',
+        display: '-0.01em',
+        label: '0.08em',
       },
       borderRadius: {
         '4xl': '2rem',

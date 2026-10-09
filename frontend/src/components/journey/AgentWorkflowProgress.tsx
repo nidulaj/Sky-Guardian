@@ -32,7 +32,7 @@ export default function AgentWorkflowProgress() {
       </p>
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-ink/20 pb-5">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-label text-ink">In progress / 7 agents</p>
+          <p className="font-mono text-xs uppercase tracking-label text-ink">In progress / 7 agents</p>
           <h2 id="progress-title" className="display mt-3 text-3xl sm:text-4xl text-ink">
             Checking your <span className="accent">journey…</span>
           </h2>
@@ -41,7 +41,7 @@ export default function AgentWorkflowProgress() {
           </p>
         </div>
         <p className="text-right" aria-hidden="true">
-          <span className="block font-mono text-[11px] uppercase tracking-label text-ink">Elapsed</span>
+          <span className="block font-mono text-xs uppercase tracking-label text-ink">Elapsed</span>
           <span className="display mt-1 block text-4xl sm:text-5xl font-light text-ink tabular-nums">
             {pad2(Math.floor(seconds / 60))}:{pad2(seconds % 60)}
           </span>
@@ -63,7 +63,7 @@ export default function AgentWorkflowProgress() {
             </span>
             <div className={`min-w-0 py-4 ${i > 0 ? 'border-t border-ink/15' : ''}`}>
               <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="font-mono text-[11px] uppercase tracking-label text-ink">{agent.name} agent</span>
+                <span className="font-mono text-xs uppercase tracking-label text-ink">{agent.name} agent</span>
                 <span className="text-lg font-semibold text-ink">{agent.title}</span>
               </p>
               <p className="mt-1 text-base text-ink-soft leading-relaxed">{agent.desc}</p>

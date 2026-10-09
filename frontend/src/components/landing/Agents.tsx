@@ -14,7 +14,7 @@ const AGENTS: Agent[] = [
   {
     name: 'Flight agent',
     question: 'Is each flight on time, delayed or cancelled?',
-    source: 'Flight status API (sample data in demo mode)',
+    source: 'Flight status API',
     Icon: Plane,
   },
   {
@@ -111,7 +111,7 @@ export default function Agents() {
               <p className="mt-3 max-w-md text-lg leading-relaxed text-white/85">{RECOVERY.question}</p>
             </div>
             <div className="border-t border-white/15 pt-4">
-              <p className="font-mono text-[11px] uppercase tracking-label text-white/85">Data source</p>
+              <p className="font-mono text-xs uppercase tracking-label text-white/85">Data source</p>
               <p className="mt-1.5 text-sm leading-relaxed text-white">{RECOVERY.source}</p>
             </div>
           </li>

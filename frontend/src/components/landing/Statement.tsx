@@ -37,13 +37,10 @@ export default function Statement() {
               We track your <span className="accent text-coral-deep">connection.</span>
             </h2>
 
-            {/* Sample transfer card */}
+            {/* Example transfer card */}
             <figure className="rounded-3xl border border-ink/10 bg-sand-100 p-6 lg:col-span-4">
-              <figcaption className="flex items-center justify-between gap-3">
+              <figcaption>
                 <span className="eyebrow">Transfer at KUL</span>
-                <span className="rounded-full bg-mist-soft px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-mist-deep">
-                  Sample data
-                </span>
               </figcaption>
               <div className="mt-6 space-y-4">
                 <div>

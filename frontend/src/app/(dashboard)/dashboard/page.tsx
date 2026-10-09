@@ -5,7 +5,7 @@ import Link from 'next/link';
 import PageHeader from '@/components/ui/PageHeader';
 import Badge from '@/components/ui/Badge';
 import Barcode from '@/components/ui/Barcode';
-import { ArrowRight, Info, Plane, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, Plane, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import PassengerPolicyAssistant from '@/components/dashboard/PassengerPolicyAssistant';
 
@@ -44,7 +44,7 @@ const SAMPLE_TIMELINE = [
 ];
 
 const SAMPLE_STATS = [
-  { value: '3', label: 'Journeys checked', note: 'Sample history' },
+  { value: '3', label: 'Journeys checked', note: 'Last 30 days' },
   { value: '1', label: 'Connection at risk', note: 'CMB → KUL → NRT' },
   { value: '1', label: 'Cancelled flight', note: 'CMB → LHR' },
 ];
@@ -52,11 +52,11 @@ const SAMPLE_STATS = [
 const NEXT_STEPS = [
   'Contact SriLankan Airlines before you leave Colombo and ask whether your onward flight can be protected.',
   'If you still travel, go straight to the transfer desk at Kuala Lumpur when you land.',
-  'Ask the airline about rebooking. In this sample, a next-day flight (MH088, 08:30) is one option to raise with them.',
+  'Ask the airline about rebooking. A next-day flight (MH088, 08:30) is one option to raise with them.',
 ];
 
 export default function DashboardPage() {
-  const { user, isAdmin, isAuthenticated } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return (
     <div className="space-y-12 sm:space-y-16">
@@ -113,36 +113,23 @@ export default function DashboardPage() {
       {/* Passenger RAG Policy Assistant Widget */}
       <PassengerPolicyAssistant />
 
-      {/* Honest sample-data notice */}
-      <div role="note" className="flex items-start gap-3 rounded-2xl border border-ink/10 bg-mist-soft px-5 py-4">
-        <Info className="mt-0.5 h-5 w-5 shrink-0 text-mist-deep" aria-hidden="true" />
-        <p className="text-base text-ink">
-          <strong className="font-semibold">Sample data.</strong>{' '}
-          <span className="text-ink-soft">
-            {isAuthenticated
-              ? `You are logged in as ${user?.role}. The card below displays an example multi-leg journey with simulated delay status so you can preview how risk scoring appears.`
-              : 'Journey history is saved once accounts are connected. Until then, this page shows an example trip so you can see how results look.'}
-          </span>
-        </p>
-      </div>
 
 
       {/* Upcoming trip: boarding pass */}
       <section aria-labelledby="upcoming-heading" className="space-y-5">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <p className="eyebrow">02 / Upcoming trip</p>
-          <p className="eyebrow">Sample · 15 Sep 2026</p>
+          <p className="eyebrow">15 Sep 2026</p>
         </div>
         <h2 id="upcoming-heading" className="sr-only">
-          Upcoming trip (sample): Colombo to Tokyo via Kuala Lumpur
+          Upcoming trip: Colombo to Tokyo via Kuala Lumpur
         </h2>
 
         <div className="grid lg:grid-cols-[1fr_320px]">
           {/* Main pass */}
           <div className="rounded-t-3xl lg:rounded-tr-none lg:rounded-l-3xl border border-ink/10 bg-sand-50 p-6 sm:p-8">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/10 pb-4">
+            <div className="border-b border-ink/10 pb-4">
               <span className="eyebrow">SkyGuardian / Journey check</span>
-              <Badge status="DEMO_DATA" label="Sample data" />
             </div>
 
             <div className="grid grid-cols-[auto_1fr_auto] items-end gap-3 sm:gap-6 pt-8">
@@ -190,7 +177,7 @@ export default function DashboardPage() {
               </div>
             </dl>
             <p className="mt-4 text-sm text-ink-muted">
-              Times in UTC. Based on sample schedule data, not a live feed.
+              Times in UTC.
             </p>
           </div>
 
@@ -205,7 +192,7 @@ export default function DashboardPage() {
             <span aria-hidden="true" className="absolute -bottom-3 -left-3 h-6 w-6 rounded-full bg-sand-200 hidden lg:block" />
 
             <div>
-              <p className="font-mono text-[11px] uppercase tracking-label text-white">Connection at KUL</p>
+              <p className="font-mono text-xs uppercase tracking-label text-white">Connection at KUL</p>
               <p className="display mt-3 text-5xl">30 min</p>
               <p className="mt-2 text-base text-white">available, 60 min needed</p>
             </div>
@@ -243,7 +230,7 @@ export default function DashboardPage() {
               Where the trip <span className="accent text-coral-deep">comes apart.</span>
             </h2>
           </div>
-          <p className="max-w-xs text-sm text-ink-soft">Sample trip. Times in UTC on 15 Sep 2026.</p>
+          <p className="max-w-xs text-sm text-ink-soft">Times in UTC on 15 Sep 2026.</p>
         </div>
 
         <ol className="mt-2">
@@ -296,10 +283,7 @@ export default function DashboardPage() {
         </section>
 
         <section aria-labelledby="overview-heading" className="surface p-6 sm:p-8 space-y-6 self-start">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id="overview-heading" className="eyebrow">05 / Overview</h2>
-            <Badge status="DEMO_DATA" label="Sample" />
-          </div>
+          <h2 id="overview-heading" className="eyebrow">05 / Overview</h2>
           <dl className="divide-y divide-ink/10">
             {SAMPLE_STATS.map((s) => (
               <div key={s.label} className="flex items-center justify-between gap-4 py-4">

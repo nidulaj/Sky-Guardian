@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, MapPin, Clock, RefreshCw } from 'lucide-react';
-import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { getWeatherAirports } from '@/lib/api/weather';
 import { Airport, AirportWeatherResult } from '@/types/weather';
@@ -231,11 +230,7 @@ export default function WeatherAgentCard({
       )}
 
       {/* Footer */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink/10 pt-4 text-sm text-ink-muted">
-        <div className="flex items-center gap-2">
-          <span>Source: {data?.source ?? '—'}</span>
-          {data?.is_mock && <Badge status="DEMO_DATA" label="Demo Data" />}
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-ink/10 pt-4 text-sm text-ink-muted">
         {lastUpdated && !error && <span>Last updated {lastUpdated.toLocaleTimeString()}</span>}
       </div>
     </div>

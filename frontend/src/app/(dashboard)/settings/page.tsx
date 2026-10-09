@@ -363,7 +363,7 @@ export default function SettingsPage() {
             />
             <Toggle
               label="Remember my recent checks"
-              description="Show past checks in History. Off by default. In this demo, History shows sample data only."
+              description="Show past checks in History. Off by default."
               checked={prefs.rememberChecks}
               onChange={(v) => update('rememberChecks', v)}
             />

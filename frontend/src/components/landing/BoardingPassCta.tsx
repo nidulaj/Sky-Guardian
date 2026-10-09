@@ -31,7 +31,6 @@ export default function BoardingPassCta() {
     <section aria-labelledby="demo-title" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28">
       <div className="flex flex-wrap items-center justify-between gap-4 border-y border-ink/15 py-4">
         <p className="eyebrow">06 / Try it</p>
-        <p className="eyebrow hidden sm:block">Sample journey · SG-DEMO</p>
         <p className="eyebrow">No booking needed</p>
       </div>
 
@@ -40,19 +39,16 @@ export default function BoardingPassCta() {
           Two flights, one tight transfer. <span className="accent text-coral">See it checked.</span>
         </h2>
         <p className="text-base leading-relaxed text-ink-soft sm:text-lg lg:col-span-5">
-          Our demo journey uses sample data: the first flight lands late in Kuala Lumpur and leaves too little time to
-          connect. Run it to see every agent at work.
+          The first flight lands late in Kuala Lumpur and leaves too little time to connect. Run it to see every agent
+          at work.
         </p>
       </div>
 
       <div className="mt-12 flex flex-col drop-shadow-[0_20px_30px_rgba(26,23,20,0.10)] md:flex-row">
         {/* Main pass */}
         <div className="relative flex-1 rounded-t-3xl bg-sand-50 p-6 sm:p-10 md:rounded-l-3xl md:rounded-tr-none">
-          <div className="flex items-center justify-between gap-4 border-b border-ink/15 pb-4">
+          <div className="border-b border-ink/15 pb-4">
             <p className="eyebrow">SkyGuardian · Journey check</p>
-            <span className="shrink-0 whitespace-nowrap rounded-full bg-mist-soft px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-mist-deep">
-              Demo data
-            </span>
           </div>
 
           <div className="mt-8 flex items-start">
@@ -88,9 +84,6 @@ export default function BoardingPassCta() {
               </div>
             ))}
           </dl>
-
-          <p className="mt-4 font-mono text-xs text-ink-muted">Sample scenario for demonstration. Not a real booking.</p>
-
         </div>
 
         {/* Stub */}
@@ -99,7 +92,7 @@ export default function BoardingPassCta() {
           <span aria-hidden="true" className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-sand-200" />
           <span aria-hidden="true" className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-sand-200 md:hidden" />
           <span aria-hidden="true" className="absolute -bottom-3 -left-3 hidden h-6 w-6 rounded-full bg-sand-200 md:block" />
-          <p className="font-mono text-[11px] uppercase tracking-label text-white">Your stub</p>
+          <p className="font-mono text-xs uppercase tracking-label text-white">Your stub</p>
           <p className="display mt-4 flex items-center gap-3 text-4xl sm:text-5xl">
             CMB <span className="text-2xl font-normal" aria-hidden="true">→</span> NRT
           </p>
@@ -113,13 +106,13 @@ export default function BoardingPassCta() {
               <dd className="font-medium">Likely missed</dd>
             </div>
           </dl>
-          <Barcode value="SG-DEMO-CMB-KUL-NRT" className="mt-6 h-14 w-full text-white" />
+          <Barcode value="SG-CMB-KUL-NRT" className="mt-6 h-14 w-full text-white" />
           <div className="flex-1" aria-hidden="true" />
           <Link
             href="/journeys/new"
             className="group mt-6 inline-flex min-h-[56px] items-center justify-between gap-3 rounded-2xl bg-white px-5 text-base font-medium text-coral-deep transition-colors hover:bg-sand-50"
           >
-            Try the demo journey
+            Try this journey
             <ArrowUpRight className="h-5 w-5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
           </Link>
         </div>

@@ -268,7 +268,7 @@ export function HourlyTile({
         active ? 'border-ink bg-sand-50' : 'border-ink/10 bg-sand-100 hover:border-ink/30'
       }`}
     >
-      <span className={`font-mono text-[11px] uppercase tracking-[0.08em] ${active ? 'text-ink' : 'text-ink-muted'}`}>{label}</span>
+      <span className={`font-mono text-xs uppercase tracking-[0.08em] ${active ? 'text-ink' : 'text-ink-muted'}`}>{label}</span>
       <WeatherIcon code={obs?.weather_code} iso={obs?.forecast_time} className="h-6 w-6" />
       <span className="text-lg font-semibold tabular-nums text-ink">{formatTemperature(obs?.temperature_c)}</span>
       {/* Risk bar: sand track + filled level tone */}

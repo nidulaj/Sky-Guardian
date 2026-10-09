@@ -21,7 +21,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           className="relative hidden overflow-hidden rounded-4xl bg-gradient-to-br from-cabin-light via-cabin to-cabin-dark p-10 xl:p-12 text-white lg:flex lg:flex-col lg:gap-8"
         >
           <div className="flex items-start justify-between gap-6">
-            <p className="font-mono text-[11px] uppercase tracking-label text-white/85">Seat 14A · Window</p>
+            <p className="font-mono text-xs uppercase tracking-label text-white/85">Seat 14A · Window</p>
             <WindowIllustration className="h-56 xl:h-64 w-auto shrink-0 -mr-2" />
           </div>
 

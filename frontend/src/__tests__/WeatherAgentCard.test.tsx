@@ -26,7 +26,6 @@ describe('WeatherAgentCard', () => {
     expect(screen.getByText('Reduced visibility (4.2 km)')).toBeInTheDocument();
     expect(screen.getByText('Strong wind (sustained 14 kt, gusts 31 kt)')).toBeInTheDocument();
     expect(screen.getByText(/Forecast for 06 Oct, 14:00 local \(UTC\+05:30\)/)).toBeInTheDocument();
-    expect(screen.getByText('Source: Open-Meteo')).toBeInTheDocument();
     expect(screen.getByText(/Last updated/)).toBeInTheDocument();
     // Airport selector is populated from the backend list.
     expect(await screen.findByText('Bandaranaike International Airport, Colombo')).toBeInTheDocument();
@@ -68,10 +67,12 @@ describe('WeatherAgentCard', () => {
     expect(await screen.findByText('No significant weather hazards at this hour.')).toBeInTheDocument();
   });
 
-  it('flags mock/demo data', async () => {
+  it('does not show source or demo labels', async () => {
     mockWeatherBackend((airport) => ({ status: 200, body: weatherResult({ airport, is_mock: true, source: 'MockWeatherProvider' }) }));
     render(<WeatherAgentCard />);
-    expect(await screen.findByText('Demo Data')).toBeInTheDocument();
+    expect(await screen.findByText(/Last updated/)).toBeInTheDocument();
+    expect(screen.queryByText(/Source:/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Demo Data')).not.toBeInTheDocument();
   });
 
   it('auto-refreshes on the configured interval', async () => {

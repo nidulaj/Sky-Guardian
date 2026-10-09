@@ -41,17 +41,17 @@
 @layer components {
   /* Small uppercase monospace label, e.g. "01 / FLIGHT SEQUENCE" */
   .eyebrow {
-    @apply font-mono text-[11px] uppercase tracking-label text-ink-muted;
+    @apply font-mono text-xs uppercase tracking-label text-ink-muted;
   }
 
   /* Large tight grotesk headline */
   .display {
-    @apply font-sans font-semibold tracking-display leading-[0.95];
+    @apply font-sans font-semibold tracking-display leading-[1.05];
   }
 
   /* Italic serif accent word inside a headline */
   .accent {
-    @apply font-serif italic font-normal tracking-[-0.02em];
+    @apply font-serif italic font-normal tracking-normal;
   }
 
   /* Cream card surface */
