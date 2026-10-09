@@ -19,7 +19,7 @@ import AgentWorkflowProgress from '@/components/journey/AgentWorkflowProgress';
 import ExplainabilityDrawer from '@/components/journey/ExplainabilityDrawer';
 import FlightStatusCard from '@/components/journey/FlightStatusCard';
 import ConnectionCard from '@/components/journey/ConnectionCard';
-import SafeRichText from '@/components/journey/SafeRichText';
+import RecommendationCard from '@/components/journey/RecommendationCard';
 import { AlternativesList, PolicyEvidenceList, SourcesList } from '@/components/journey/JourneyDetails';
 import JourneyWeatherPanel from '@/components/journey/JourneyWeatherPanel';
 import PassengerPolicyAssistant from '@/components/dashboard/PassengerPolicyAssistant';
@@ -325,7 +325,12 @@ export default function DashboardPage() {
                 <section className="space-y-6">
                   <SectionTitle n={3} label="What to do now" />
                   <div className="rounded-3xl border border-ink/10 bg-sand-50 p-5 sm:p-8">
-                    <SafeRichText text={result.recommendation} className="text-base sm:text-lg text-ink-soft leading-relaxed" />
+                    <RecommendationCard
+                      plan={result.recovery_plan}
+                      mode={result.recommendation_mode}
+                      fallbackText={result.recommendation}
+                      policyEvidence={result.policy_evidence}
+                    />
                     <div className="mt-6 flex flex-col gap-4 border-t border-ink/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-sm text-ink-muted">
                         Confirm flight changes and rebooking with your airline.

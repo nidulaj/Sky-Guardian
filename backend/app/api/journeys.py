@@ -66,6 +66,8 @@ async def analyze_journey(request: JourneyAnalyzeRequest):
         alternatives=final_state.alternative_options,
         alternative_search=final_state.alternative_search,
         recommendation=final_state.recommendation_text,
+        recovery_plan=final_state.recovery_plan,
+        recommendation_mode=final_state.recommendation_mode,
         sources=final_state.sources,
         warnings=final_state.warnings,
         is_demo_data=final_state.is_demo_data,

@@ -176,8 +176,11 @@ export function PolicyEvidenceList({ items }: { items: PolicyEvidence[] }) {
         const href = safeHttpUrl(p.source_url);
         const effective = formatTravelDate(p.effective_date);
         return (
-          <li key={p.policy_id ?? i} className="rounded-3xl border border-ink/10 bg-sand-50 p-5 sm:p-6">
-            <p className="eyebrow">{[p.airline, p.policy_type].filter(Boolean).join(' / ') || 'Airline policy'}</p>
+          // id matches the recovery plan's citation P1..Pn (position in the evidence list).
+          <li key={p.policy_id ?? i} id={`policy-P${i + 1}`} className="scroll-mt-24 rounded-3xl border border-ink/10 bg-sand-50 p-5 sm:p-6">
+            <p className="eyebrow">
+              <span className="font-mono">[P{i + 1}]</span> {[p.airline, p.policy_type].filter(Boolean).join(' / ') || 'Airline policy'}
+            </p>
             {p.title && <h4 className="mt-2 text-lg font-semibold text-ink leading-snug">{p.title}</h4>}
             {p.snippet && (
               <blockquote className="mt-4 flex gap-3 border-l-2 border-coral pl-4">

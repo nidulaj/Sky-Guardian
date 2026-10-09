@@ -45,4 +45,11 @@ async def test_cmb_kul_tokyo_demo_journey():
         # Verify Alternatives & Recommendations
         assert len(data["alternatives"]) > 0
         assert len(data["policy_evidence"]) > 0
-        assert "SriLankan Airlines" in data["recommendation"]
+        # The carrier to contact comes from the delayed inbound flight's data, not a hard-coded fallback.
+        delayed = next(f for f in data["flight_statuses"] if f["flight_number"] == "UL001")
+        plan = data["recovery_plan"]
+        assert plan["contact"] == delayed["airline"] == "SriLankan Airlines"
+        assert plan["headline"] == "Your connection at KUL is likely missed"
+        assert set(plan["policy_citations"]) == {f"P{i}" for i in range(1, len(data["policy_evidence"]) + 1)}
+        assert data["recommendation_mode"] == "template"
+        assert plan["headline"] in data["recommendation"]

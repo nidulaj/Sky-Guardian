@@ -22,8 +22,9 @@ class Settings(BaseSettings):
     ADMIN_REGISTRATION_SECRET: str = "skyguardian_admin_secret_2026"
 
     LLM_PROVIDER: str = "mock"
-    LLM_MODEL: str = "gemini-1.5-flash"
+    LLM_MODEL: str = "gemini-2.5-flash"
     LLM_API_KEY: Optional[str] = "mock_key"
+    LLM_TIMEOUT_SECONDS: float = 20.0
 
     GEMINI_API_KEY: Optional[str] = None
     VOICE_ENABLED: bool = True
