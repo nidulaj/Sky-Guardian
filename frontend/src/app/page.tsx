@@ -2,7 +2,6 @@ import SiteFooter from '@/components/ui/SiteFooter';
 import Hero from '@/components/landing/Hero';
 import Statement from '@/components/landing/Statement';
 import HowItWorks from '@/components/landing/HowItWorks';
-import Agents from '@/components/landing/Agents';
 import LiveWeather from '@/components/landing/LiveWeather';
 import RiskEngine from '@/components/landing/RiskEngine';
 import BoardingPassCta from '@/components/landing/BoardingPassCta';
@@ -15,7 +14,6 @@ export default function LandingPage() {
         <Hero />
         <Statement />
         <HowItWorks />
-        <Agents />
         <LiveWeather />
         <RiskEngine />
         <BoardingPassCta />

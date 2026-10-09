@@ -18,7 +18,7 @@ const FIELDS = [
 
 function RouteLine() {
   return (
-    <div className="flex flex-1 items-center gap-1 px-1 sm:gap-2 sm:px-3" aria-hidden="true">
+    <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2" aria-hidden="true">
       <span className="h-px flex-1 border-t border-dashed border-coral-deep/60" />
       <Plane className="h-4 w-4 shrink-0 rotate-45 text-coral sm:h-5 sm:w-5" />
       <span className="h-px flex-1 border-t border-dashed border-coral-deep/60" />
@@ -41,7 +41,7 @@ export default function BoardingPassCta() {
         </h2>
         <p className="text-base leading-relaxed text-ink-soft sm:text-lg lg:col-span-5">
           Our demo journey uses sample data: the first flight lands late in Kuala Lumpur and leaves too little time to
-          connect. Run it to see every agent at work.
+          connect. Check your own flights for current updates.
         </p>
       </div>
 
@@ -55,7 +55,7 @@ export default function BoardingPassCta() {
             </span>
           </div>
 
-          <div className="mt-8 flex items-start">
+          <div className="mt-8 grid grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)_24px_minmax(0,1fr)] items-start sm:grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)_40px_minmax(0,1fr)]">
             {STOPS.map((stop, i) => (
               <React.Fragment key={stop.code}>
                 {i > 0 && (
@@ -63,9 +63,9 @@ export default function BoardingPassCta() {
                     <RouteLine />
                   </div>
                 )}
-                <div className={i === 1 ? 'text-center' : i === 2 ? 'text-right' : ''}>
+                <div className={`min-w-0 ${i === 1 ? 'text-center' : i === 2 ? 'text-right' : ''}`}>
                   <p className="eyebrow">{stop.role}</p>
-                  <p className="display mt-2 text-[2.5rem] text-ink sm:text-6xl lg:text-7xl">{stop.code}</p>
+                  <p className="display mt-2 text-3xl text-ink sm:text-6xl md:text-4xl lg:text-6xl xl:text-7xl">{stop.code}</p>
                   <p className="mt-2 text-sm text-ink-soft">{stop.city}</p>
                 </div>
               </React.Fragment>
@@ -119,7 +119,7 @@ export default function BoardingPassCta() {
             href="/journeys/new"
             className="group mt-6 inline-flex min-h-[56px] items-center justify-between gap-3 rounded-2xl bg-white px-5 text-base font-medium text-coral-deep transition-colors hover:bg-sand-50"
           >
-            Try the demo journey
+            Check my journey
             <ArrowUpRight className="h-5 w-5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
           </Link>
         </div>

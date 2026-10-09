@@ -34,7 +34,7 @@ export default function PassengerPolicyAssistant() {
       const res = await askRagQuestion(q, 3, 0.15);
       setResponse(res);
     } catch (err: any) {
-      setError(err.message || 'Unable to retrieve answer from policy store.');
+      setError(err.message || 'Could not check the airline rules. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -46,24 +46,21 @@ export default function PassengerPolicyAssistant() {
         <div className="space-y-1">
           <p className="eyebrow flex items-center gap-1.5 text-coral">
             <Sparkles className="h-4 w-4" />
-            <span>Passenger Rights & Policy Assistant</span>
+            <span>Airline help</span>
           </p>
           <h2 id="policy-assistant-heading" className="text-2xl font-semibold tracking-tight text-ink">
-            Ask any question about your travel rights.
+            Questions about delays or refunds?
           </h2>
         </div>
-        <span className="rounded-full bg-sand-200 px-3 py-1 text-xs font-mono text-ink-soft">
-          Powered by Supabase RAG
-        </span>
       </div>
 
       <p className="text-sm text-ink-soft leading-relaxed max-w-2xl">
-        Get direct answers grounded in airline conditions of carriage, regulatory compensation frameworks (such as EU261 & Montreal Convention), and airport minimum connection policies.
+        Check airline rules for missed flights, cancellations and refunds. Confirm what applies to your booking with your airline.
       </p>
 
       {/* Suggested prompts */}
       <div className="space-y-2">
-        <p className="eyebrow text-ink-muted">Suggested inquiries</p>
+        <p className="eyebrow text-ink-muted">Common questions</p>
         <div className="flex flex-wrap gap-2">
           {SUGGESTED_QUESTIONS.map((item, idx) => (
             <button
@@ -102,12 +99,12 @@ export default function PassengerPolicyAssistant() {
           {loading ? (
             <>
               <RefreshCw className="h-4 w-4 animate-spin" />
-              Searching policies...
+              Checking...
             </>
           ) : (
             <>
               <BookOpen className="h-4 w-4" />
-              Ask Policy Assistant
+              Ask a question
             </>
           )}
         </Button>
@@ -127,9 +124,8 @@ export default function PassengerPolicyAssistant() {
           <div className="flex items-center justify-between">
             <span className="eyebrow flex items-center gap-1.5 text-ink-soft">
               <CheckCircle2 className="h-4 w-4 text-status-safe" />
-              Policy Finding
+              Your answer
             </span>
-            <span className="font-mono text-xs text-ink-muted">Retrieved in {response.latency_ms}ms</span>
           </div>
 
           <p className="text-base text-ink leading-relaxed whitespace-pre-wrap">{response.answer}</p>
@@ -137,7 +133,7 @@ export default function PassengerPolicyAssistant() {
           {/* Document Sources Cited */}
           {response.sources && response.sources.length > 0 && (
             <div className="border-t border-ink/10 pt-4 space-y-2">
-              <p className="eyebrow text-ink-muted">Verified Policy Sources Cited</p>
+              <p className="eyebrow text-ink-muted">Sources</p>
               <div className="flex flex-wrap gap-2">
                 {response.sources.map((s, idx) => (
                   <span
@@ -146,9 +142,6 @@ export default function PassengerPolicyAssistant() {
                   >
                     <BookOpen className="h-3 w-3 text-coral" />
                     <span>{s.name || 'Carrier Policy'}</span>
-                    {s.relevance_score != null && (
-                      <span className="text-coral-deep font-semibold">({(s.relevance_score * 100).toFixed(0)}% match)</span>
-                    )}
                   </span>
                 ))}
               </div>

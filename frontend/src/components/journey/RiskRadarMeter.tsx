@@ -10,9 +10,9 @@ interface RiskRadarMeterProps {
 
 /** The three Risk agent inputs. Weights are not listed here: they come from the backend (config/risk.yaml). */
 export const RISK_PARTS = [
-  { key: 'flight', label: 'Flight risk', short: 'Flight', help: 'Delays, cancellations or diversions reported by the Flight agent.', Icon: Plane },
-  { key: 'connection', label: 'Connection risk', short: 'Connection', help: 'Transfer time against the minimum, from the Connection agent.', Icon: ArrowLeftRight },
-  { key: 'weather', label: 'Weather risk', short: 'Weather', help: 'Worst airport weather on your route, from the Weather agent.', Icon: CloudSun },
+  { key: 'flight', label: 'Flight risk', short: 'Flight', help: 'Reported delays, cancellations or diversions.', Icon: Plane },
+  { key: 'connection', label: 'Connection risk', short: 'Connection', help: 'Time available to catch your next flight.', Icon: ArrowLeftRight },
+  { key: 'weather', label: 'Weather risk', short: 'Weather', help: 'Weather conditions that could affect your flights.', Icon: CloudSun },
 ] as const;
 
 const RUNWAY_IMAGE = '/images/risk/runway-sunset.jpg';
@@ -86,7 +86,6 @@ export default function RiskRadarMeter({ risk }: RiskRadarMeterProps) {
   const components = risk.components ?? {};
   const statusOf = (key: RiskComponentName): RiskComponent['status'] =>
     components[key]?.status ?? (scores[key] === null ? 'missing' : 'available');
-  const weightOf = (key: RiskComponentName) => risk.effective_weights?.[key] ?? risk.weights?.[key];
   const applicable = RISK_PARTS.filter((p) => statusOf(p.key) !== 'not_applicable');
   const scored = applicable.filter((p) => statusOf(p.key) === 'available' && scores[p.key] !== null);
   const notes = risk.uncertainty ?? [];
@@ -113,13 +112,13 @@ export default function RiskRadarMeter({ risk }: RiskRadarMeterProps) {
           <div>
             <p className="eyebrow flex items-center gap-2 text-sand-100">
               <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-              Risk agent
+              Journey risk
             </p>
             <h3 className="display mt-3 text-4xl text-white sm:text-5xl">
-              Journey disruption <span className="accent text-coral-peach">risk</span>
+              Your journey <span className="accent text-coral-peach">risk</span>
             </h3>
             <p className="mt-3 max-w-md text-base text-sand-100">
-              Combines the Flight, Connection and Weather agent results into one weighted score.
+              Based on flight status, connection time and weather.
             </p>
           </div>
           <Badge
@@ -179,14 +178,14 @@ export default function RiskRadarMeter({ risk }: RiskRadarMeterProps) {
             )}
             <Ring
               value={applicable.length ? (scored.length / applicable.length) * 100 : 0}
-              label="Data coverage"
-              sub={`${scored.length} of ${applicable.length} parts scored`}
+              label="Data available"
+              sub={`${scored.length} of ${applicable.length} checks available`}
               color={RING.coverage}
             />
           </div>
 
           <div className={card('flex flex-col p-6 lg:col-span-4')}>
-            <p className="eyebrow text-sand-300">Component scores</p>
+            <p className="eyebrow text-sand-300">Risk breakdown</p>
             <div className="mt-4 flex min-h-40 flex-1 items-end justify-around gap-4" aria-hidden="true">
               {RISK_PARTS.map((p) => {
                 const v = scores[p.key];
@@ -212,7 +211,6 @@ export default function RiskRadarMeter({ risk }: RiskRadarMeterProps) {
             const comp = components[key];
             const status = statusOf(key);
             const value = scores[key];
-            const weight = weightOf(key);
             const head = (
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
@@ -221,11 +219,6 @@ export default function RiskRadarMeter({ risk }: RiskRadarMeterProps) {
                   </span>
                   <span className="whitespace-nowrap text-lg font-medium text-white">{label}</span>
                 </div>
-                {status === 'available' && weight !== undefined && (
-                  <span className="whitespace-nowrap font-mono text-xs uppercase tracking-label text-sand-300" title="Weight in the journey score">
-                    {Math.round(weight * 100)}% weight
-                  </span>
-                )}
               </div>
             );
 
@@ -233,7 +226,7 @@ export default function RiskRadarMeter({ risk }: RiskRadarMeterProps) {
               return (
                 <li key={key} className={card('p-6')} data-testid={`risk-${key}-component`}>
                   {head}
-                  <p className="display mt-5 text-3xl text-sand-100">Not applicable</p>
+                  <p className="display mt-5 text-3xl text-sand-100">Not needed</p>
                   <p className="mt-2 text-base text-sand-300 leading-relaxed">{comp?.reason || 'Does not apply to this journey.'}</p>
                 </li>
               );
@@ -245,7 +238,7 @@ export default function RiskRadarMeter({ risk }: RiskRadarMeterProps) {
                   {head}
                   <p className="display mt-5 text-3xl text-status-caution-bg">Unavailable</p>
                   <p className="mt-2 text-base text-sand-100 leading-relaxed">{comp?.reason || 'No data for this part of the journey.'}</p>
-                  <p className="mt-3 text-sm text-sand-300">Not scored and left out of the total, never counted as 0.</p>
+                  <p className="mt-3 text-sm text-sand-300">Missing information is not treated as safe.</p>
                 </li>
               );
             }
@@ -262,15 +255,10 @@ export default function RiskRadarMeter({ risk }: RiskRadarMeterProps) {
                 <div
                   className="mt-4 h-1.5 rounded-full bg-sand-50/10"
                   role="img"
-                  aria-label={`${label}: ${value} out of 100${weight !== undefined ? `, weight ${Math.round(weight * 100)} percent` : ''}`}
+                  aria-label={`${label}: ${value} out of 100`}
                 >
                   <div className={`h-1.5 rounded-full ${fill(comp?.level)}`} style={{ width: `${clamp(value)}%` }} />
                 </div>
-                {weight !== undefined && (
-                  <p className="mt-2 text-sm text-sand-300">
-                    Adds <span className="font-medium text-white tabular-nums">{(value * weight).toFixed(1)}</span> points to the total
-                  </p>
-                )}
                 <p className="mt-4 border-t border-sand-50/10 pt-4 text-base text-sand-100 leading-relaxed">{comp?.reason || help}</p>
               </li>
             );
@@ -296,7 +284,7 @@ export default function RiskRadarMeter({ risk }: RiskRadarMeterProps) {
           <div className={`space-y-5 ${explanation.length > 0 ? 'lg:col-span-5' : 'lg:col-span-12'}`}>
             {(risk.confidence != null || notes.length > 0) && (
               <div className={card('space-y-3 p-6')}>
-                <p className="eyebrow text-sand-300">Confidence and caveats</p>
+                <p className="eyebrow text-sand-300">What to keep in mind</p>
                 {risk.confidence != null && (
                   <p className="text-base text-sand-100">
                     Confidence:{' '}
@@ -319,7 +307,7 @@ export default function RiskRadarMeter({ risk }: RiskRadarMeterProps) {
               <span>
                 {score === null
                   ? 'Without flight, connection or weather data the risk cannot be estimated. Check your flight with your airline.'
-                  : `This is a weighted estimate, not a probability: a score of ${score} does not mean a ${score}% chance of disruption. Use it to decide how closely to watch your trip.`}
+                  : `A score of ${score} is a guide, not a ${score}% chance of a delay. Confirm changes with your airline.`}
               </span>
             </p>
           </div>

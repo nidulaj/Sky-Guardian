@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowRight, HelpCircle, RotateCcw, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowRight, HelpCircle, RotateCcw, Search, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { analyzeJourney } from '@/lib/api/client';
 import type { FlightLegInput, JourneyAnalysisResponse } from '@/types/journey';
@@ -60,8 +60,13 @@ export default function DashboardPage() {
   const [result, setResult] = useState<JourneyAnalysisResponse | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [language, setLanguage] = useState<VoiceLanguage>('en');
+  const [searchingBackups, setSearchingBackups] = useState(false);
+  const [backupError, setBackupError] = useState<string | null>(null);
 
   const requestId = useRef(0);
+  const analyzedJourney = useRef<{ legs: FlightLegInput[]; language: VoiceLanguage } | null>(null);
+  const backupResultsRef = useRef<HTMLElement>(null);
+  const focusBackups = useRef(false);
   const resultsRef = useRef<HTMLDivElement>(null);
   const resultHeadingRef = useRef<HTMLHeadingElement>(null);
 
@@ -74,10 +79,18 @@ export default function DashboardPage() {
 
   // Once a result arrives, move focus to its heading so screen-reader and keyboard users land on it.
   useEffect(() => {
-    if (result) resultHeadingRef.current?.focus({ preventScroll: true });
+    if (!result) return;
+    if (focusBackups.current) {
+      focusBackups.current = false;
+      backupResultsRef.current?.focus({ preventScroll: true });
+      backupResultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+      resultHeadingRef.current?.focus({ preventScroll: true });
+    }
   }, [result]);
 
   const runCheck = async (input: FlightLegInput[]) => {
+    if (loading || searchingBackups) return;
     const normalised = input.map((l) => ({ ...l, flight_number: normaliseFlightNumber(l.flight_number) }));
     setLegs(normalised);
 
@@ -95,6 +108,7 @@ export default function DashboardPage() {
     setErrors([]);
     setFormError(null);
     setError(null);
+    setBackupError(null);
     setResult(null);
     setDrawerOpen(false);
     setLoading(true);
@@ -103,13 +117,35 @@ export default function DashboardPage() {
     const id = ++requestId.current;
     try {
       const res = await analyzeJourney(normalised, language);
-      if (id === requestId.current) setResult(res);
+      if (id === requestId.current) {
+        analyzedJourney.current = { legs: normalised, language };
+        setResult(res);
+      }
     } catch (err: any) {
       if (id === requestId.current) {
         setError(err instanceof Error && err.message ? err.message : 'Something went wrong while checking this journey.');
       }
     } finally {
       if (id === requestId.current) setLoading(false);
+    }
+  };
+
+  const findBackups = async () => {
+    const checked = analyzedJourney.current;
+    if (!checked || loading || searchingBackups) return;
+    setSearchingBackups(true);
+    setBackupError(null);
+    const id = ++requestId.current;
+    try {
+      const res = await analyzeJourney(checked.legs, checked.language, true);
+      if (id === requestId.current) {
+        focusBackups.current = true;
+        setResult(res);
+      }
+    } catch {
+      if (id === requestId.current) setBackupError('Backup search failed. Try again or ask the airline for options.');
+    } finally {
+      if (id === requestId.current) setSearchingBackups(false);
     }
   };
 
@@ -190,7 +226,7 @@ export default function DashboardPage() {
               legs={legs}
               errors={errors}
               formError={formError}
-              loading={loading}
+              loading={loading || searchingBackups}
               onChange={handleLegsChange}
               onSubmit={handleSubmit}
             />
@@ -225,7 +261,7 @@ export default function DashboardPage() {
                 <ol className="mt-8 space-y-0">
                   {[
                     ['Enter each flight', 'Airport codes, flight number and date for every leg of the trip.'],
-                    ['Press Check my journey', 'Seven agents look at flights, transfer time, weather and airline rules.'],
+                    ['Press Check my journey', 'Flight status, transfer time and weather are checked.'],
                     ['Read the result', 'A risk estimate, clear advice, backup routes and the sources behind them.'],
                   ].map(([title, desc], i) => (
                     <li key={title} className="grid grid-cols-[3rem_minmax(0,1fr)] gap-x-3 border-t border-ink/10 py-4">
@@ -292,7 +328,7 @@ export default function DashboardPage() {
                     <SafeRichText text={result.recommendation} className="text-base sm:text-lg text-ink-soft leading-relaxed" />
                     <div className="mt-6 flex flex-col gap-4 border-t border-ink/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-sm text-ink-muted">
-                        Written by the Recovery agent. Check it against the details below and confirm with your airline before you act.
+                        Confirm flight changes and rebooking with your airline.
                       </p>
                       <Button variant="outline" onClick={() => setDrawerOpen(true)} className="shrink-0">
                         <HelpCircle className="h-4 w-4" aria-hidden="true" />
@@ -331,14 +367,22 @@ export default function DashboardPage() {
                 </section>
 
                 {/* 06 Alternatives */}
-                <section className="space-y-6">
-                  <SectionTitle n={6} label="Backup routes, ranked" />
-                  <AlternativesList items={result.alternatives} search={result.alternative_search} />
+                <section ref={backupResultsRef} tabIndex={-1} aria-labelledby="backup-routes-title" className="space-y-6">
+                  <SectionTitle n={6} label="Backup flights" id="backup-routes-title" />
+                  <Button type="button" variant="outline" className="max-w-full rounded-md"
+                    isLoading={searchingBackups} loadingText="Searching..." onClick={() => void findBackups()}>
+                    <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    Find backup flights
+                  </Button>
+                  {backupError && <p role="alert" className="text-sm text-status-danger">{backupError}</p>}
+                  {searchingBackups
+                    ? <p role="status" className="text-sm text-ink-soft">Checking backup flights...</p>
+                    : <AlternativesList items={result.alternatives} search={result.alternative_search} />}
                 </section>
 
                 {/* 07 Policy */}
                 <section className="space-y-6">
-                  <SectionTitle n={7} label="Airline policy evidence" />
+                  <SectionTitle n={7} label="Airline rules" />
                   <PolicyEvidenceList items={result.policy_evidence} />
                 </section>
 
@@ -348,10 +392,9 @@ export default function DashboardPage() {
                   <SourcesList items={result.sources} />
                   <div className="flex flex-col gap-1 font-mono text-sm text-ink-muted sm:flex-row sm:flex-wrap sm:gap-x-6">
                     {updated && <span>Last updated {updated}</span>}
-                    <span className="break-all">Trace {result.trace_id}</span>
                   </div>
                   <Button variant="ghost" onClick={() => setDrawerOpen(true)} className="-ml-3">
-                    See how this result was built
+                    View check details
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </section>
@@ -361,7 +404,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <VoiceJourneyPanel language={language} onLanguageChange={setLanguage} analysis={result} disabled={loading}
+      <VoiceJourneyPanel language={language} onLanguageChange={setLanguage} analysis={result} disabled={loading || searchingBackups}
         onDraft={(draftLegs) => {
           setLegs(draftLegs);
           setErrors([]);

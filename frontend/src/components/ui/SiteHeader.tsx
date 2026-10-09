@@ -8,8 +8,8 @@ import { useAuth } from '@/lib/auth/AuthContext';
 
 const MARKETING_LINKS = [
   { href: '/#how-it-works', label: 'How it works' },
-  { href: '/#agents', label: 'The agents' },
-  { href: '/#risk-engine', label: 'Risk engine' },
+  { href: '/#weather', label: 'Airport weather' },
+  { href: '/#risk-engine', label: 'Risk levels' },
   { href: '/#responsible-ai', label: 'Responsible AI' },
 ];
 
@@ -225,5 +225,4 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
     </header>
   );
 }
-
 

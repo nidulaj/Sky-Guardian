@@ -5,9 +5,9 @@ import SiteHeader from '@/components/ui/SiteHeader';
 import WindowIllustration from '@/components/ui/WindowIllustration';
 
 const FACTS = [
-  { label: 'Agents', value: '7 specialists, one answer' },
-  { label: 'Risk score', value: 'Open formula, 0–100' },
-  { label: 'Sample trip', value: 'CMB → KUL → NRT' },
+  { label: 'Flights', value: 'Status and delay updates' },
+  { label: 'Connections', value: 'Time to catch your next flight' },
+  { label: 'Backup flights', value: 'Other routes when you need them' },
 ];
 
 export default function Hero() {
@@ -39,7 +39,7 @@ export default function Hero() {
         <div className="relative mx-auto max-w-7xl px-5 pt-28 sm:px-8 sm:pt-36 lg:pt-44">
           <div className="relative z-10 max-w-xl lg:max-w-[540px] xl:max-w-2xl">
             <p className="animate-fade-up font-mono text-[11px] uppercase tracking-label text-white/80">
-              Flight disruption intelligence · for connecting trips
+              Flight updates and connection checks
             </p>
             <h1
               id="hero-title"

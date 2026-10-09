@@ -20,20 +20,20 @@ describe('Alternative flight results', () => {
     expect(screen.getByText('Sample only')).toBeVisible();
     expect(screen.getByText('Sample flight. Not bookable.')).toBeVisible();
     expect(screen.getByText('Top match')).toBeVisible();
-    expect(screen.getByText('Seat availability: UNKNOWN')).toBeInTheDocument();
-    expect(screen.getByText('Price: UNKNOWN')).toBeInTheDocument();
-    expect(screen.getByText('Rebooking eligibility: UNKNOWN')).toBeInTheDocument();
-    expect(screen.getByText('Risk confidence: medium')).toBeInTheDocument();
+    expect(screen.getByText('Seats: Not confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Price: Not confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Rebooking: Not confirmed')).toBeInTheDocument();
+    expect(screen.queryByText(/Ranking score|Ranking configuration|Risk confidence/)).not.toBeInTheDocument();
     expect(screen.getByText(/MockFlightSearch/)).toBeInTheDocument();
     expect(screen.getByText('Location must be confirmed.')).toBeInTheDocument();
-    expect(screen.getByText('Risk confidence: medium')).not.toBeVisible();
+    expect(screen.getByText('Seats: Not confirmed')).not.toBeVisible();
     expect(screen.getByText('Location must be confirmed.')).not.toBeVisible();
     const summary = screen.getByText('Flight details');
     fireEvent.click(summary);
     expect(summary.parentElement).toHaveAttribute('open');
-    expect(screen.getByText('Ranking score: 92.50 / 100')).toBeVisible();
-    expect(screen.getByText('100% / weight 40%')).toBeVisible();
-    fireEvent.click(screen.getByText('Search limits & notes'));
+    expect(screen.getByText('Direct flight; no onward transfer.')).toBeVisible();
+    expect(screen.getByText('Price: Not confirmed')).toBeVisible();
+    fireEvent.click(screen.getByText('About this search'));
     expect(screen.getByText('Location must be confirmed.')).toBeVisible();
   });
 

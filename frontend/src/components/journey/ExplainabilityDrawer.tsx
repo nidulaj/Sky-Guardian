@@ -7,7 +7,7 @@ import type { FlightResult } from '@/types/flight';
 import type { AgentRun, ConnectionSummary, RecoveryReason, RiskSummary, SourceRef } from '@/types/journey';
 import { formatMinutes } from '@/lib/flightTime';
 import { RISK_PARTS } from './RiskRadarMeter';
-import { AGENTS } from './AgentWorkflowProgress';
+import { CHECKS } from './AgentWorkflowProgress';
 
 interface ExplainabilityDrawerProps {
   isOpen: boolean;
@@ -38,8 +38,8 @@ const RUN_STATUS_TEXT: Record<AgentRun['status'], string> = {
   skipped: 'Not needed',
 };
 
-function agentName(id: string): string {
-  return AGENTS.find((a) => a.id === id)?.name ?? id.replace(/_agent$/, '').replace(/_/g, ' ');
+function checkName(id: string): string {
+  return CHECKS.find((check) => check.id === id)?.name ?? 'Journey check';
 }
 
 function flightSentence(f: FlightResult): string {
@@ -148,7 +148,7 @@ export default function ExplainabilityDrawer({
       >
         <div className="flex items-start justify-between gap-4 border-b border-ink/10 px-5 py-5 sm:px-8">
           <div>
-            <p className="eyebrow">Explainability</p>
+            <p className="eyebrow">Check details</p>
             <h2 id="explain-title" className="display mt-2 text-3xl sm:text-4xl text-ink">
               Why this <span className="accent text-coral">advice?</span>
             </h2>
@@ -166,7 +166,7 @@ export default function ExplainabilityDrawer({
 
         <div className="flex-1 space-y-8 overflow-y-auto px-5 py-6 sm:px-8">
           <p className="text-base text-ink-soft leading-relaxed">
-            Everything below comes from this check’s results. It shows what the agents found and how the score was put together.
+            The flight updates and sources behind your advice.
             {primaryIssue && (
               <>
                 {' '}Main finding: <strong className="font-semibold text-ink">{primaryIssue}</strong>
@@ -208,7 +208,7 @@ export default function ExplainabilityDrawer({
                 </tbody>
               </table>
               <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-                Result: <Badge status={risk.level} label={`${statusLabel(risk.level)} risk`} /> This is a weighted estimate, not a probability.
+                Result: <Badge status={risk.level} label={`${statusLabel(risk.level)} risk`} /> This score is a guide, not the chance of a delay.
               </p>
             </Section>
           )}
@@ -254,7 +254,7 @@ export default function ExplainabilityDrawer({
           )}
 
           {recoveryReasons.length > 0 && (
-            <Section n={++n} title="Why recovery options were checked">
+            <Section n={++n} title="Why backup flights were checked">
               <ul className="list-disc space-y-1.5 pl-5 text-base text-ink-soft leading-relaxed">
                 {recoveryReasons.map((r) => (
                   <li key={r}>{RECOVERY_REASON_TEXT[r] ?? r}</li>
@@ -264,12 +264,12 @@ export default function ExplainabilityDrawer({
           )}
 
           {workflowTrace.length > 0 && (
-            <Section n={++n} title="How the agents ran">
+            <Section n={++n} title="Checks completed">
               <ol className="space-y-3">
                 {workflowTrace.map((run) => (
                   <li key={run.agent} className="border-t border-ink/10 pt-3 first:border-t-0 first:pt-0">
                     <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                      <span className="text-base text-ink">{agentName(run.agent)} agent</span>
+                      <span className="text-base text-ink">{checkName(run.agent)}</span>
                       <span className={`text-sm ${run.status === 'error' ? 'text-status-danger' : 'text-ink-soft'}`}>
                         {RUN_STATUS_TEXT[run.status] ?? run.status}
                         {run.duration_ms != null && run.status !== 'skipped' && (
@@ -311,7 +311,7 @@ export default function ExplainabilityDrawer({
             <p>SkyGuardian gives guidance, not decisions. Confirm any rebooking or compensation with your airline.</p>
             {traceId && (
               <p className="mt-2">
-                Trace ID <span className="font-mono text-ink break-all">{traceId}</span>. Quote it if you report a problem.
+                Support reference <span className="font-mono text-ink break-all">{traceId}</span>.
               </p>
             )}
           </section>

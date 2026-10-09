@@ -9,8 +9,7 @@ export default function SiteFooter() {
         <div className="space-y-4 max-w-sm">
           <Wordmark />
           <p className="text-sm text-ink-soft leading-relaxed">
-            Decision support for travellers. SkyGuardian estimates disruption risk from available schedule data and
-            explains its reasoning. Always confirm critical changes with your airline.
+            Flight updates, connection checks and backup options. Always confirm changes with your airline.
           </p>
         </div>
         <div className="space-y-3">
@@ -24,7 +23,7 @@ export default function SiteFooter() {
           <p className="eyebrow">Learn</p>
           <ul className="text-sm">
             <li><Link href="/#how-it-works" className="inline-block py-2.5 text-ink-soft hover:text-ink">How it works</Link></li>
-            <li><Link href="/#risk-engine" className="inline-block py-2.5 text-ink-soft hover:text-ink">Risk engine</Link></li>
+            <li><Link href="/#risk-engine" className="inline-block py-2.5 text-ink-soft hover:text-ink">Risk levels</Link></li>
             <li><Link href="/#responsible-ai" className="inline-block py-2.5 text-ink-soft hover:text-ink">Responsible AI</Link></li>
           </ul>
         </div>

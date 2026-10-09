@@ -120,6 +120,20 @@ async def test_all_three_available():
     assert result.status == "success"
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("flights,connections", [
+    (two_legs(inbound_status="CANCELLED"), None),
+    (two_legs(window=-10), None),
+    (two_legs(), []),
+    ([], []),
+])
+async def test_passenger_risk_messages_do_not_use_agent_labels(flights, connections):
+    risk, _ = await assess(flights, all_weather(0), connections=connections)
+    messages = [*risk["applied_overrides"], *risk["explanation"], *risk["warnings"],
+                *risk["uncertainty"], *(part.get("reason") or "" for part in risk["components"].values())]
+    assert all("agent" not in message.lower() for message in messages)
+
+
 # ---------------------------------------------------------------------------
 # 2-7. Missing components: re-normalised weights, never 0
 # ---------------------------------------------------------------------------

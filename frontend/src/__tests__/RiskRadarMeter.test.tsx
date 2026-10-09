@@ -35,27 +35,28 @@ function risk(overrides: Partial<RiskSummary> = {}): RiskSummary {
 }
 
 describe('RiskRadarMeter', () => {
-  it('shows the overall score, component scores and backend weights', () => {
+  it('shows the risk and reasons without technical labels or formulas', () => {
     render(<RiskRadarMeter risk={risk()} />);
     expect(screen.getByText('73')).toBeInTheDocument();
     expect(screen.getByText('High risk')).toBeInTheDocument();
 
     const flight = screen.getByTestId('risk-flight-component');
     expect(flight).toHaveTextContent('65/100');
-    expect(flight).toHaveTextContent('40% weight');
+    expect(document.body.textContent).not.toMatch(/\bagents?\b|Component scores|weighted|\d+% weight/i);
     expect(flight).toHaveTextContent('UL001 is delayed by 90 minutes.');
-    expect(screen.getByTestId('risk-connection-component')).toHaveTextContent('35% weight');
-    expect(screen.getByTestId('risk-weather-component')).toHaveTextContent('25% weight');
+    expect(screen.getByTestId('risk-connection-component')).toHaveTextContent('90/100');
+    expect(screen.getByTestId('risk-weather-component')).toHaveTextContent('60/100');
 
     const notes = screen.getByTestId('risk-confidence');
     expect(notes).toHaveTextContent('HIGH (93%)');
     expect(within(screen.getByTestId('risk-explanation')).getByText(/Connection risk is very high/)).toBeInTheDocument();
   });
 
-  it('uses whatever weights the backend sends instead of fixed percentages', () => {
+  it('preserves the backend scores when weights change without showing calculation details', () => {
     render(<RiskRadarMeter risk={risk({ weights: { flight: 0.5, connection: 0.3, weather: 0.2 }, effective_weights: undefined })} />);
-    expect(screen.getByTestId('risk-flight-component')).toHaveTextContent('50% weight');
-    expect(screen.getByTestId('risk-weather-component')).toHaveTextContent('20% weight');
+    expect(screen.getByTestId('risk-flight-component')).toHaveTextContent('65/100');
+    expect(screen.getByTestId('risk-weather-component')).toHaveTextContent('60/100');
+    expect(screen.queryByText(/% weight/)).not.toBeInTheDocument();
   });
 
   it('shows "Unavailable" for missing weather, never a score of 0', () => {
@@ -83,7 +84,7 @@ describe('RiskRadarMeter', () => {
     expect(weather).toHaveTextContent('Unavailable');
     expect(weather).toHaveTextContent(reason);
     expect(weather.textContent).not.toMatch(/\d+\/100/);
-    expect(screen.getByText('2 of 3 parts scored')).toBeInTheDocument();
+    expect(screen.getByText('2 of 3 checks available')).toBeInTheDocument();
     expect(screen.getByTestId('risk-confidence')).toHaveTextContent('MEDIUM (75%)');
     expect(screen.getByTestId('risk-confidence')).toHaveTextContent('could be 80-86');
   });
@@ -101,9 +102,9 @@ describe('RiskRadarMeter', () => {
       />,
     );
     const conn = screen.getByTestId('risk-connection-component');
-    expect(conn).toHaveTextContent('Not applicable');
+    expect(conn).toHaveTextContent('Not needed');
     expect(conn).toHaveTextContent('Direct flight');
-    expect(screen.getByText('2 of 2 parts scored')).toBeInTheDocument();
+    expect(screen.getByText('2 of 2 checks available')).toBeInTheDocument();
   });
 
   it('shows an unknown risk without a number when nothing could be scored', () => {

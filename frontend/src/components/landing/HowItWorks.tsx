@@ -3,39 +3,19 @@ import SectionHeading from './SectionHeading';
 
 const STEPS = [
   {
-    label: 'You',
+    label: 'Your trip',
     title: 'Tell us your flights.',
-    body: 'Add each flight number and travel date. A sample journey is ready if you just want to look around.',
+    body: 'Add your flight numbers, airports and travel dates.',
   },
   {
-    label: 'Flight agent',
-    title: 'We check live status.',
-    body: 'Schedules, delays and cancellations for every leg, from a flight data API (sample data in demo mode).',
+    label: 'Journey check',
+    title: 'Check your connection.',
+    body: 'See flight updates, time between flights and airport weather.',
   },
   {
-    label: 'Connection agent',
-    title: 'We do the transfer maths.',
-    body: 'Minutes you really have at the hub, compared with the minimum connection time for that airport.',
-  },
-  {
-    label: 'Weather agent',
-    title: 'We watch the weather.',
-    body: 'Conditions at your departure and transfer airports that could slow boarding or arrivals.',
-  },
-  {
-    label: 'Risk agent',
-    title: 'We score the risk.',
-    body: 'Flight, connection and weather combine into one weighted 0–100 score you can inspect.',
-  },
-  {
-    label: 'Policy agent',
-    title: 'We check the rules.',
-    body: 'If things look tight, it finds the airline rules that apply, using RAG and trusted sources, with citations.',
-  },
-  {
-    label: 'Recovery agent',
-    title: 'We explain your options.',
-    body: 'Ranked alternative routes and clear next steps, in plain language. You decide what to do.',
+    label: 'Your options',
+    title: 'Choose your next step.',
+    body: 'Review the advice and backup flights. Confirm changes with your airline.',
   },
 ];
 
@@ -49,10 +29,9 @@ export default function HowItWorks() {
             eyebrow="03 / How it works"
             aside="From flight numbers to a clear next step."
             eyebrowClass="text-ink-soft"
-            title="Seven steps,"
-            accent="one clear answer."
+            title="Your trip,"
+            accent="in three steps."
             accentClass="text-coral-deep"
-            description="A supervisor passes your trip through specialist agents in a fixed order. Each one does a single job and hands its result to the next."
           />
 
           <ol className="mt-16 sm:mt-20">
@@ -99,10 +78,6 @@ export default function HowItWorks() {
             })}
           </ol>
 
-          <p className="mt-4 max-w-2xl text-base leading-relaxed text-ink-soft">
-            The rules check and alternative routes only run when the score reaches 60 or the connection is at risk.
-            Either way, the recovery agent finishes with a plain-language summary.
-          </p>
         </div>
       </div>
     </section>

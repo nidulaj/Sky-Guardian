@@ -60,6 +60,10 @@ function RouteTime({ iso, timeZone }: { iso?: string | null; timeZone?: string |
   </>;
 }
 
+function confirmedDetail(value?: string | null): string {
+  return !value?.trim() || value.trim().toUpperCase() === 'UNKNOWN' ? 'Not confirmed' : value;
+}
+
 export function AlternativesList({ items, search }: { items: AlternativeOption[]; search?: AlternativeSearchSummary }) {
   const sorted = [...items].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
   const emptyMessage = search?.status === 'unavailable'
@@ -130,20 +134,11 @@ export function AlternativesList({ items, search }: { items: AlternativeOption[]
                   <p className="mt-1">Departs <TimeText iso={flight.estimated_departure || flight.scheduled_departure} /></p>
                   <p className="mt-1">Arrives <TimeText iso={flight.estimated_arrival || flight.scheduled_arrival} /></p>
                 </div>)}
-                <p>Price: {alt.price || 'UNKNOWN'}</p>
-                <p className="mt-1">Seat availability: {alt.availability_status || 'UNKNOWN'}</p>
-                <p className="mt-1">Rebooking eligibility: {alt.policy_eligibility || 'UNKNOWN'}</p>
-                <p className="mt-1">Risk confidence: {alt.risk_confidence || 'unknown'}</p>
+                <p>Price: {confirmedDetail(alt.price)}</p>
+                <p className="mt-1">Seats: {confirmedDetail(alt.availability_status)}</p>
+                <p className="mt-1">Rebooking: {confirmedDetail(alt.policy_eligibility)}</p>
                 {(alt.ranking_reasons ?? []).length > 0 && <ul className="mt-3 list-disc space-y-1 pl-4">{alt.ranking_reasons!.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
                 {(alt.warnings ?? []).length > 0 && <ul className="mt-3 space-y-2">{alt.warnings!.map((warning, index) => <li key={index} className="flex gap-2 text-status-caution"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span className="min-w-0 break-words">{warning}</span></li>)}</ul>}
-                {alt.ranking_score != null && <p className="mt-3 font-medium text-ink">Ranking score: {alt.ranking_score.toFixed(2)} / 100</p>}
-                <dl className="mt-2 grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-[minmax(0,1fr)_auto]">
-                  {Object.entries(alt.ranking_factors ?? {}).map(([factor, score]) => <React.Fragment key={factor}>
-                    <dt className="break-words">{factor.replace(/_/g, ' ')}</dt>
-                    <dd>{Math.round(score * 100)}% / weight {Math.round((alt.ranking_weights?.[factor] ?? 0) * 100)}%</dd>
-                  </React.Fragment>)}
-                </dl>
-                {alt.ranking_config_version && <p className="mt-2">Ranking configuration: {alt.ranking_config_version}</p>}
                 {alt.sources?.map((source, si) => <p key={si} className="mt-2 break-words text-xs text-ink-muted">Source: {source.name}</p>)}
                 {alt.retrieved_at && <p className="mt-1 pb-3 text-xs text-ink-muted">Checked: <TimeText iso={alt.retrieved_at} /></p>}
               </details>
@@ -152,7 +147,7 @@ export function AlternativesList({ items, search }: { items: AlternativeOption[]
       })}
     </ol>
       {search && search.status !== 'not_needed' && <details className="mt-4 border-t border-ink/15 text-sm text-ink-soft">
-        <summary className="min-h-11 cursor-pointer py-3 font-medium text-ink">Search limits & notes</summary>
+        <summary className="min-h-11 cursor-pointer py-3 font-medium text-ink">About this search</summary>
         {search.earliest_departure && <p className="mb-2">Earliest departure: <TimeText iso={search.earliest_departure} /></p>}
         {search.status === 'partial' && <p className="mb-2">Limited search. Other routes may exist.</p>}
         {(search.warnings ?? []).map((warning) => <p key={warning} className="mb-2 break-words">{warning}</p>)}
@@ -174,7 +169,7 @@ function safeHttpUrl(url?: string | null): string | null {
 }
 
 export function PolicyEvidenceList({ items }: { items: PolicyEvidence[] }) {
-  if (items.length === 0) return <p className="text-base text-ink-soft">No airline policy text was found for this journey.</p>;
+  if (items.length === 0) return <p className="text-base text-ink-soft">No airline rules found. Check with your airline.</p>;
   return (
     <ul className="grid gap-4">
       {items.map((p, i) => {
