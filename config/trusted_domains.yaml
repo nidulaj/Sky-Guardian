@@ -10,6 +10,32 @@ trusted_airlines:
   - cathaypacific.com
   - ana.co.jp
   - jal.co.jp
+  - britishairways.com
+  - delta.com
+  - united.com
+  - aa.com
+  - lufthansa.com
+  - airfrance.com
+  - klm.com
+  - turkishairlines.com
+  - etihad.com
+  - airindia.com
+  - virginatlantic.com
+  - aircanada.com
+  - koreanair.com
+  - thaiairways.com
+  - evaair.com
+  - saudia.com
+  - swiss.com
+  - austrian.com
+  - flysas.com
+  - finnair.com
+  - iberia.com
+  - flytap.com
+  - aerlingus.com
+  - lot.com
+  - goindigo.in
+  - airnewzealand.com
 
 trusted_airports:
   - airport-cmb.lk
@@ -22,7 +48,9 @@ aviation_authorities:
   - caasl.gov.lk
   - caam.gov.my
   - faa.gov
+  - transportation.gov
   - easa.europa.eu
+  - caa.co.uk
   - iata.org
   - icao.int
 
