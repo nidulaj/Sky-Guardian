@@ -8,7 +8,27 @@ import { JourneyAnalysisResponse } from '@/types/journey';
 import { AirportWeatherResult } from '@/types/weather';
 
 const REASON = 'Forecast unavailable for selected travel date: 2026-12-01 15:30 local time at CMB is beyond the 16-day forecast range.';
-vi.mock('@/lib/auth/AuthContext', () => ({ useAuth: () => ({ user: null, isAdmin: false }) }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => '/dashboard',
+}));
+vi.mock('@/lib/auth/AuthContext', () => ({
+  useAuth: () => ({
+    user: {
+      user_id: 'usr_mock_123',
+      email: 'passenger@example.com',
+      first_name: 'Alex',
+      last_name: 'Passenger',
+      role: 'PASSENGER',
+      preferred_language: 'en',
+    },
+    token: 'mock-token',
+    isAuthenticated: true,
+    isAdmin: false,
+    isPassenger: true,
+    isLoading: false,
+  }),
+}));
 
 function unavailableWeather(airport: string, roles: string[]): AirportWeatherResult {
   return {

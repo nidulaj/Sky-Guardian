@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowRight, HelpCircle, RotateCcw, Search, ShieldCheck } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { AlertTriangle, ArrowRight, HelpCircle, RotateCcw, Search, ShieldCheck, ShieldAlert, Lock } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { analyzeJourney } from '@/lib/api/client';
 import type { FlightLegInput, JourneyAnalysisResponse } from '@/types/journey';
@@ -48,7 +49,8 @@ function SectionTitle({ n, label, id }: { n: number; label: string; id?: string 
 }
 
 export default function DashboardPage() {
-  const { user, isAdmin } = useAuth();
+  const router = useRouter();
+  const { user, isAdmin, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [legs, setLegs] = useState<FlightLegInput[]>(() =>
     Array.from({ length: 2 }, () => ({ flight_number: '', origin: '', destination: '', travel_date: DEFAULT_TRAVEL_DATE })),
@@ -76,6 +78,13 @@ export default function DashboardPage() {
     const top = el.getBoundingClientRect().top;
     if (top < 64 || top > window.innerHeight * 0.6) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
+
+  // Redirect unauthenticated visitors to login immediately
+  useEffect(() => {
+    if (!authLoading && (!isAuthenticated || !user)) {
+      router.replace('/login?redirect=/dashboard');
+    }
+  }, [authLoading, isAuthenticated, user, router]);
 
   // Once a result arrives, move focus to its heading so screen-reader and keyboard users land on it.
   useEffect(() => {
@@ -171,6 +180,72 @@ export default function DashboardPage() {
   const flights = result?.flight_statuses ?? [];
   const airport = connectionAirport(flights);
   const updated = formatDateTimeUtc(result?.last_updated);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center">
+        <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-sand-100 border border-ink/10 shadow-sm">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-coral border-r-transparent" />
+        </div>
+        <div className="space-y-1">
+          <p className="eyebrow text-ink-muted">Security Verification</p>
+          <p className="text-sm font-medium text-ink">Verifying passenger credentials...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="relative mx-auto my-8 sm:my-14 max-w-xl overflow-hidden rounded-3xl border border-ink/15 bg-sand-50/95 p-8 sm:p-12 text-center shadow-[0_25px_60px_-15px_rgba(26,23,20,0.15)] backdrop-blur-xl">
+        <div className="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-status-caution/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-coral/10 blur-3xl" />
+
+        <div className="relative space-y-6">
+          <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-status-caution-bg border border-status-caution/30 text-status-caution shadow-inner">
+            <ShieldAlert className="h-8 w-8 stroke-[2.2]" />
+            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-caution opacity-75" />
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-status-caution" />
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <span className="font-mono text-[10px] tracking-widest uppercase font-bold text-status-caution">
+              Restricted Area · Authentication Required
+            </span>
+            <h1 className="font-sans font-semibold text-2xl sm:text-3xl text-ink leading-tight">
+              Passenger Sign-In Required
+            </h1>
+            <p className="text-sm text-ink-soft max-w-md mx-auto leading-relaxed">
+              You must be signed in with a registered passenger account to access real-time journey risk analysis, flight tracking, and disruption compensation engines.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Link
+              href="/login?redirect=/dashboard"
+              className="inline-flex h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-ink px-6 text-sm font-medium text-sand-50 transition-colors hover:bg-ink-soft shadow-md shadow-ink/10"
+            >
+              <span>Sign in as Passenger</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/register"
+              className="inline-flex h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-ink/20 px-6 text-sm font-medium text-ink transition-colors hover:border-ink/40 hover:bg-sand-100"
+            >
+              Create Passenger Account
+            </Link>
+          </div>
+
+          <div className="pt-2 border-t border-ink/10 flex items-center justify-center gap-2 text-xs font-mono text-ink-muted">
+            <Lock className="h-3 w-3 text-ink-muted" />
+            <span>Protected by SkyGuardian Security Clearance Protocol</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-12 sm:space-y-16">
