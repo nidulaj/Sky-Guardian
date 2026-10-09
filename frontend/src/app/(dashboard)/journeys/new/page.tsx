@@ -213,7 +213,7 @@ export default function NewJourneyPage() {
               <ol className="mt-8 space-y-0">
                 {[
                   ['Enter each flight', 'Airport codes, flight number and date for every leg of the trip.'],
-                  ['Press Check my journey', 'Seven agents look at flights, transfer time, weather and airline rules.'],
+                  ['Press Check my journey', 'Four agents look at flights, transfer time, weather and airline rules.'],
                   ['Read the result', 'A risk estimate, clear advice, backup routes and the sources behind them.'],
                 ].map(([title, desc], i) => (
                   <li key={title} className="grid grid-cols-[3rem_minmax(0,1fr)] gap-x-3 border-t border-ink/10 py-4">

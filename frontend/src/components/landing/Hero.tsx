@@ -5,7 +5,7 @@ import SiteHeader from '@/components/ui/SiteHeader';
 import WindowIllustration from '@/components/ui/WindowIllustration';
 
 const FACTS = [
-  { label: 'Agents', value: '7 specialists, one answer' },
+  { label: 'Agents', value: '4 agents, one answer' },
   { label: 'Risk score', value: 'Open formula, 0–100' },
   { label: 'Example trip', value: 'CMB → KUL → NRT' },
 ];

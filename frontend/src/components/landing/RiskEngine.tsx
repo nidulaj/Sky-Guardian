@@ -21,7 +21,7 @@ const BANDS = [
 const SCORING = [
   {
     label: 'Flight',
-    source: 'Flight agent · worst leg counts',
+    source: 'Flight data · worst leg counts',
     Icon: Plane,
     rows: [
       ['On time', '0'], ['Up to 15 min late', '10'], ['Up to 30 min', '25'], ['Up to 60 min', '45'],
@@ -30,13 +30,13 @@ const SCORING = [
   },
   {
     label: 'Connection',
-    source: 'Connection agent · worst transfer counts',
+    source: 'Connection calculator · worst transfer counts',
     Icon: ArrowLeftRight,
     rows: [['Safe', '10'], ['Moderate risk', '40'], ['High risk', '70'], ['Likely missed', '90'], ['Missed', '100']],
   },
   {
     label: 'Weather',
-    source: 'Weather agent · worst airport counts',
+    source: 'Weather forecast · worst airport counts',
     Icon: CloudSun,
     rows: [['Rain and snow', 'up to 35'], ['Thunderstorms', 'up to 30'], ['Wind', 'up to 28'], ['Visibility', 'up to 28'], ['Official alerts', 'up to 30']],
     note: 'Capped at 100. Rain, snow and storms usually come together, so they are not double-counted.',
@@ -62,7 +62,7 @@ const panel = (extra = '') => `rounded-3xl border border-ink/10 bg-sand-100 ${ex
 
 export default function RiskEngine() {
   const weighted = EXAMPLE.reduce((sum, row) => sum + row.score * row.weight, 0);
-  const rounded = Math.floor(weighted + 0.5 + 1e-9); // the Risk agent rounds halves up
+  const rounded = Math.floor(weighted + 0.5 + 1e-9); // the Journey risk agent rounds halves up
 
   return (
     <section id="risk-engine" aria-labelledby="risk-title" className="scroll-mt-4">
@@ -72,7 +72,7 @@ export default function RiskEngine() {
           eyebrow="Risk engine"
           title="A score you can"
           accent="check by hand."
-          description="No hidden model decides your risk. The Risk agent takes the Flight, Connection and Weather agent results, scores each 0–100 and combines them with fixed weights you can see below."
+          description="No hidden model decides your risk. The Journey risk agent takes the flight, connection and weather results, scores each 0–100 and combines them with fixed weights you can see below."
         />
 
         <div className="surface-raised mt-14 space-y-5 p-5 sm:p-8">

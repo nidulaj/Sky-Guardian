@@ -10,13 +10,13 @@ describe('Home page Weather Agent integration', () => {
     render(<LandingPage />);
 
     // Existing sections are still present.
-    expect(screen.getByRole('heading', { name: /Seven specialists/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Four agents/ })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /A score you can/ })).toBeInTheDocument();
 
     // New live Weather Agent section, defaulting to CMB.
     expect(screen.getByRole('heading', { name: /Airport weather, scored hourly/ })).toBeInTheDocument();
     const card = screen.getByTestId('weather-agent-card');
-    expect(within(card).getByText('Weather agent')).toBeInTheDocument();
+    expect(within(card).getByText('Weather forecast')).toBeInTheDocument();
     expect(await within(card).findByTestId('weather-condition')).toHaveTextContent('Moderate rain');
     expect(within(card).getByTestId('weather-risk-score')).toHaveTextContent('45/100');
   });

@@ -169,7 +169,7 @@ export default function WeatherAgentCard({
       {/* Header */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="min-w-0">
-          <p className="eyebrow">Weather agent</p>
+          <p className="eyebrow">Weather forecast</p>
           <h3 className="display mt-2 text-4xl text-ink sm:text-5xl">{airport}</h3>
           <p className="mt-1 flex items-center gap-1.5 text-base text-ink-soft">
             <MapPin className="h-4 w-4 shrink-0 text-coral" aria-hidden="true" />

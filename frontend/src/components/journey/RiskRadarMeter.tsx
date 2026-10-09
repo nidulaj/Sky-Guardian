@@ -10,9 +10,9 @@ interface RiskRadarMeterProps {
 
 /** The three Risk agent inputs. Weights are not listed here: they come from the backend (config/risk.yaml). */
 export const RISK_PARTS = [
-  { key: 'flight', label: 'Flight risk', short: 'Flight', help: 'Delays, cancellations or diversions reported by the Flight agent.', Icon: Plane },
-  { key: 'connection', label: 'Connection risk', short: 'Connection', help: 'Transfer time against the minimum, from the Connection agent.', Icon: ArrowLeftRight },
-  { key: 'weather', label: 'Weather risk', short: 'Weather', help: 'Worst airport weather on your route, from the Weather agent.', Icon: CloudSun },
+  { key: 'flight', label: 'Flight risk', short: 'Flight', help: 'Delays, cancellations or diversions from the flight status data.', Icon: Plane },
+  { key: 'connection', label: 'Connection risk', short: 'Connection', help: 'Transfer time against the minimum, from the connection calculator.', Icon: ArrowLeftRight },
+  { key: 'weather', label: 'Weather risk', short: 'Weather', help: 'Worst airport weather on your route, from the weather forecast.', Icon: CloudSun },
 ] as const;
 
 const RUNWAY_IMAGE = '/images/risk/runway-sunset.jpg';
@@ -113,13 +113,13 @@ export default function RiskRadarMeter({ risk }: RiskRadarMeterProps) {
           <div>
             <p className="eyebrow flex items-center gap-2 text-sand-100">
               <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-              Risk agent
+              Journey risk agent
             </p>
             <h3 className="display mt-3 text-4xl text-white sm:text-5xl">
               Journey disruption <span className="accent text-coral-peach">risk</span>
             </h3>
             <p className="mt-3 max-w-md text-base text-sand-100">
-              Combines the Flight, Connection and Weather agent results into one weighted score.
+              Combines flight, connection and weather results into one weighted score.
             </p>
           </div>
           <Badge

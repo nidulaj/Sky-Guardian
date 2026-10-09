@@ -8,24 +8,14 @@ const STEPS = [
     body: 'Add each flight number and travel date.',
   },
   {
-    label: 'Flight agent',
-    title: 'We check live status.',
-    body: 'Schedules, delays and cancellations for every leg, from a flight data API.',
+    label: 'Tools',
+    title: 'We gather the facts.',
+    body: 'Live flight status, the transfer time at each hub and the weather at every airport on your route.',
   },
   {
-    label: 'Connection agent',
-    title: 'We do the transfer maths.',
-    body: 'Minutes you really have at the hub, compared with the minimum connection time for that airport.',
-  },
-  {
-    label: 'Weather agent',
-    title: 'We watch the weather.',
-    body: 'Conditions at your departure and transfer airports that could slow boarding or arrivals.',
-  },
-  {
-    label: 'Risk agent',
+    label: 'Journey risk agent',
     title: 'We score the risk.',
-    body: 'Flight, connection and weather combine into one weighted 0–100 score you can inspect.',
+    body: 'Flight, connection and weather combine into one 0–100 score you can check, and the agent decides if recovery is needed.',
   },
   {
     label: 'Policy agent',
@@ -33,9 +23,14 @@ const STEPS = [
     body: 'If things look tight, it finds the airline rules that apply, with links to where each rule comes from.',
   },
   {
+    label: 'Alternative agent',
+    title: 'We find other routes.',
+    body: 'Backup routes, ranked by arrival time, transfer safety and how well they fit the airline rules.',
+  },
+  {
     label: 'Recovery agent',
     title: 'We explain your options.',
-    body: 'Ranked alternative routes and clear next steps, in plain language. You decide what to do.',
+    body: 'One clear recommendation and next steps, in plain language. You decide what to do.',
   },
 ];
 
@@ -48,10 +43,10 @@ export default function HowItWorks() {
             id="how-title"
             eyebrow="How it works"
             eyebrowClass="text-ink-soft"
-            title="Seven steps,"
+            title="Six steps,"
             accent="one clear answer."
             accentClass="text-coral-deep"
-            description="A supervisor passes your trip through specialist agents in a fixed order. Each one does a single job and hands its result to the next."
+            description="A supervisor passes your trip through four agents in a fixed order. Each one does a single job and hands its result to the next."
           />
 
           <ol className="mt-16 sm:mt-20">
@@ -99,8 +94,8 @@ export default function HowItWorks() {
           </ol>
 
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-ink-soft">
-            The rules check and alternative routes only run when the score reaches 60 or the connection is at risk.
-            Either way, the recovery agent finishes with a plain-language summary.
+            The Policy and Alternative agents only run when the score reaches 60 or the connection is at risk.
+            Either way, the Recovery agent finishes with a plain-language summary.
           </p>
         </div>
       </div>

@@ -4,13 +4,10 @@ import React, { useEffect, useState } from 'react';
 
 // What each agent does. Deliberately generic: this list never shows results, only the order of work.
 export const AGENTS = [
-  { name: 'Flight', title: 'Looks up each flight', desc: 'Schedule, live status and any reported delay for every leg.' },
-  { name: 'Connection', title: 'Measures each transfer', desc: 'Time between landing and the next departure, against the airport minimum.' },
-  { name: 'Weather', title: 'Checks the airports', desc: 'Current conditions at every airport on the route.' },
-  { name: 'Risk', title: 'Builds the risk score', desc: 'A weighted 0–100 estimate from flights, connections and weather.' },
-  { name: 'Policy', title: 'Finds airline rules', desc: 'Rebooking and care policies that may apply to your trip.' },
-  { name: 'Alternative', title: 'Ranks other routes', desc: 'Backup itineraries if the original plan looks shaky.' },
-  { name: 'Recovery', title: 'Writes your advice', desc: 'A plain-language summary of what to do next.' },
+  { name: 'Journey risk agent', title: 'Builds the risk score', desc: 'Checks each flight, the transfer time and the airport weather, then scores the trip 0–100.' },
+  { name: 'Policy agent', title: 'Finds airline rules', desc: 'Rebooking and care policies that may apply to your trip.' },
+  { name: 'Alternative agent', title: 'Ranks other routes', desc: 'Backup routes if the original plan looks shaky.' },
+  { name: 'Recovery agent', title: 'Writes your advice', desc: 'A plain-language summary of what to do next.' },
 ];
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -32,12 +29,12 @@ export default function AgentWorkflowProgress() {
       </p>
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-ink/20 pb-5">
         <div>
-          <p className="font-mono text-xs uppercase tracking-label text-ink">In progress / 7 agents</p>
+          <p className="font-mono text-xs uppercase tracking-label text-ink">In progress / 4 agents</p>
           <h2 id="progress-title" className="display mt-3 text-3xl sm:text-4xl text-ink">
             Checking your <span className="accent">journey…</span>
           </h2>
           <p className="mt-3 max-w-md text-base text-ink leading-relaxed">
-            Seven agents work through your trip in this order. It usually takes a few seconds.
+            Four agents work through your trip in this order. It usually takes a few seconds.
           </p>
         </div>
         <p className="text-right" aria-hidden="true">
@@ -63,7 +60,7 @@ export default function AgentWorkflowProgress() {
             </span>
             <div className={`min-w-0 py-4 ${i > 0 ? 'border-t border-ink/15' : ''}`}>
               <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="font-mono text-xs uppercase tracking-label text-ink">{agent.name} agent</span>
+                <span className="font-mono text-xs uppercase tracking-label text-ink">{agent.name}</span>
                 <span className="text-lg font-semibold text-ink">{agent.title}</span>
               </p>
               <p className="mt-1 text-base text-ink-soft leading-relaxed">{agent.desc}</p>
