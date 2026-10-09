@@ -8,6 +8,39 @@ router = APIRouter(prefix="/api/journeys", tags=["Journeys"])
 
 orchestrator = SupervisorOrchestrator()
 
+_CONNECTION_ISSUES = {
+    "MISSED": "Your connection at {airport} will be missed.",
+    "LIKELY_MISSED": "Your connection at {airport} is likely to be missed.",
+    "HIGH_RISK": "Your connection at {airport} is very tight.",
+}
+_CONNECTION_ORDER = ["MISSED", "LIKELY_MISSED", "HIGH_RISK"]
+
+
+def _primary_issue(flights: list, connections: list, risk_level: str) -> str:
+    """One-line headline for the result, worst problem first, consistent with the risk level."""
+    def name(f: dict) -> str:
+        return f"Flight {f['flight_number']}" if f.get("flight_number") else "A flight"
+
+    for status, text in (("CANCELLED", "is cancelled"), ("DIVERTED", "has been diverted")):
+        hit = next((f for f in flights if f.get("status") == status), None)
+        if hit:
+            return f"{name(hit)} {text}."
+    for status in _CONNECTION_ORDER:
+        conn = next((c for c in connections if c.get("status") == status), None)
+        if conn:
+            return _CONNECTION_ISSUES[status].format(airport=conn.get("airport") or "the transfer airport")
+    delayed = [f for f in flights if (f.get("delay_minutes") or 0) > 0]
+    if delayed:
+        worst = max(delayed, key=lambda f: f["delay_minutes"])
+        return f"{name(worst)} is delayed {worst['delay_minutes']} min."
+    if risk_level == "UNKNOWN":
+        return "Not enough data to assess this journey."
+    if risk_level in ("HIGH", "VERY_HIGH"):
+        return "Disruption risk is high for this journey."
+    if risk_level == "MODERATE":
+        return "Some disruption risk. Keep an eye on this journey."
+    return "No major disruption found."
+
 @router.post("/analyze", response_model=JourneyAnalysisResponse)
 async def analyze_journey(request: JourneyAnalyzeRequest):
     # Initialize Journey State from request legs
@@ -50,7 +83,7 @@ async def analyze_journey(request: JourneyAnalyzeRequest):
             reason_codes=c_res.get("reason_codes", [])
         )
 
-    primary_issue = "Connection time may be insufficient." if connection_summary and connection_summary.status in ["HIGH_RISK", "LIKELY_MISSED", "MISSED"] else "No critical disruption identified."
+    primary_issue = _primary_issue(final_state.flight_results, final_state.connection_results, risk_summary.level)
 
     return JourneyAnalysisResponse(
         journey_id=final_state.journey_id,
