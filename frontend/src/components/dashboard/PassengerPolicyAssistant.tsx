@@ -5,6 +5,7 @@ import { Search, Sparkles, BookOpen, AlertCircle, RefreshCw, ChevronRight, Check
 import Button from '@/components/ui/Button';
 import { askRagQuestion } from '@/lib/api/client';
 import SafeRichText from '@/components/journey/SafeRichText';
+import PolicyWorkflowVisualizer from './PolicyWorkflowVisualizer';
 import type { AskQuestionResponse } from '@/types/rag';
 
 const SUGGESTED_QUESTIONS = [
@@ -112,7 +113,7 @@ export default function PassengerPolicyAssistant() {
           {loading ? (
             <>
               <RefreshCw className="h-4 w-4 animate-spin" />
-              Searching official policies...
+              Executing Policy Pipeline...
             </>
           ) : (
             <>
@@ -122,6 +123,11 @@ export default function PassengerPolicyAssistant() {
           )}
         </Button>
       </form>
+
+      {/* Interactive Live Agent Workflow Pipeline (Displayed while executing) */}
+      {loading && (
+        <PolicyWorkflowVisualizer isLoading={true} query={question} />
+      )}
 
       {/* Error state */}
       {error && (
@@ -133,24 +139,17 @@ export default function PassengerPolicyAssistant() {
 
       {/* Response card */}
       {response && (
-        <div className="space-y-4 rounded-2xl border border-ink/10 bg-sand-100 p-5 sm:p-6 transition-all animate-fade-in">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="eyebrow flex items-center gap-1.5 text-ink-soft">
-              {isWebSearch ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 font-sans text-xs font-semibold text-amber-800 border border-amber-500/20">
-                  <Globe className="h-3.5 w-3.5 text-amber-600" />
-                  Live Airline Web Search (Official Resources)
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 font-sans text-xs font-semibold text-emerald-800 border border-emerald-500/20">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-status-safe" />
-                  Verified Internal Policy Vault (RAG)
-                </span>
-              )}
-            </span>
-            <span className="font-mono text-xs text-ink-muted">Retrieved in {response.latency_ms}ms</span>
-          </div>
+        <div className="space-y-5 rounded-2xl border border-ink/10 bg-sand-100 p-5 sm:p-6 transition-all animate-fade-in">
+          {/* Integrated Modern Pipeline & Source Header */}
+          <PolicyWorkflowVisualizer
+            isLoading={false}
+            query={response.question}
+            isWebFallback={isWebSearch}
+            executionSteps={response.execution_steps}
+            latencyMs={response.latency_ms}
+          />
 
+          {/* Grounded AI Answer */}
           <SafeRichText text={response.answer} className="text-base text-ink leading-relaxed" />
 
           {/* Document / Web Sources Cited */}
