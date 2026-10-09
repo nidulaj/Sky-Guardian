@@ -23,6 +23,8 @@ import {
   X,
   ChevronDown,
   Check,
+  Scale,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import {
@@ -470,7 +472,7 @@ export default function AdminPortalPage() {
       setDocuments(docsRes);
     } catch (err: any) {
       console.error('Failed to load documents:', err);
-      setErrorNotice('Could not load documents from Supabase. Ensure backend is running.');
+      setErrorNotice('Could not load documents from policy repository. Ensure backend is running.');
     } finally {
       setLoadingDocs(false);
     }
@@ -520,7 +522,7 @@ export default function AdminPortalPage() {
 
     try {
       const result = await uploadRAGDocument(formData, token || undefined);
-      setSuccessNotice(`Document "${selectedFile.name}" indexed successfully (${result.chunks_created || 0} chunks created in Supabase pgvector).`);
+      setSuccessNotice(`Document "${selectedFile.name}" indexed successfully (${result.chunks_created || 0} policy clauses extracted).`);
 
       // Reset upload form
       setSelectedFile(null);
@@ -541,7 +543,7 @@ export default function AdminPortalPage() {
 
   // Handle document deletion
   const handleDelete = async (docId: string, title?: string) => {
-    const confirmDelete = window.confirm(`Are you sure you want to delete "${title || docId}"? This will remove the file from Supabase Storage and delete all vectorized chunks in pgvector.`);
+    const confirmDelete = window.confirm(`Are you sure you want to delete "${title || docId}"? This will permanently remove the document and its indexed rules from the policy vault.`);
     if (!confirmDelete) return;
 
     setDeletingId(docId);
@@ -550,7 +552,7 @@ export default function AdminPortalPage() {
 
     try {
       await deleteRAGDocument(docId, token || undefined);
-      setSuccessNotice(`Document successfully removed from Supabase and vector store.`);
+      setSuccessNotice(`Document successfully removed from the policy vault.`);
       await refreshData();
     } catch (err: any) {
       setErrorNotice(err.message || 'Failed to delete document.');
@@ -630,17 +632,21 @@ export default function AdminPortalPage() {
     );
   });
 
+  const uniqueCarriersCount = new Set(
+    documents.map((d) => d.airline_code || d.airline).filter(Boolean)
+  ).size;
+
   return (
     <div className="space-y-12 sm:space-y-16">
       <PageHeader
-        eyebrow="Admin Portal / Supabase Knowledge Base"
+        eyebrow="Admin Operations / Airline Policy Vault"
         title="Policy documents &"
-        accent="knowledge store."
-        description="Upload airline conditions of carriage, regulatory rules, and minimum connection times. Documents are stored in Supabase Storage and vectorized into pgvector (768d)."
+        accent="regulatory rules."
+        description="Manage airline conditions of carriage, regulatory passenger rights (EU261, UK261, DOT), and hub transit agreements powering automated disruption recovery."
         actions={
           <Button variant="outline" onClick={refreshData} disabled={loadingStats || loadingDocs}>
             <RefreshCw className={`h-4 w-4 ${loadingStats || loadingDocs ? 'animate-spin' : ''}`} />
-            Sync with Supabase
+            Refresh Policy Vault
           </Button>
         }
       />
@@ -660,39 +666,39 @@ export default function AdminPortalPage() {
         </div>
       )}
 
-      {/* SECTION 1: SYSTEM & VECTOR STATS */}
+      {/* SECTION 1: POLICY INTELLIGENCE & COVERAGE OVERVIEW */}
       <section aria-labelledby="stats-heading" className="space-y-4">
         <h2 id="stats-heading" className="eyebrow flex items-center gap-2">
-          <Database className="h-4 w-4 text-coral" />
-          <span>01 / System & Vector Store Telemetry</span>
+          <ShieldCheck className="h-4 w-4 text-coral" />
+          <span>01 / Policy Intelligence & Coverage Overview</span>
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="surface p-6 space-y-2">
-            <p className="eyebrow text-ink-muted">Vector Store Backend</p>
-            <p className="display text-3xl text-ink font-semibold">{stats?.store_backend || 'pgvector'}</p>
-            <p className="text-xs text-ink-soft">Supabase PostgreSQL + pgvector</p>
-          </div>
-
-          <div className="surface p-6 space-y-2">
-            <p className="eyebrow text-ink-muted">Indexed Chunks</p>
-            <p className="display text-3xl text-coral font-semibold">{stats?.total_chunks ?? '...'}</p>
-            <p className="text-xs text-ink-soft">Cosine similarity indexed (768d)</p>
-          </div>
-
-          <div className="surface p-6 space-y-2">
-            <p className="eyebrow text-ink-muted">Total Documents</p>
+            <p className="eyebrow text-ink-muted">Policy Documents</p>
             <p className="display text-3xl text-ink font-semibold">{documents.length}</p>
-            <p className="text-xs text-ink-soft">In Supabase Storage bucket</p>
+            <p className="text-xs text-ink-soft">Verified conditions of carriage & regulatory acts</p>
           </div>
 
           <div className="surface p-6 space-y-2">
-            <p className="eyebrow text-ink-muted">Verified Status</p>
+            <p className="eyebrow text-ink-muted">Indexed Policy Rules</p>
+            <p className="display text-3xl text-coral font-semibold">{stats?.total_chunks ?? '...'}</p>
+            <p className="text-xs text-ink-soft">Searchable disruption, delay & care clauses</p>
+          </div>
+
+          <div className="surface p-6 space-y-2">
+            <p className="eyebrow text-ink-muted">Covered Airlines & Hubs</p>
+            <p className="display text-3xl text-ink font-semibold">{uniqueCarriersCount > 0 ? `${uniqueCarriersCount} Airlines` : 'Global Hubs'}</p>
+            <p className="text-xs text-ink-soft">International & domestic carriage rules</p>
+          </div>
+
+          <div className="surface p-6 space-y-2">
+            <p className="eyebrow text-ink-muted">Policy Engine Status</p>
             <div className="flex items-center gap-2 pt-1">
               <span className="flex h-3 w-3 rounded-full bg-status-safe animate-pulse" />
-              <span className="text-base font-medium text-ink">Connected & Ready</span>
+              <span className="text-base font-medium text-ink">Active & Verified</span>
             </div>
-            <p className="text-xs text-ink-soft">Admin: {user?.email}</p>
+            <p className="text-xs text-ink-soft">Automated passenger recovery protection</p>
           </div>
         </div>
       </section>
@@ -702,10 +708,10 @@ export default function AdminPortalPage() {
         <div className="space-y-1">
           <h2 id="upload-heading" className="eyebrow flex items-center gap-2">
             <UploadCloud className="h-4 w-4 text-coral" />
-            <span>02 / Ingest Document into Knowledge Base</span>
+            <span>02 / Ingest Airline & Regulatory Policies</span>
           </h2>
           <p className="text-sm text-ink-soft">
-            Upload PDF or text documents. Text is automatically chunked, embedded via 768-dim vectorizer, and linked with Supabase Storage.
+            Upload PDF or text documents. Content is automatically parsed into searchable legal clauses and indexed for instant disruption evaluation.
           </p>
         </div>
 
@@ -838,12 +844,12 @@ export default function AdminPortalPage() {
                   {uploading ? (
                     <>
                       <RefreshCw className="h-4 w-4 animate-spin" />
-                      Parsing, Embedding & Storing in Supabase...
+                      Parsing & Indexing Policy Document...
                     </>
                   ) : (
                     <>
                       <UploadCloud className="h-4 w-4" />
-                      Upload to Supabase Storage & Index
+                      Ingest into Policy Knowledge Base
                     </>
                   )}
                 </Button>
@@ -858,11 +864,11 @@ export default function AdminPortalPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 id="library-heading" className="eyebrow flex items-center gap-2">
-              <Layers className="h-4 w-4 text-coral" />
-              <span>03 / Knowledge Base Document Library</span>
+              <BookOpen className="h-4 w-4 text-coral" />
+              <span>03 / Policy Document Vault</span>
             </h2>
             <p className="text-sm text-ink-soft">
-              {filteredDocs.length} {filteredDocs.length === 1 ? 'document' : 'documents'} indexed in PostgreSQL pgvector.
+              {filteredDocs.length} {filteredDocs.length === 1 ? 'policy document' : 'policy documents'} actively protecting passenger journeys.
             </p>
           </div>
 
@@ -881,13 +887,13 @@ export default function AdminPortalPage() {
         {loadingDocs ? (
           <div className="surface p-12 text-center space-y-3">
             <RefreshCw className="h-6 w-6 animate-spin text-coral mx-auto" />
-            <p className="text-sm text-ink-soft">Loading indexed documents from Supabase...</p>
+            <p className="text-sm text-ink-soft">Loading indexed policy documents...</p>
           </div>
         ) : filteredDocs.length === 0 ? (
           <div className="surface p-12 text-center space-y-3">
             <FileText className="h-8 w-8 text-ink-muted mx-auto" />
             <p className="text-base font-semibold text-ink">No documents match your search</p>
-            <p className="text-sm text-ink-soft">Upload a policy document using the form above to add it to the RAG knowledge store.</p>
+            <p className="text-sm text-ink-soft">Upload a policy document using the form above to add it to the policy knowledge repository.</p>
           </div>
         ) : (
           <div className="surface overflow-hidden">
@@ -897,8 +903,8 @@ export default function AdminPortalPage() {
                   <tr className="border-b border-ink/10 bg-sand-100/50">
                     <th className="eyebrow px-6 py-4 font-normal">Document & Carrier</th>
                     <th className="eyebrow px-6 py-4 font-normal">Airport / Hub</th>
-                    <th className="eyebrow px-6 py-4 font-normal">Chunks</th>
-                    <th className="eyebrow px-6 py-4 font-normal">Storage Path</th>
+                    <th className="eyebrow px-6 py-4 font-normal">Indexed Rules</th>
+                    <th className="eyebrow px-6 py-4 font-normal">Jurisdiction / Source</th>
                     <th className="eyebrow px-6 py-4 font-normal text-right">Actions</th>
                   </tr>
                 </thead>
@@ -926,10 +932,10 @@ export default function AdminPortalPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 font-mono font-semibold text-ink">
-                        {doc.total_chunks ?? '1+'} chunks
+                        {doc.total_chunks ?? '1+'} rules
                       </td>
                       <td className="px-6 py-4 text-xs font-mono text-ink-muted max-w-xs truncate">
-                        {doc.storage_path || doc.source_url || 'Supabase pgvector'}
+                        {doc.jurisdiction || doc.source_url || 'Verified Carriage Rules'}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
@@ -937,7 +943,7 @@ export default function AdminPortalPage() {
                           onClick={() => handleDelete(doc.doc_id, doc.title)}
                           disabled={deletingId === doc.doc_id}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-status-danger/30 px-3 py-1.5 text-xs font-medium text-status-danger hover:bg-status-danger-bg transition-colors disabled:opacity-50"
-                          title="Delete from Supabase Storage and pgvector"
+                          title="Remove from policy vault"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                           {deletingId === doc.doc_id ? 'Deleting...' : 'Delete'}
@@ -952,15 +958,15 @@ export default function AdminPortalPage() {
         )}
       </section>
 
-      {/* SECTION 4: RAG QUERY TESTER / VERIFIER */}
+      {/* SECTION 4: POLICY ASSISTANT QUERY TESTER */}
       <section aria-labelledby="tester-heading" className="space-y-6">
         <div className="space-y-1">
           <h2 id="tester-heading" className="eyebrow flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-coral" />
-            <span>04 / RAG Semantic Search & Citation Tester</span>
+            <span>04 / Policy Assistant Query & Citation Tester</span>
           </h2>
           <p className="text-sm text-ink-soft">
-            Verify the accuracy of your uploaded documents. Run a test question through the exact semantic retrieval pipeline that passengers use.
+            Verify the accuracy of your airline policies. Test inquiries against the exact policy intelligence engine used by passenger assistants.
           </p>
         </div>
 
@@ -977,12 +983,12 @@ export default function AdminPortalPage() {
               {testLoading ? (
                 <>
                   <RefreshCw className="h-4 w-4 animate-spin" />
-                  Querying pgvector...
+                  Consulting Policy Engine...
                 </>
               ) : (
                 <>
                   <Search className="h-4 w-4" />
-                  Test Retrieval
+                  Test Policy Query
                 </>
               )}
             </Button>
@@ -992,14 +998,14 @@ export default function AdminPortalPage() {
             <div className="space-y-6 border-t border-ink/10 pt-6">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="eyebrow">Answer Generated by SkyGuardian</span>
+                  <span className="eyebrow">Answer Generated by SkyGuardian Policy Engine</span>
                   {testResult.source_type === 'web_search' ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 font-sans text-xs font-semibold text-amber-800 border border-amber-500/20">
-                      🌐 Live Web Search Fallback
+                      🌐 Live Web Intelligence Fallback
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 font-sans text-xs font-semibold text-emerald-800 border border-emerald-500/20">
-                      🛡️ Supabase pgvector RAG
+                      🛡️ Verified Policy Vault
                     </span>
                   )}
                 </div>
@@ -1012,13 +1018,13 @@ export default function AdminPortalPage() {
 
               {testResult.chunks && testResult.chunks.length > 0 && (
                 <div className="space-y-3">
-                  <p className="eyebrow">Top Cited Chunks from Supabase pgvector</p>
+                  <p className="eyebrow">Top Cited Policy Clauses & Precedents</p>
                   <div className="space-y-3">
                     {testResult.chunks.map((item, idx) => (
                       <div key={idx} className="rounded-xl border border-ink/10 bg-sand-50 p-4 space-y-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-semibold text-ink">
-                            Excerpt {idx + 1}: {item.chunk?.metadata?.title || 'Knowledge Chunk'}
+                            Clause {idx + 1}: {item.chunk?.metadata?.title || 'Conditions of Carriage'}
                           </span>
                           <span className="rounded-full bg-coral/10 px-2 py-0.5 font-mono text-coral-deep font-medium">
                             Match: {(item.score * 100).toFixed(1)}%
