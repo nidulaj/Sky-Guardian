@@ -59,15 +59,55 @@ class PolicyAgent(BaseAgent):
                 })
 
         # 2. Query RAG knowledge store for each carrier
+        reasons = state.recovery_reasons or []
+        flight_results = state.flight_results or []
+        connection_results = state.connection_results or []
+
         for carrier in carriers:
             code = carrier["code"]
             name = carrier["name"]
             
-            query_str = f"{name} missed connection rebooking policy conditions of carriage duty of care layover"
+            # Context-Aware Dynamic Query Generation:
+            # Detect whether this specific carrier or leg has a cancellation, connection breach, or long delay
+            has_cancellation = any(
+                f.get("status") == "CANCELLED" and (
+                    f.get("flight_number", "").upper().startswith(code) or 
+                    (f.get("airline") or "").lower() == name.lower()
+                )
+                for f in flight_results
+            ) or ("FLIGHT_CANCELLED" in reasons)
+            
+            has_connection_breach = any(
+                c.get("status") in {"HIGH_RISK", "LIKELY_MISSED", "MISSED"}
+                for c in connection_results
+            ) or ("CONNECTION_AT_RISK" in reasons)
+            
+            has_significant_delay = any(
+                (f.get("delay_minutes") or 0) >= 120 and (
+                    f.get("flight_number", "").upper().startswith(code) or 
+                    (f.get("airline") or "").lower() == name.lower()
+                )
+                for f in flight_results
+            )
+
+            # Build targeted intent keywords based on actual disruption reasons
+            query_components = [name]
+            if has_cancellation:
+                query_components.append("flight cancellation refund rerouting alternative flights statutory compensation")
+            elif has_connection_breach:
+                query_components.append("missed connection transfer protection overnight hotel voucher rebooking")
+            elif has_significant_delay:
+                query_components.append("flight delay schedule change meal voucher duty of care compensation")
+            else:
+                query_components.append("flight disruption schedule change rebooking duty of care compensation")
+
+            query_components.append("conditions of carriage passenger rights")
+            query_str = " ".join(query_components)
+
             retrieval_query = RetrievalQuery(
                 query=query_str,
-                top_k=1, # Retrieve top relevant policy chunk per carrier
-                similarity_threshold=0.30,
+                top_k=2, # Retrieve top 2 relevant policy chunks (e.g. rebooking terms + duty of care/compensation)
+                similarity_threshold=0.25,
                 airline=name,
                 airline_code=code,
                 verified_only=True,
@@ -101,19 +141,24 @@ class PolicyAgent(BaseAgent):
                             airline_code=code
                         )
                         if web_res.get("success") and web_res.get("sources"):
-                            src = web_res["sources"][0]
-                            evidence.append({
-                                "policy_id": f"pol-{code.lower()}-web-001",
-                                "airline": name,
-                                "policy_type": "Carrier Conditions of Carriage",
-                                "title": src.get("name", f"{name} Official Policy"),
-                                "source_url": src.get("source_url", ""),
-                                "snippet": web_res["snippets"][0] if web_res.get("snippets") else f"Official {name} conditions of carriage retrieved via live search.",
-                                "effective_date": "2025-01-01",
-                                "last_verified": datetime.now(timezone.utc).isoformat(),
-                                "confidence": "high",
-                                "score": 0.90
-                            })
+                            for s_idx, src in enumerate(web_res["sources"][:2]):
+                                snippet = (
+                                    web_res["snippets"][s_idx]
+                                    if s_idx < len(web_res.get("snippets", []))
+                                    else f"Official {name} conditions of carriage retrieved via live search."
+                                )
+                                evidence.append({
+                                    "policy_id": f"pol-{code.lower()}-web-{s_idx+1:03d}",
+                                    "airline": name,
+                                    "policy_type": "Carrier Conditions of Carriage",
+                                    "title": src.get("name", f"{name} Official Policy"),
+                                    "source_url": src.get("source_url", ""),
+                                    "snippet": snippet,
+                                    "effective_date": "2025-01-01",
+                                    "last_verified": datetime.now(timezone.utc).isoformat(),
+                                    "confidence": "high",
+                                    "score": 0.90
+                                })
                     except Exception as ex:
                         logger.warning(f"Web policy search fallback for {name} failed: {ex}")
 

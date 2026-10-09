@@ -16,7 +16,7 @@ const VARIANTS = {
   secondary: 'bg-sand-50 text-ink border border-ink/15 hover:border-ink/40',
   outline: 'bg-transparent text-ink border border-ink hover:bg-ink hover:text-sand-50',
   ghost: 'bg-transparent text-ink-soft hover:text-ink hover:bg-ink/5',
-  danger: 'bg-status-danger-bg text-status-danger border border-status-danger/30 hover:bg-coral-soft',
+  danger: 'bg-red-600 text-white border border-transparent hover:bg-red-700 active:bg-red-800 shadow-sm',
 };
 
 const SIZES = {
