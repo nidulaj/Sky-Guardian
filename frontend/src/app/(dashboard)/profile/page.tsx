@@ -11,7 +11,6 @@ import {
   Check,
   Copy,
   LogOut,
-  Sliders,
   Sparkles,
   Lock,
   Globe,
@@ -19,7 +18,9 @@ import {
   AlertCircle,
   ExternalLink,
   Radar,
-  Radio
+  Radio,
+  History,
+  Compass
 } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import Input from '@/components/ui/Input';
@@ -114,18 +115,18 @@ export default function ProfilePage() {
     <div className="space-y-10 animate-fade-up">
       {/* Editorial Header */}
       <PageHeader
-        eyebrow="04 / Passenger Identity"
+        eyebrow="03 / Passenger Identity"
         title="Your"
         accent="profile."
         description="Manage your traveler identity, contact details for flight disruption alerts, and active safeguards."
         actions={
           <div className="flex items-center gap-3">
             <Link
-              href="/settings"
+              href="/dashboard"
               className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/15 bg-sand-50 px-5 text-sm font-medium text-ink transition-colors hover:bg-sand-100"
             >
-              <Sliders className="h-4 w-4 text-ink-muted" />
-              <span>App Settings</span>
+              <Compass className="h-4 w-4 text-ink-muted" />
+              <span>Flight Dashboard</span>
             </Link>
             <button
               type="button"
@@ -446,12 +447,23 @@ export default function ProfilePage() {
           {/* Quick Shortcuts */}
           <div className="space-y-2.5">
             <Link
-              href="/settings"
+              href="/dashboard"
               className="flex items-center justify-between rounded-2xl border border-ink/10 bg-sand-50 px-5 py-3.5 text-sm text-ink hover:bg-sand-200 transition-colors shadow-xs"
             >
               <span className="flex items-center gap-2.5 font-medium">
-                <Sliders className="h-4 w-4 text-ink-muted" />
-                Notification & Privacy Settings
+                <Compass className="h-4 w-4 text-ink-muted" />
+                Live Journey Radar
+              </span>
+              <ExternalLink className="h-4 w-4 text-ink-muted" />
+            </Link>
+
+            <Link
+              href="/history"
+              className="flex items-center justify-between rounded-2xl border border-ink/10 bg-sand-50 px-5 py-3.5 text-sm text-ink hover:bg-sand-200 transition-colors shadow-xs"
+            >
+              <span className="flex items-center gap-2.5 font-medium">
+                <History className="h-4 w-4 text-ink-muted" />
+                Past Journey Checks
               </span>
               <ExternalLink className="h-4 w-4 text-ink-muted" />
             </Link>

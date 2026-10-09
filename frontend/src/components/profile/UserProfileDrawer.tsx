@@ -451,13 +451,13 @@ export default function UserProfileDrawer({ isOpen, onClose }: UserProfileDrawer
             {/* Quick Links */}
             <div className="space-y-2 pt-2">
               <Link
-                href="/settings"
+                href="/profile"
                 onClick={onClose}
                 className="flex items-center justify-between rounded-2xl border border-ink/10 bg-sand-50 px-4 py-3 text-sm text-ink hover:bg-sand-200 transition-colors"
               >
                 <span className="flex items-center gap-2">
-                  <Sliders className="h-4 w-4 text-ink-muted" />
-                  App & Notification Settings
+                  <User className="h-4 w-4 text-coral" />
+                  Open Full Profile Page
                 </span>
                 <ExternalLink className="h-3.5 w-3.5 text-ink-muted" />
               </Link>

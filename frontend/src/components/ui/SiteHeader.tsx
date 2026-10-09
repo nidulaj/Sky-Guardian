@@ -16,7 +16,6 @@ const MARKETING_LINKS = [
 const BASE_APP_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/history', label: 'History' },
-  { href: '/settings', label: 'Settings' },
 ];
 
 interface SiteHeaderProps {
