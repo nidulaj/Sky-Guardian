@@ -46,7 +46,15 @@ export interface AskQuestionResponse {
     relevance_score?: number;
   }>;
   chunks: ScoredChunk[];
+  source_type?: 'rag' | 'web_search' | 'hybrid';
   latency_ms: number;
+  execution_steps?: Array<{
+    step: number;
+    name: string;
+    status: 'COMPLETED' | 'IN_PROGRESS' | 'SKIPPED' | 'FAILED';
+    detail: string;
+    duration_ms?: number;
+  }>;
 }
 
 export interface RAGStats {

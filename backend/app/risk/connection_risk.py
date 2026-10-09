@@ -37,7 +37,7 @@ def assess_connection(result: Any, index: int, cfg: ConnectionScoringConfig) -> 
     """Risk view of one Connection Agent result. Never raises for bad input."""
     if not isinstance(result, dict):
         return ConnectionRisk(
-            connection_index=index, status="UNAVAILABLE", reason="invalid Connection Agent result",
+            connection_index=index, status="UNAVAILABLE", reason="Connection information could not be read.",
         )
 
     airport = safe_text(result.get("airport")) or None

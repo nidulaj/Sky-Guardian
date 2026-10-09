@@ -35,7 +35,7 @@ class RecoveryAgent(BaseAgent):
         risk_score = risk_data.get("score")
         risk_level = risk_data.get("level", "UNKNOWN" if risk_score is None else "LOW")
 
-        best_alt = "Alternative itinerary"
+        best_alt = None
         if state.recommended_option:
             best_alt = state.recommended_option.get("route_summary", best_alt)
         elif state.alternative_options:
@@ -59,6 +59,14 @@ class RecoveryAgent(BaseAgent):
 
             policy_points.append(f"- **{airline_name}** ({p_title}): {snippet[:180]}...")
 
+        # Alternatives are schedules, not confirmed seats, fares or ticket-specific entitlements.
+        alternative_advice = (
+            f"The top-ranked schedule option is {best_alt}. Confirm seats, price, ticket eligibility and your departure airport with {counsel_airline} before acting."
+            if best_alt else f"No feasible alternative was verified. Ask {counsel_airline} for current rebooking options."
+        )
+        if state.recommended_option and state.recommended_option.get("data_mode") == "demo":
+            alternative_advice = "The alternatives below are DEMO DATA, not bookable flights. " + alternative_advice
+
         # 3. Grounded Synthesis
         if risk_score is None and conn_status not in ["LIKELY_MISSED", "MISSED", "HIGH_RISK"]:
             explanation = (
@@ -74,12 +82,11 @@ class RecoveryAgent(BaseAgent):
                 f"which is below the airport's minimum required connection time of {req_mins} minutes. "
                 f"Consequently, your connection is classified as **{conn_status.replace('_', ' ')}** with an Estimated Journey Disruption Risk Score of **{risk_score}/100 ({risk_level} RISK)**.\n\n"
                 f"**Recommended Recovery Option:**\n"
-                f"Option 1 ({best_alt}) is recommended as the safest route. Under {counsel_airline} connection protection policies, "
-                f"you are entitled to complimentary rebooking on the next available connecting flight without change fees.\n\n"
+                f"{alternative_advice}\n\n"
                 f"**Suggested Next Steps:**\n"
                 f"1. Proceed to the {counsel_airline} transit transfer desk upon arrival at {transfer_airport}.\n"
-                f"2. Present your original boarding pass and request rebooking under the connection protection policy.\n"
-                f"3. Inquire about layover meal/accommodation vouchers if your rebooked departure is scheduled for the next morning."
+                f"2. Present your boarding pass and ask which rebooking rules apply to your ticket.\n"
+                f"3. Ask whether any fees, meals or accommodation apply; none are guaranteed by this assessment."
             ]
             explanation = "".join(explanation_parts)
         else:

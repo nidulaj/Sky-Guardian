@@ -1,14 +1,21 @@
-# SkyGuardian AI - Alternative Flight Ranking Configuration
-
-ranking_weights:
-  arrival_quality: 0.35
-  connection_safety: 0.25
-  travel_duration: 0.15
+# Decision-support preferences, not probabilities or airline guarantees.
+version: "1.0"
+weights:
+  disruption_risk: 0.40
+  arrival_quality: 0.20
+  travel_duration: 0.20
   stops: 0.10
-  disruption_risk: 0.10
-  cost: 0.05
-
-filters:
-  max_allowed_stops: 2
-  min_connection_margin_minutes: 45
-  exclude_overnight_layovers_if_direct_available: true
+  connection_safety: 0.10
+max_stops: 1
+minimum_connection_minutes: 60
+minimum_connection_margin_minutes: 20
+boarding_buffer_minutes: 60
+target_connection_buffer_minutes: 120
+max_duration_minutes: 2160
+search_window_hours: 48
+max_snapshot_age_seconds: 900
+max_results: 3
+max_candidates: 200
+max_provider_requests: 8
+timeout_seconds: 20
+transfer_airports: [SIN, KUL]

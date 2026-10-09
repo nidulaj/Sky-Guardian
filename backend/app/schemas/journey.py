@@ -1,7 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import List, Optional, Dict, Any, Literal
-from datetime import datetime
+from datetime import datetime, date
+import re
 from app.schemas.risk import RiskComponent, RiskFactor
+
+# Same rules as frontend/src/components/journey/validation.ts: IATA (2 chars, at least one
+# letter) or ICAO (3 letters) airline code, 1-4 digits, optional suffix letter.
+FLIGHT_NUMBER = re.compile(r"^(?:[A-Z]{2}|[A-Z][0-9]|[0-9][A-Z]|[A-Z]{3})[0-9]{1,4}[A-Z]?$")
+AIRPORT = re.compile(r"^[A-Z]{3}$")
 
 class FlightLegInput(BaseModel):
     flight_number: str = Field(..., example="UL001", description="Airline IATA/ICAO flight code")
@@ -9,9 +15,46 @@ class FlightLegInput(BaseModel):
     origin: str = Field(..., example="CMB", description="3-letter IATA airport code")
     destination: str = Field(..., example="KUL", description="3-letter IATA airport code")
 
+    @field_validator("flight_number", mode="before")
+    @classmethod
+    def _normalise_flight_number(cls, value):
+        value = re.sub(r"\s+", "", value).upper() if isinstance(value, str) else value
+        if not isinstance(value, str) or not FLIGHT_NUMBER.match(value):
+            raise ValueError("Flight number must look like UL001 or SQ638.")
+        return value
+
+    @field_validator("origin", "destination", mode="before")
+    @classmethod
+    def _normalise_airport(cls, value):
+        value = value.strip().upper() if isinstance(value, str) else value
+        if not isinstance(value, str) or not AIRPORT.match(value):
+            raise ValueError("Airport must be a 3-letter IATA code, for example CMB.")
+        return value
+
+    @field_validator("travel_date", mode="before")
+    @classmethod
+    def _valid_date(cls, value):
+        value = value.strip() if isinstance(value, str) else value
+        try:
+            # fromisoformat also accepts "20260915", so require the dashed form explicitly.
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+                raise ValueError
+            date.fromisoformat(value)
+        except (TypeError, ValueError):
+            raise ValueError("Travel date must be a valid YYYY-MM-DD date.")
+        return value
+
+    @model_validator(mode="after")
+    def _different_airports(self):
+        if self.origin == self.destination:
+            raise ValueError("Origin and destination must be different airports.")
+        return self
+
 class JourneyAnalyzeRequest(BaseModel):
-    language: str = Field(default="en", example="en", description="Preferred language code")
-    legs: List[FlightLegInput] = Field(..., min_items=1)
+    language: str = Field(default="en", example="en", description="Preferred language code", max_length=10)
+    legs: List[FlightLegInput] = Field(..., min_length=1, max_length=4)
+    # Passenger explicitly asked for alternatives (a recovery trigger, blueprint 5.1).
+    request_alternatives: bool = False
 
 class AgentResultSchema(BaseModel):
     agent: str
@@ -23,6 +66,17 @@ class AgentResultSchema(BaseModel):
     source_timestamp: Optional[str] = None
     generated_at: str
     trace_id: str
+
+class AgentRun(BaseModel):
+    """Public trace entry for one agent step: status and timing only, never internal reasoning."""
+    agent: str
+    status: Literal["success", "partial", "unavailable", "error", "skipped"]
+    confidence: Optional[str] = None
+    warnings: List[str] = []
+    started_at: Optional[str] = None
+    duration_ms: Optional[int] = None
+    # Short passenger-safe message; no stack traces, provider errors or keys.
+    error: Optional[str] = None
 
 class RiskSummary(BaseModel):
     """
@@ -71,8 +125,14 @@ class JourneyAnalysisResponse(BaseModel):
     weather_conditions: List[Dict[str, Any]] = []
     policy_evidence: List[Dict[str, Any]] = []
     alternatives: List[Dict[str, Any]] = []
+    alternative_search: Dict[str, Any] = {}
     recommendation: str
     sources: List[Dict[str, Any]] = []
     warnings: List[str] = []
     is_demo_data: bool = True
     last_updated: str
+    # Public workflow trace: each agent's status, timing and warnings (no model reasoning).
+    workflow_status: str = "COMPLETED"
+    workflow_trace: List[AgentRun] = []
+    recovery_triggered: bool = False
+    recovery_reasons: List[str] = []

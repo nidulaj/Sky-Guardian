@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+from typing import Literal, Optional
 
 class Settings(BaseSettings):
     APP_NAME: str = "SkyGuardian AI"
@@ -25,11 +25,22 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gemini-1.5-flash"
     LLM_API_KEY: Optional[str] = "mock_key"
 
+    GEMINI_API_KEY: Optional[str] = None
+    VOICE_ENABLED: bool = True
+    VOICE_MODEL: str = "gemini-2.5-flash"
+    VOICE_TTS_MODEL: str = "gemini-3.8-flash-tts"
+    VOICE_TTS_VOICE: str = "Kore"
+    VOICE_TIMEOUT_SECONDS: float = 45.0
+
     TAVILY_API_KEY: Optional[str] = "mock_key"
 
     FLIGHT_PROVIDER: str = "mock"
     FLIGHT_API_KEY: Optional[str] = "mock_key"
     USE_MOCK_FLIGHTS: bool = True
+
+    # Live search failures never fall back to sample itineraries.
+    ALTERNATIVE_PROVIDER: str = "auto"
+    RANKING_CONFIG_PATH: Optional[str] = None
 
     # Options: mock (deterministic demo data), open_meteo (live forecast, no API key needed)
     WEATHER_PROVIDER: str = "mock"
@@ -37,6 +48,12 @@ class Settings(BaseSettings):
     OPEN_METEO_BASE_URL: str = "https://api.open-meteo.com/v1/forecast"
     WEATHER_TIMEOUT_SECONDS: float = 8.0
     WEATHER_CACHE_TTL_SECONDS: int = 600
+
+    # Outer safety timeout per agent step; longer than the providers' own timeouts
+    # (alternative search 20 s, weather 8 s) so those can report their own warnings first.
+    AGENT_TIMEOUT_SECONDS: float = 30.0
+    # langgraph = StateGraph supervisor; sequential = same steps without LangGraph (fallback)
+    ORCHESTRATOR_ENGINE: Literal["langgraph", "sequential"] = "langgraph"
 
     # None = <repo>/config/risk.yaml (built-in defaults when that file is absent)
     RISK_CONFIG_PATH: Optional[str] = None

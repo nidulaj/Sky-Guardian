@@ -66,7 +66,7 @@ function CurrentConditions({ data }: { data: AirportWeatherResult }) {
         <HeroStat label="Visibility" value={formatValue(obs?.visibility_km, 'km')} />
         <HeroStat label="Wind" value={formatValue(obs?.wind_speed_kt, 'kn')} />
         <HeroStat label="Gusts" value={formatValue(obs?.wind_gust_kt, 'kn')} />
-        <HeroStat label="Precip." value={formatValue(obs?.precipitation_mm_per_hr, 'mm/h')} />
+        <HeroStat label="Rain / snow" value={formatValue(obs?.precipitation_mm_per_hr, 'mm/h')} />
       </StatGrid>
     </div>
   );
@@ -86,7 +86,7 @@ function RiskWidget({ data }: { data: AirportWeatherResult }) {
       <RiskGauge score={score} level={level} testId="weather-risk-score" />
 
       <div className="border-t border-ink/10 pt-4">
-        <p className="eyebrow">Risk factors</p>
+        <p className="eyebrow">What to watch for</p>
         {score === 0 ? (
           <p className="mt-2 text-base text-ink-soft">No significant weather hazards at this hour.</p>
         ) : (
@@ -118,7 +118,6 @@ function HourlyForecast({ hourly }: { hourly: AirportWeatherResult[] | null }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="eyebrow">Hourly forecast</p>
-        <p className="hidden text-sm text-ink-muted sm:block">Bar = weather risk per hour · select an hour for details</p>
       </div>
       {hourly && hourly.length > 0 ? (
         <>

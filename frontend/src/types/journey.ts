@@ -107,6 +107,27 @@ export interface AlternativeOption {
   ranking_score?: number | null;
   ranking_reasons?: string[];
   warnings?: string[];
+  availability_status?: string;
+  data_mode?: 'live' | 'timetable' | 'demo';
+  retrieved_at?: string;
+  sources?: SourceRef[];
+  legs?: FlightResult[];
+  risk_confidence?: string;
+  risk_missing_data?: string[];
+  ranking_factors?: Record<string, number>;
+  ranking_weights?: Record<string, number>;
+  ranking_config_version?: string;
+}
+
+export interface AlternativeSearchSummary {
+  status: 'not_needed' | 'available' | 'partial' | 'no_results' | 'unavailable';
+  provider?: string;
+  origin?: string;
+  destination?: string;
+  earliest_departure?: string;
+  latest_departure?: string;
+  searched_at?: string;
+  warnings?: string[];
 }
 
 export interface SourceRef {
@@ -114,7 +135,21 @@ export interface SourceRef {
   type?: string | null;
   verified?: boolean;
   url?: string | null;
+  retrieved_at?: string | null;
 }
+
+// Mirrors backend/app/schemas/journey.py AgentRun: public status only, never model reasoning.
+export interface AgentRun {
+  agent: string;
+  status: 'success' | 'partial' | 'unavailable' | 'error' | 'skipped';
+  confidence?: string | null;
+  warnings: string[];
+  started_at?: string | null;
+  duration_ms?: number | null;
+  error?: string | null;
+}
+
+export type RecoveryReason = 'FLIGHT_CANCELLED' | 'CONNECTION_AT_RISK' | 'RISK_ABOVE_THRESHOLD' | 'PASSENGER_REQUESTED';
 
 export interface JourneyAnalysisResponse {
   journey_id: string;
@@ -128,9 +163,14 @@ export interface JourneyAnalysisResponse {
   weather_conditions: (AirportWeatherResult & WeatherCondition)[];
   policy_evidence: PolicyEvidence[];
   alternatives: AlternativeOption[];
+  alternative_search?: AlternativeSearchSummary;
   recommendation: string;
   sources: SourceRef[];
   warnings: string[];
   is_demo_data: boolean;
   last_updated: string;
+  workflow_status?: 'COMPLETED' | 'PARTIAL';
+  workflow_trace?: AgentRun[];
+  recovery_triggered?: boolean;
+  recovery_reasons?: RecoveryReason[];
 }

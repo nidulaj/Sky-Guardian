@@ -281,8 +281,8 @@ export default function RegisterPage() {
         </p>
         <p className="text-base text-ink-soft">
           Just looking?{' '}
-          <Link href="/journeys/new" className="inline-flex min-h-[44px] items-center font-medium text-ink underline decoration-coral underline-offset-4 hover:decoration-2">
-            Check a journey without an account
+          <Link href="/dashboard" className="inline-flex min-h-[44px] items-center font-medium text-ink underline decoration-coral underline-offset-4 hover:decoration-2">
+            Continue to dashboard without an account
           </Link>
         </p>
       </div>

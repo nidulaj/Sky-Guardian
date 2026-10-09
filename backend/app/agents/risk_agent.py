@@ -201,13 +201,13 @@ class RiskAgent(BaseAgent):
         floors = []
         if assessed["flight"].critical:
             floors.append((o.cancelled_flight_min_score, (
-                f"Minimum score {o.cancelled_flight_min_score} applied: the Flight Agent reports "
-                f"{', '.join(assessed['flight'].critical)} as cancelled."
+                f"Risk is at least {o.cancelled_flight_min_score}/100. Reported as cancelled: "
+                f"{', '.join(assessed['flight'].critical)}."
             )))
         if assessed["connection"].critical:
             floors.append((o.impossible_connection_min_score, (
-                f"Minimum score {o.impossible_connection_min_score} applied: the Connection Agent reports the connection "
-                f"at {', '.join(assessed['connection'].critical)} as missed."
+                f"Risk is at least {o.impossible_connection_min_score}/100 because the connection "
+                f"at {', '.join(assessed['connection'].critical)} was missed."
             )))
         return floors
 
@@ -247,7 +247,7 @@ class RiskAgent(BaseAgent):
 
         for i, f in enumerate(flights):
             if not isinstance(f, dict):
-                unavailable[f"leg {i + 1}"] = "invalid Flight Agent result"
+                unavailable[f"leg {i + 1}"] = "flight information could not be read"
                 continue
             label = _safe_text(f.get("flight_number")) or f"leg {i + 1}"
             status = f.get("status")
@@ -285,7 +285,7 @@ class RiskAgent(BaseAgent):
                 scored.append((cfg.score_for_delay(delay), label, reason))
 
         for i in range(len(flights), leg_count):
-            unavailable[f"leg {i + 1}"] = "no Flight Agent result"
+            unavailable[f"leg {i + 1}"] = "flight information is missing"
 
         details = {
             "flight_statuses": statuses,
@@ -298,7 +298,7 @@ class RiskAgent(BaseAgent):
         if not scored:
             reason = (
                 "Flight status unavailable for " + ", ".join(f"{k} ({v})" for k, v in unavailable.items()) + "."
-                if unavailable else "The Flight Agent returned no results."
+                if unavailable else "Flight information is unavailable."
             )
             return _Assessed(RiskComponent(status="missing", confidence=0.0, reason=reason, details=details), warnings=warnings)
 
@@ -347,7 +347,7 @@ class RiskAgent(BaseAgent):
                 return _Assessed(RiskComponent(
                     status="not_applicable", confidence=1.0, reason="Direct flight: there is no connection to assess.",
                 ))
-            reason = "The Connection Agent returned no result for this multi-leg journey."
+            reason = "Connection time could not be checked for this journey."
             return _Assessed(RiskComponent(status="missing", confidence=0.0, reason=reason), warnings=[reason])
 
         assessed = [assess_connection(c, i, self.config.connection) for i, c in enumerate(connections)]
@@ -357,7 +357,7 @@ class RiskAgent(BaseAgent):
             label(r): ", ".join(r.reason_codes) or r.reason for r in assessed if r.risk_score is None
         }
         for i in range(len(connections), expected):
-            unavailable[f"connection {i + 1}"] = "no Connection Agent result"
+            unavailable[f"connection {i + 1}"] = "connection information is missing"
 
         details = {
             "connections": [r.model_dump() for r in assessed],
@@ -421,7 +421,7 @@ class RiskAgent(BaseAgent):
         warnings: List[str] = []
         for w in weather_results:
             if not isinstance(w, dict):
-                unavailable.append(("an airport", "Invalid Weather Agent result."))
+                unavailable.append(("an airport", "Weather information could not be read."))
                 continue
             airport = _safe_text(w.get("airport"), 3) or "an airport"
             warnings.extend(x for x in w.get("warnings") or [] if isinstance(x, str))

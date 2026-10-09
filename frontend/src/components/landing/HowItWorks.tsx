@@ -3,7 +3,7 @@ import SectionHeading from './SectionHeading';
 
 const STEPS = [
   {
-    label: 'You',
+    label: 'Your trip',
     title: 'Tell us your flights.',
     body: 'Add each flight number and travel date.',
   },

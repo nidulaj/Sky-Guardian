@@ -18,7 +18,7 @@ const FIELDS = [
 
 function RouteLine() {
   return (
-    <div className="flex flex-1 items-center gap-1 px-1 sm:gap-2 sm:px-3" aria-hidden="true">
+    <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2" aria-hidden="true">
       <span className="h-px flex-1 border-t border-dashed border-coral-deep/60" />
       <Plane className="h-4 w-4 shrink-0 rotate-45 text-coral sm:h-5 sm:w-5" />
       <span className="h-px flex-1 border-t border-dashed border-coral-deep/60" />
@@ -46,7 +46,7 @@ export default function BoardingPassCta() {
       <div className="mt-12 flex flex-col drop-shadow-[0_20px_30px_rgba(26,23,20,0.10)] md:flex-row">
         {/* Main pass */}
         <div className="relative flex-1 rounded-t-3xl bg-sand-50 p-6 sm:p-10 md:rounded-l-3xl md:rounded-tr-none">
-          <div className="flex items-start">
+          <div className="grid grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)_24px_minmax(0,1fr)] items-start sm:grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)_40px_minmax(0,1fr)]">
             {STOPS.map((stop, i) => (
               <React.Fragment key={stop.code}>
                 {i > 0 && (
@@ -54,9 +54,9 @@ export default function BoardingPassCta() {
                     <RouteLine />
                   </div>
                 )}
-                <div className={i === 1 ? 'text-center' : i === 2 ? 'text-right' : ''}>
+                <div className={`min-w-0 ${i === 1 ? 'text-center' : i === 2 ? 'text-right' : ''}`}>
                   <p className="eyebrow">{stop.role}</p>
-                  <p className="display mt-2 text-[2.5rem] text-ink sm:text-6xl lg:text-7xl">{stop.code}</p>
+                  <p className="display mt-2 text-3xl text-ink sm:text-6xl md:text-4xl lg:text-6xl xl:text-7xl">{stop.code}</p>
                   <p className="mt-2 text-sm text-ink-soft">{stop.city}</p>
                 </div>
               </React.Fragment>

@@ -54,10 +54,10 @@ export default function Hero() {
 
             <div className="mt-9 flex animate-fade-up flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-8 [animation-delay:240ms]">
               <Link
-                href="/journeys/new"
+                href="/dashboard"
                 className="inline-flex h-14 items-center gap-3 rounded-full bg-sand-50 px-7 text-base font-medium text-ink transition-colors hover:bg-white"
               >
-                Check my journey
+                Go to Dashboard
                 <ArrowRight className="h-5 w-5" aria-hidden="true" />
               </Link>
               <a href="#how-it-works" className="link-line min-h-[44px] text-white">

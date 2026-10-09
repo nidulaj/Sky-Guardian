@@ -3,10 +3,13 @@ from app.providers.flight.base import (
 )
 from app.providers.flight.cache import FlightCache
 from app.providers.flight.settings import FlightSettings, flight_settings
-from app.schemas.flight import FlightResult
+from app.schemas.flight import FLIGHT_NUMBER_PATTERN, FlightResult
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo
+import re
 import httpx
+from app.providers.airports import airport_timezone
 
 AERODATABOX_BASE_URL = "https://aerodatabox.p.rapidapi.com"
 AERODATABOX_HOST = "aerodatabox.p.rapidapi.com"
@@ -138,20 +141,8 @@ class AeroDataBoxFlightProvider(FlightDataProvider):
         if cached is not None:
             return cached
 
-        if self._units_left() - UNITS_PER_LOOKUP < self._settings.AERODATABOX_UNITS_RESERVE:
-            raise FlightDataUnavailableError("AeroDataBox monthly unit quota reached")
-
-        url = f"{self._base_url}/flights/number/{flight_iata}/{travel_date}"
-        headers = {"X-RapidAPI-Key": self._api_key, "X-RapidAPI-Host": AERODATABOX_HOST}
         params = {"dateLocalRole": "Both", "withAircraftImage": "false", "withLocation": "false"}
-        try:
-            async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
-                response = await client.get(url, headers=headers, params=params)
-        except httpx.HTTPError as e:
-            raise FlightDataUnavailableError(f"AeroDataBox request failed ({type(e).__name__})") from None
-        self._cache.record_call(self.name)
-
-        self._store_units_reading(response.headers)
+        response = await self._request(f"flights/number/{flight_iata}/{travel_date}", params)
 
         if response.status_code in (204, 404):
             records: List[Dict[str, Any]] = []
@@ -173,6 +164,76 @@ class AeroDataBoxFlightProvider(FlightDataProvider):
             ttl = self._settings.FLIGHT_NOT_FOUND_CACHE_SECONDS
         self._cache.set(cache_key, records, ttl)
         return records
+
+    async def search_departure_window(self, origin: str, start: datetime, end: datetime) -> List[FlightResult]:
+        """FIDS with both legs, in bounded 12-hour airport-local windows."""
+        tz_name = airport_timezone(origin)
+        if not tz_name or start.utcoffset() is None or end.utcoffset() is None:
+            raise FlightDataUnavailableError("Departure search requires verified airport timezones")
+        local_start, local_end = start.astimezone(ZoneInfo(tz_name)), end.astimezone(ZoneInfo(tz_name))
+        hours = (local_end.replace(tzinfo=None) - local_start.replace(tzinfo=None)).total_seconds() / 3600
+        if not 0 < hours <= 12 or local_start.utcoffset() != local_end.utcoffset():
+            raise FlightDataUnavailableError("Departure window crosses an unsupported time boundary")
+        path = f"flights/airports/iata/{origin}/{local_start:%Y-%m-%dT%H:%M}/{local_end:%Y-%m-%dT%H:%M}"
+        cache_key = f"adb:departures:{path}"
+        records = self._cache.get(cache_key)
+        if records is None:
+            response = await self._request(path, {
+                "direction": "Departure", "withLeg": "true", "withCancelled": "false",
+                "withCodeshared": "false", "withCargo": "false", "withPrivate": "false", "withLocation": "false",
+            })
+            if response.status_code == 204:
+                records = []
+            elif response.status_code == 200:
+                try:
+                    payload = response.json()
+                except ValueError:
+                    raise FlightDataUnavailableError("AeroDataBox returned unreadable departures") from None
+                records = payload.get("departures") if isinstance(payload, dict) else None
+                if not isinstance(records, list):
+                    raise FlightDataUnavailableError("AeroDataBox returned unexpected departures")
+            else:
+                raise FlightDataUnavailableError(f"AeroDataBox departure search returned HTTP {response.status_code}")
+            self._cache.set(cache_key, records, self._settings.FLIGHT_LIVE_CACHE_SECONDS)
+        flights = []
+        for record in records[:100]:
+            try:
+                if not isinstance(record, dict) or record.get("isCargo") or record.get("codeshareStatus") == "IsCodeshared":
+                    continue
+                number = re.sub(r"\s+", "", record.get("number", "")).upper()
+                if not re.fullmatch(FLIGHT_NUMBER_PATTERN, number):
+                    continue
+                departure = dict(record.get("departure") or {})
+                # FIDS deliberately omits the requested airport from this side of the leg.
+                departure.setdefault("airport", {"iata": origin})
+                if not departure.get("airport"):
+                    departure["airport"] = {"iata": origin}
+                for side in (departure, record.get("arrival") or {}):
+                    for kind in ("scheduledTime", "revisedTime", "runwayTime"):
+                        value = (side.get(kind) or {}).get("utc")
+                        if value and datetime.fromisoformat(value.replace("Z", "+00:00")).utcoffset() is None:
+                            raise ValueError("Unverified flight time")
+                result = self._to_result({**record, "departure": departure}, number)
+                if not record.get("status") or record.get("status") == "Unknown":
+                    result.status = "UNKNOWN"
+                if result.origin == origin:
+                    flights.append(result)
+            except (TypeError, ValueError, AttributeError):
+                continue
+        return flights
+
+    async def _request(self, path: str, params: Dict[str, str]) -> httpx.Response:
+        if self._units_left() - UNITS_PER_LOOKUP < self._settings.AERODATABOX_UNITS_RESERVE:
+            raise FlightDataUnavailableError("AeroDataBox monthly unit quota reached")
+        headers = {"X-RapidAPI-Key": self._api_key, "X-RapidAPI-Host": AERODATABOX_HOST}
+        self._cache.record_call(self.name)
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
+                response = await client.get(f"{self._base_url}/{path}", headers=headers, params=params)
+        except httpx.HTTPError as error:
+            raise FlightDataUnavailableError(f"AeroDataBox request failed ({type(error).__name__})") from None
+        self._store_units_reading(response.headers)
+        return response
 
     def _units_left(self) -> int:
         counted = self._settings.AERODATABOX_MONTHLY_UNITS - self._cache.calls_this_month(self.name) * UNITS_PER_LOOKUP

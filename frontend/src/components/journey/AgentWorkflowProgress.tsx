@@ -10,6 +10,17 @@ export const AGENTS = [
   { name: 'Recovery agent', title: 'Writes your advice', desc: 'A plain-language summary of what to do next.' },
 ];
 
+// Workflow trace ids from the backend, with the names shown in the explainability drawer.
+export const CHECKS = [
+  { id: 'flight_agent', name: 'Flight status' },
+  { id: 'connection_agent', name: 'Connection time' },
+  { id: 'weather_agent', name: 'Airport weather' },
+  { id: 'risk_agent', name: 'Journey risk' },
+  { id: 'policy_agent', name: 'Airline rules' },
+  { id: 'alternative_agent', name: 'Backup flights' },
+  { id: 'recovery_agent', name: 'Travel advice' },
+];
+
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 /** Honest progress indicator: the analysis is one request, so we show the agent order and elapsed time, not fake per-step results. */

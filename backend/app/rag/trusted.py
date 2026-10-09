@@ -88,8 +88,17 @@ class TrustedDomainValidator:
             if domain == trusted or domain.endswith("." + trusted):
                 return True
 
-        # If it's a known official domain ending (.gov, .europa.eu)
-        if domain.endswith(".gov") or domain.endswith(".europa.eu") or domain.endswith(".gov.lk") or domain.endswith(".gov.my"):
+        # If it's a known official domain ending (.gov, .europa.eu, etc.)
+        gov_endings = (".gov", ".europa.eu", ".gov.lk", ".gov.my", ".gov.uk", ".gov.au", ".gov.sg", ".gov.ae")
+        if any(domain.endswith(ending) for ending in gov_endings):
             return True
 
         return False
+
+    def add_trusted_domain(self, domain: str):
+        """Allows dynamically registering an official airline or airport domain."""
+        clean = self.extract_domain(domain)
+        if clean and clean not in self.trusted_airlines:
+            self.trusted_airlines.append(clean)
+            logger.info(f"Dynamically added trusted airline domain: {clean}")
+

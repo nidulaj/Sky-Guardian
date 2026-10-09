@@ -52,7 +52,8 @@ async def analyze_journey(request: JourneyAnalyzeRequest):
         preferred_language=request.language,
         origin=origin,
         destination=destination,
-        journey_legs=legs_data
+        journey_legs=legs_data,
+        alternatives_requested=request.request_alternatives,
     )
 
     # Execute orchestrator agent workflow
@@ -96,11 +97,16 @@ async def analyze_journey(request: JourneyAnalyzeRequest):
         weather_conditions=final_state.weather_results,
         policy_evidence=final_state.policy_evidence,
         alternatives=final_state.alternative_options,
+        alternative_search=final_state.alternative_search,
         recommendation=final_state.recommendation_text,
         sources=final_state.sources,
         warnings=final_state.warnings,
         is_demo_data=final_state.is_demo_data,
-        last_updated=final_state.updated_at
+        last_updated=final_state.updated_at,
+        workflow_status=final_state.workflow_status,
+        workflow_trace=final_state.agent_runs,
+        recovery_triggered=final_state.recovery_triggered,
+        recovery_reasons=final_state.recovery_reasons,
     )
 
 @router.get("/{journey_id}")

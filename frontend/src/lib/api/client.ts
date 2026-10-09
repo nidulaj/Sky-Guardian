@@ -83,13 +83,13 @@ async function handleResponse<T>(res: Response, fallbackMessage: string): Promis
    JOURNEY API
 ============================================================ */
 
-export async function analyzeJourney(legs: FlightLegInput[], language = 'en'): Promise<JourneyAnalysisResponse> {
+export async function analyzeJourney(legs: FlightLegInput[], language = 'en', requestAlternatives = false): Promise<JourneyAnalysisResponse> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/api/journeys/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ language, legs }),
+      body: JSON.stringify({ language, legs, ...(requestAlternatives ? { request_alternatives: true } : {}) }),
     });
   } catch {
     throw new ApiError('We could not reach the SkyGuardian server. Check your connection and try again.');
@@ -157,14 +157,23 @@ export async function askRagQuestion(
   question: string,
   top_k = 3,
   similarity_threshold = 0.20,
-  airline?: string
+  airline?: string,
+  options?: { enable_web_fallback?: boolean; force_web_search?: boolean; airline_code?: string }
 ): Promise<AskQuestionResponse> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/api/rag/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, top_k, similarity_threshold, airline }),
+      body: JSON.stringify({
+        question,
+        top_k,
+        similarity_threshold,
+        airline,
+        enable_web_fallback: options?.enable_web_fallback ?? true,
+        force_web_search: options?.force_web_search ?? false,
+        airline_code: options?.airline_code,
+      }),
     });
   } catch {
     throw new ApiError('Cannot connect to RAG knowledge service.');
