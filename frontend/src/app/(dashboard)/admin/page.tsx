@@ -59,26 +59,39 @@ const SAMPLE_AIRLINES: SampleAirline[] = [
     ),
   },
   {
-    code: 'MH',
-    name: 'Malaysia Airlines',
-    country: 'Malaysia',
+    code: 'BA',
+    name: 'British Airways',
+    country: 'United Kingdom',
     symbol: (
       <svg viewBox="0 0 40 40" className="w-6 h-6" fill="none">
-        <path d="M6 14C14 10 26 10 34 14C28 22 22 28 20 36C18 28 12 22 6 14Z" fill="#002B7F" />
-        <path d="M10 15C16 12 24 12 30 15C25 21 21 26 20 32C19 26 15 21 10 15Z" fill="#ED1C24" />
-        <circle cx="20" cy="18" r="3" fill="#FFFFFF" />
+        <rect x="4" y="4" width="32" height="32" rx="8" fill="#075AAA" />
+        <path d="M8 24C14 22 24 16 32 12C26 20 18 26 12 28C10 28 8 26 8 24Z" fill="#EB2226" />
+        <path d="M12 22C18 19 26 15 32 12C24 18 17 22 12 22Z" fill="#FFFFFF" />
       </svg>
     ),
   },
   {
-    code: 'SQ',
-    name: 'Singapore Airlines',
-    country: 'Singapore',
+    code: 'DL',
+    name: 'Delta Air Lines',
+    country: 'United States',
     symbol: (
       <svg viewBox="0 0 40 40" className="w-6 h-6" fill="none">
-        <path d="M6 12L20 22L34 12L28 18L20 28L12 18L6 12Z" fill="#D4AF37" />
-        <path d="M14 6L20 18L26 6L23 12L20 8L17 12L14 6Z" fill="#B38F28" />
-        <path d="M20 24L20 36L18 30L20 24Z" fill="#D4AF37" />
+        <rect x="4" y="4" width="32" height="32" rx="8" fill="#003366" />
+        <path d="M20 9L29 27H24L20 18L16 27H11L20 9Z" fill="#E01933" />
+        <path d="M20 18L24 27H16L20 18Z" fill="#8B0000" />
+      </svg>
+    ),
+  },
+  {
+    code: 'LH',
+    name: 'Lufthansa',
+    country: 'Germany',
+    symbol: (
+      <svg viewBox="0 0 40 40" className="w-6 h-6" fill="none">
+        <circle cx="20" cy="20" r="16" fill="#05164D" />
+        <circle cx="20" cy="20" r="14.5" stroke="#FFB600" strokeWidth="1.5" />
+        <path d="M11 25C15 23 20 18 29 13C24 16 19 21 15 25H11Z" fill="#FFB600" />
+        <path d="M17 19C20 16 24 14 28 13C23 18 19 21 16 23L17 19Z" fill="#FFB600" />
       </svg>
     ),
   },
@@ -104,6 +117,30 @@ const SAMPLE_AIRLINES: SampleAirline[] = [
         <rect x="4" y="4" width="32" height="32" rx="8" fill="#5C0632" />
         <path d="M15 32L17 22L12 10L14 10L19 20L21 20L26 10L28 10L23 22L25 32H15Z" fill="#FFFFFF" />
         <path d="M18 18L20 13L22 18H18Z" fill="#C0C0C0" />
+      </svg>
+    ),
+  },
+  {
+    code: 'SQ',
+    name: 'Singapore Airlines',
+    country: 'Singapore',
+    symbol: (
+      <svg viewBox="0 0 40 40" className="w-6 h-6" fill="none">
+        <path d="M6 12L20 22L34 12L28 18L20 28L12 18L6 12Z" fill="#D4AF37" />
+        <path d="M14 6L20 18L26 6L23 12L20 8L17 12L14 6Z" fill="#B38F28" />
+        <path d="M20 24L20 36L18 30L20 24Z" fill="#D4AF37" />
+      </svg>
+    ),
+  },
+  {
+    code: 'MH',
+    name: 'Malaysia Airlines',
+    country: 'Malaysia',
+    symbol: (
+      <svg viewBox="0 0 40 40" className="w-6 h-6" fill="none">
+        <path d="M6 14C14 10 26 10 34 14C28 22 22 28 20 36C18 28 12 22 6 14Z" fill="#002B7F" />
+        <path d="M10 15C16 12 24 12 30 15C25 21 21 26 20 32C19 26 15 21 10 15Z" fill="#ED1C24" />
+        <circle cx="20" cy="18" r="3" fill="#FFFFFF" />
       </svg>
     ),
   },
@@ -454,6 +491,9 @@ export default function AdminPortalPage() {
     } else {
       setAirlineCode(airline.code);
       setAirlineName(airline.name);
+      if (!docTitle.trim() || docTitle.includes('Conditions of Carriage') || docTitle.includes('Contract of Carriage')) {
+        setDocTitle(`${airline.name} General Conditions of Carriage`);
+      }
     }
   };
 
@@ -679,7 +719,7 @@ export default function AdminPortalPage() {
               <span className="text-xs text-ink-muted">Click to select or toggle off</span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-2.5">
               {SAMPLE_AIRLINES.map((airline) => {
                 const isSelected = airlineCode === airline.code;
                 return (
