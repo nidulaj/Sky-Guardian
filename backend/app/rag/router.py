@@ -17,6 +17,7 @@ from app.rag.schemas import (
 )
 from app.rag.service import rag_service
 from app.rag.web_policy_search import web_policy_search
+from app.rag.llm import llm_synthesizer
 
 logger = logging.getLogger(__name__)
 
@@ -155,24 +156,11 @@ async def ask_knowledge(req: AskQuestionRequest):
 
     # 3. Grounded RAG Answer Synthesis
     rag_context = rag_service.build_context(retrieval_resp)
-    answer = ""
-    if settings.LLM_PROVIDER == "gemini" and settings.LLM_API_KEY and settings.LLM_API_KEY != "mock_key":
-        try:
-            import google.generativeai as genai
-            genai.configure(api_key=settings.LLM_API_KEY)
-            model = genai.GenerativeModel(settings.LLM_MODEL)
-            prompt = (
-                f"You are SkyGuardian AI, an aviation policy expert assistant.\n"
-                f"Answer the user's question based strictly on the following verified document excerpts.\n"
-                f"Cite the relevant document title or section.\n\n"
-                f"DOCUMENT CONTEXT:\n{rag_context.context_text}\n\n"
-                f"USER QUESTION:\n{req.question}\n\n"
-                f"ANSWER:"
-            )
-            llm_res = await model.generate_content_async(prompt)
-            answer = llm_res.text
-        except Exception as e:
-            logger.warning(f"LLM generation failed ({e}), using structured synthesis fallback.")
+    answer = await llm_synthesizer.synthesize_rag_answer(
+        question=req.question,
+        context_text=rag_context.context_text,
+        airline=req.airline
+    )
 
     if not answer:
         bullet_points = []

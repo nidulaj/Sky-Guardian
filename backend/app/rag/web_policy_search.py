@@ -289,8 +289,19 @@ class WebPolicySearchService:
                 })
                 snippets.append(r["content"])
 
-            # Synthesize answer
-            if ai_summary:
+            # Synthesize answer via Gemini LLM if configured
+            from app.rag.llm import llm_synthesizer
+            llm_answer = await llm_synthesizer.synthesize_web_answer(
+                question=question,
+                airline_label=airline_label,
+                snippets=snippets,
+                sources=sources,
+                tavily_summary=ai_summary
+            )
+
+            if llm_answer:
+                answer = llm_answer
+            elif ai_summary:
                 answer = (
                     f"**Live Verified Policy from {airline_label} Official Resources:**\n\n"
                     f"{ai_summary.strip()}\n\n"
