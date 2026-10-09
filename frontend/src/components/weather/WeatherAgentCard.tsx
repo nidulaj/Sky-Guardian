@@ -75,7 +75,6 @@ function CurrentConditions({ data }: { data: AirportWeatherResult }) {
 function RiskWidget({ data }: { data: AirportWeatherResult }) {
   const level = data.weather_risk ?? 'LOW';
   const score = data.weather_score ?? 0;
-  const missing = data.missing_data.map((m) => m.replace(/^weather\./, ''));
 
   return (
     <div className="flex flex-col gap-5 rounded-3xl border border-ink/10 bg-sand-100 p-5 sm:p-6">
@@ -104,7 +103,6 @@ function RiskWidget({ data }: { data: AirportWeatherResult }) {
 
       <div className="mt-auto space-y-1 border-t border-ink/10 pt-4 text-sm text-ink-muted">
         <p>Confidence {Math.round(data.confidence * 100)}%</p>
-        {missing.length > 0 && <p>Not provided by source: {missing.join(', ')}</p>}
         {data.warnings.map((w) => (
           <p key={w} className="text-status-caution">{w}</p>
         ))}

@@ -9,11 +9,10 @@ export default function LiveWeather() {
       <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28">
         <SectionHeading
           id="weather-title"
-          eyebrow="Live / Weather agent"
-          aside="Hourly forecast, scored on the server."
+          eyebrow="Live weather"
           title="Airport weather,"
           accent="scored hourly."
-          description="The Weather agent retrieves the hourly airport forecast and scores visibility, wind, gusts, precipitation and thunderstorms with the same deterministic rules the Risk agent uses."
+          description="See the hourly forecast at your airport and how wind, rain, storms and visibility could affect your flight."
         />
         <div className="mt-14">
           <WeatherAgentCard defaultAirport="CMB" />

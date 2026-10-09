@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface PageHeaderProps {
-  /** Small mono label above the title, e.g. "02 / History". */
+  /** Small mono label above the title, e.g. "History". */
   eyebrow: string;
   /** Plain part of the headline. */
   title: string;

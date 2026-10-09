@@ -270,7 +270,7 @@ export default function AdminPortalPage() {
       <section aria-labelledby="stats-heading" className="space-y-4">
         <h2 id="stats-heading" className="eyebrow flex items-center gap-2">
           <Database className="h-4 w-4 text-coral" />
-          <span>01 / System & Vector Store Telemetry</span>
+          <span>System & Vector Store Telemetry</span>
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -308,7 +308,7 @@ export default function AdminPortalPage() {
         <div className="space-y-1">
           <h2 id="upload-heading" className="eyebrow flex items-center gap-2">
             <UploadCloud className="h-4 w-4 text-coral" />
-            <span>02 / Ingest Document into Knowledge Base</span>
+            <span>Ingest Document into Knowledge Base</span>
           </h2>
           <p className="text-sm text-ink-soft">
             Upload PDF or text documents. Text will be extracted, split into semantic chunks, embedded via 768-dim vectorizer, and linked to Supabase Storage.
@@ -423,7 +423,7 @@ export default function AdminPortalPage() {
           <div>
             <h2 id="library-heading" className="eyebrow flex items-center gap-2">
               <Layers className="h-4 w-4 text-coral" />
-              <span>03 / Knowledge Base Document Library</span>
+              <span>Knowledge Base Document Library</span>
             </h2>
             <p className="text-sm text-ink-soft">
               {filteredDocs.length} {filteredDocs.length === 1 ? 'document' : 'documents'} indexed in PostgreSQL pgvector.
@@ -517,7 +517,7 @@ export default function AdminPortalPage() {
         <div className="space-y-1">
           <h2 id="tester-heading" className="eyebrow flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-coral" />
-            <span>04 / RAG Semantic Search & Citation Tester</span>
+            <span>RAG Semantic Search & Citation Tester</span>
           </h2>
           <p className="text-sm text-ink-soft">
             Verify the accuracy of your uploaded documents. Run a test question through the exact semantic retrieval pipeline that passengers use.

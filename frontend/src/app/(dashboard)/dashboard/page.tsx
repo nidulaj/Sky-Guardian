@@ -61,7 +61,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-12 sm:space-y-16">
       <PageHeader
-        eyebrow={user?.first_name ? `Welcome back, ${user.first_name} · ${user.role}` : '01 / Dashboard'}
+        eyebrow={user?.first_name ? `Welcome back, ${user.first_name} · ${user.role}` : 'Dashboard'}
         title="Your journeys,"
         accent="at a glance."
         description={
@@ -96,7 +96,7 @@ export default function DashboardPage() {
             <div>
               <p className="font-semibold text-ink text-base">Administrator Mode Active</p>
               <p className="text-sm text-ink-soft">
-                You have administrative access to the Supabase Knowledge Base, document ingestion, and vector store metrics.
+                You can manage the airline policy documents the assistant uses.
               </p>
             </div>
           </div>
@@ -118,7 +118,7 @@ export default function DashboardPage() {
       {/* Upcoming trip: boarding pass */}
       <section aria-labelledby="upcoming-heading" className="space-y-5">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <p className="eyebrow">02 / Upcoming trip</p>
+          <p className="eyebrow">Upcoming trip</p>
           <p className="eyebrow">15 Sep 2026</p>
         </div>
         <h2 id="upcoming-heading" className="sr-only">
@@ -128,9 +128,6 @@ export default function DashboardPage() {
         <div className="grid lg:grid-cols-[1fr_320px]">
           {/* Main pass */}
           <div className="rounded-t-3xl lg:rounded-tr-none lg:rounded-l-3xl border border-ink/10 bg-sand-50 p-6 sm:p-8">
-            <div className="border-b border-ink/10 pb-4">
-              <span className="eyebrow">SkyGuardian / Journey check</span>
-            </div>
 
             <div className="grid grid-cols-[auto_1fr_auto] items-end gap-3 sm:gap-6 pt-8">
               <div>
@@ -225,7 +222,7 @@ export default function DashboardPage() {
       <section aria-labelledby="timeline-heading" className="rounded-4xl bg-mist-soft px-5 py-10 sm:px-10 sm:py-14">
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-ink/15 pb-6">
           <div className="space-y-3">
-            <p className="eyebrow text-ink-soft">03 / Flight by flight</p>
+            <p className="eyebrow text-ink-soft">Flight by flight</p>
             <h2 id="timeline-heading" className="display text-3xl sm:text-4xl text-ink">
               Where the trip <span className="accent text-coral-deep">comes apart.</span>
             </h2>
@@ -263,7 +260,7 @@ export default function DashboardPage() {
       <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr]">
         <section aria-labelledby="next-heading" className="space-y-6">
           <div className="space-y-3">
-            <p className="eyebrow">04 / What you could do</p>
+            <p className="eyebrow">What you could do</p>
             <h2 id="next-heading" className="display text-3xl sm:text-4xl text-ink">
               Suggested <span className="accent text-coral">next steps.</span>
             </h2>
@@ -283,7 +280,7 @@ export default function DashboardPage() {
         </section>
 
         <section aria-labelledby="overview-heading" className="surface p-6 sm:p-8 space-y-6 self-start">
-          <h2 id="overview-heading" className="eyebrow">05 / Overview</h2>
+          <h2 id="overview-heading" className="eyebrow">Overview</h2>
           <dl className="divide-y divide-ink/10">
             {SAMPLE_STATS.map((s) => (
               <div key={s.label} className="flex items-center justify-between gap-4 py-4">

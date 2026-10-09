@@ -108,7 +108,7 @@ export default function HistoryPage() {
   return (
     <div className="space-y-10 sm:space-y-12">
       <PageHeader
-        eyebrow="02 / History"
+        eyebrow="History"
         title="Every journey,"
         accent="remembered."
         description="Past checks, with what SkyGuardian found and the step it suggested. Open a new check to get up-to-date results."

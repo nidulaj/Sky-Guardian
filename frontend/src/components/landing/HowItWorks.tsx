@@ -30,7 +30,7 @@ const STEPS = [
   {
     label: 'Policy agent',
     title: 'We check the rules.',
-    body: 'If things look tight, it finds the airline rules that apply, using RAG and trusted sources, with citations.',
+    body: 'If things look tight, it finds the airline rules that apply, with links to where each rule comes from.',
   },
   {
     label: 'Recovery agent',
@@ -46,8 +46,7 @@ export default function HowItWorks() {
         <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24">
           <SectionHeading
             id="how-title"
-            eyebrow="03 / How it works"
-            aside="From flight numbers to a clear next step."
+            eyebrow="How it works"
             eyebrowClass="text-ink-soft"
             title="Seven steps,"
             accent="one clear answer."

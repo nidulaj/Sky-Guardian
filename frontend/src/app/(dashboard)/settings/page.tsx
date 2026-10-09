@@ -185,7 +185,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="03 / Settings"
+        eyebrow="Settings"
         title="Your"
         accent="preferences."
         description="Choose how SkyGuardian talks to you and what it keeps. Every option is explained in plain words."
@@ -218,11 +218,11 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSave} noValidate>
         <Section
-          index="01 / Profile"
+          index="Profile"
           title="About you"
           description={
             isAuthenticated && user
-              ? 'Your authenticated passenger identity linked with Supabase.'
+              ? 'Your account details.'
               : 'Used to address you and to send flight alerts.'
           }
         >
@@ -265,7 +265,7 @@ export default function SettingsPage() {
 
 
         <Section
-          index="02 / Language"
+          index="Language"
           title="Preferred language"
           description="Explanations and recommendations are written in this language where supported. Flight numbers and airport codes stay the same."
         >
@@ -311,7 +311,7 @@ export default function SettingsPage() {
         </Section>
 
         <Section
-          index="03 / Notifications"
+          index="Notifications"
           title="Alerts"
           description="Decide when SkyGuardian should get in touch. Alerts start working once accounts are connected."
         >
@@ -350,7 +350,7 @@ export default function SettingsPage() {
         </Section>
 
         <Section
-          index="04 / Data & privacy"
+          index="Data & privacy"
           title="What we keep"
           description="SkyGuardian only needs flight numbers, dates and airports to check a journey."
         >

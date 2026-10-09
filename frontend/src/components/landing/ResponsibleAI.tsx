@@ -37,7 +37,7 @@ export default function ResponsibleAI() {
         <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-12">
           <div className="lg:col-span-5">
             <div className="border-t border-ink/15 pt-5 lg:sticky lg:top-8">
-              <p className="eyebrow text-ink-soft">07 / Responsible AI</p>
+              <p className="eyebrow text-ink-soft">Responsible AI</p>
               <h2 id="rai-title" className="display mt-10 text-4xl text-ink sm:text-5xl lg:text-6xl">
                 Advice you can <span className="accent text-coral-deep">trust and check.</span>
               </h2>

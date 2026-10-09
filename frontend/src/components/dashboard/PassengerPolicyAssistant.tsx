@@ -52,9 +52,6 @@ export default function PassengerPolicyAssistant() {
             Ask any question about your travel rights.
           </h2>
         </div>
-        <span className="rounded-full bg-sand-200 px-3 py-1 text-xs font-mono text-ink-soft">
-          Powered by Supabase RAG
-        </span>
       </div>
 
       <p className="text-sm text-ink-soft leading-relaxed max-w-2xl">
@@ -137,7 +134,7 @@ export default function PassengerPolicyAssistant() {
           {/* Document Sources Cited */}
           {response.sources && response.sources.length > 0 && (
             <div className="border-t border-ink/10 pt-4 space-y-2">
-              <p className="eyebrow text-ink-muted">Verified Policy Sources Cited</p>
+              <p className="eyebrow text-ink-muted">Where this answer comes from</p>
               <div className="flex flex-wrap gap-2">
                 {response.sources.map((s, idx) => (
                   <span

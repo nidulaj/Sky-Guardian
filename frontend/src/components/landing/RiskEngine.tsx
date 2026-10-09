@@ -78,8 +78,7 @@ export default function RiskEngine() {
           {/* Heading (same structure as SectionHeading, light on the photo) */}
           <div className="border-t border-sand-50/25 pt-5 [text-shadow:0_2px_12px_rgba(0,0,0,0.45)]">
             <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-2">
-              <p className="eyebrow text-sand-100">05 / Risk engine</p>
-              <p className="eyebrow hidden max-w-xs text-right text-sand-100 sm:block">Same inputs, same score. Every time.</p>
+              <p className="eyebrow text-sand-100">Risk engine</p>
             </div>
             <div className="mt-10 grid gap-6 lg:grid-cols-12 lg:items-end">
               <h2 id="risk-title" className="display text-4xl text-white sm:text-5xl lg:col-span-7 lg:text-6xl">

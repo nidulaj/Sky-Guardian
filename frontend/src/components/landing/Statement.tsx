@@ -25,9 +25,8 @@ export default function Statement() {
         <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <p className="eyebrow text-ink-soft">
-              02 / Why SkyGuardian
+              Why SkyGuardian
             </p>
-            <p className="eyebrow hidden max-w-[16rem] text-right text-ink-soft sm:block">Connections, not just departures.</p>
           </div>
 
           <div className="mt-14 grid gap-12 lg:mt-20 lg:grid-cols-12 lg:items-end">

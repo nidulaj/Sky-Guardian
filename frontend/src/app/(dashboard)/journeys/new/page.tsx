@@ -18,7 +18,7 @@ import ExplainabilityDrawer from '@/components/journey/ExplainabilityDrawer';
 import FlightStatusCard from '@/components/journey/FlightStatusCard';
 import ConnectionCard from '@/components/journey/ConnectionCard';
 import SafeRichText from '@/components/journey/SafeRichText';
-import { AlternativesList, PolicyEvidenceList, SourcesList } from '@/components/journey/JourneyDetails';
+import { AlternativesList, PolicyEvidenceList } from '@/components/journey/JourneyDetails';
 import JourneyWeatherPanel from '@/components/journey/JourneyWeatherPanel';
 
 // Transfer airport label, matching ConnectionResult.airport in the Connection Agent
@@ -48,9 +48,7 @@ const FIELD_ORDER: LegField[] = ['origin', 'destination', 'flight_number', 'trav
 function SectionTitle({ n, label, id }: { n: number; label: string; id?: string }) {
   return (
     <h2 id={id} className="eyebrow flex items-center gap-3">
-      <span>
-        {String(n).padStart(2, '0')} / {label}
-      </span>
+      <span>{label}</span>
       <span className="h-px flex-1 bg-ink/15" aria-hidden="true" />
     </h2>
   );
@@ -335,14 +333,9 @@ export default function NewJourneyPage() {
                 </section>
               </div>
 
-              {/* 08 Sources */}
+              {/* Footer of the result */}
               <section className="space-y-6">
-                <SectionTitle n={8} label="Sources" />
-                <SourcesList items={result.sources} />
-                <div className="flex flex-col gap-1 font-mono text-sm text-ink-muted sm:flex-row sm:flex-wrap sm:gap-x-6">
-                  {updated && <span>Last updated {updated}</span>}
-                  <span className="break-all">Trace {result.trace_id}</span>
-                </div>
+                {updated && <p className="text-sm text-ink-muted">Last updated {updated}</p>}
                 <Button variant="ghost" onClick={() => setDrawerOpen(true)} className="-ml-3">
                   See how this result was built
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />

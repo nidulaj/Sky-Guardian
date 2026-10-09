@@ -38,7 +38,7 @@ const AGENTS: Agent[] = [
   {
     name: 'Policy agent',
     question: 'What do the airline rules say about my situation?',
-    source: 'RAG over policy documents + Tavily search on trusted domains',
+    source: 'Airline policy documents and trusted travel sites',
     Icon: FileSearch,
   },
   {
@@ -85,8 +85,7 @@ export default function Agents() {
       <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28">
         <SectionHeading
           id="agents-title"
-          eyebrow="04 / The agents"
-          aside="One job each. Clear inputs, clear outputs."
+          eyebrow="The agents"
           title="Seven specialists,"
           accent="one honest answer."
           description="No free-roaming chatbot. Each agent answers one question with a known data source, and the supervisor decides when it runs."

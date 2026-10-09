@@ -30,8 +30,7 @@ export default function BoardingPassCta() {
   return (
     <section aria-labelledby="demo-title" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28">
       <div className="flex flex-wrap items-center justify-between gap-4 border-y border-ink/15 py-4">
-        <p className="eyebrow">06 / Try it</p>
-        <p className="eyebrow">No booking needed</p>
+        <p className="eyebrow">Try it</p>
       </div>
 
       <div className="mt-12 grid gap-6 lg:grid-cols-12 lg:items-end">
@@ -47,11 +46,7 @@ export default function BoardingPassCta() {
       <div className="mt-12 flex flex-col drop-shadow-[0_20px_30px_rgba(26,23,20,0.10)] md:flex-row">
         {/* Main pass */}
         <div className="relative flex-1 rounded-t-3xl bg-sand-50 p-6 sm:p-10 md:rounded-l-3xl md:rounded-tr-none">
-          <div className="border-b border-ink/15 pb-4">
-            <p className="eyebrow">SkyGuardian · Journey check</p>
-          </div>
-
-          <div className="mt-8 flex items-start">
+          <div className="flex items-start">
             {STOPS.map((stop, i) => (
               <React.Fragment key={stop.code}>
                 {i > 0 && (

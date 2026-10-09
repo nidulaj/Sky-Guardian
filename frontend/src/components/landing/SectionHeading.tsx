@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface SectionHeadingProps {
-  /** Mono label, e.g. "03 / How it works". */
+  /** Mono label, e.g. "How it works". */
   eyebrow: string;
   title: string;
   /** Italic serif accent appended to the title. */
