@@ -86,6 +86,7 @@ export default function DashboardPage() {
     }
   }, [authLoading, isAuthenticated, user, router]);
 
+
   // Once a result arrives, move focus to its heading so screen-reader and keyboard users land on it.
   useEffect(() => {
     if (!result) return;

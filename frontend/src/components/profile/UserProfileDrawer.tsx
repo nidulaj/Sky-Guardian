@@ -16,7 +16,6 @@ import {
   Sparkles,
   ExternalLink,
   Lock,
-  Globe,
   Loader2,
   AlertCircle
 } from 'lucide-react';
@@ -29,12 +28,6 @@ interface UserProfileDrawerProps {
   onClose: () => void;
 }
 
-const LANGUAGES = [
-  { code: 'en', label: 'English', native: 'English' },
-  { code: 'si', label: 'Sinhala', native: 'සිංහල' },
-  { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
-];
-
 export default function UserProfileDrawer({ isOpen, onClose }: UserProfileDrawerProps) {
   const router = useRouter();
   const { user, isAdmin, logout, updateProfile } = useAuth();
@@ -42,7 +35,6 @@ export default function UserProfileDrawer({ isOpen, onClose }: UserProfileDrawer
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  const [language, setLanguage] = useState('en');
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -59,7 +51,6 @@ export default function UserProfileDrawer({ isOpen, onClose }: UserProfileDrawer
       setFirstName(user.first_name || '');
       setLastName(user.last_name || '');
       setPhone(user.phone_number || '');
-      setLanguage(user.preferred_language || 'en');
     }
     setIsEditing(false);
     setSaveSuccess(false);
@@ -111,7 +102,6 @@ export default function UserProfileDrawer({ isOpen, onClose }: UserProfileDrawer
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         phone_number: phone.trim(),
-        preferred_language: language,
       });
       setSaveSuccess(true);
       setIsEditing(false);
@@ -302,37 +292,11 @@ export default function UserProfileDrawer({ isOpen, onClose }: UserProfileDrawer
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+94771234567"
                     helperText="Used for automated high-risk flight disruption notifications."
-                  />
-
-                  <div>
-                    <label htmlFor="profile-language" className="block text-sm font-medium text-ink mb-1.5">
-                      Assistance Language
-                    </label>
-                    <select
-                      id="profile-language"
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
-                      className="h-11 w-full rounded-xl border border-ink/15 bg-sand-50 px-3.5 text-sm text-ink focus:border-ink focus:outline-none transition-colors"
-                    >
-                      {LANGUAGES.map((l) => (
-                        <option key={l.code} value={l.code}>
-                          {l.native} ({l.label})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2.5 pt-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
                       onClick={() => {
                         setIsEditing(false);
                         setFirstName(user.first_name || '');
                         setLastName(user.last_name || '');
                         setPhone(user.phone_number || '');
-                        setLanguage(user.preferred_language || 'en');
                       }}
                       disabled={isSaving}
                     >
@@ -377,16 +341,6 @@ export default function UserProfileDrawer({ isOpen, onClose }: UserProfileDrawer
                     </span>
                     <span className="font-mono text-xs text-ink">
                       {user.phone_number ? user.phone_number : <span className="text-ink-muted italic">Not configured</span>}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-ink-muted flex items-center gap-1.5">
-                      <Globe className="h-3.5 w-3.5" />
-                      Assistance Language
-                    </span>
-                    <span className="font-medium text-ink">
-                      {LANGUAGES.find((l) => l.code === user.preferred_language)?.native || 'English'}
                     </span>
                   </div>
                 </div>

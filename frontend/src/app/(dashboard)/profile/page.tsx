@@ -13,7 +13,6 @@ import {
   LogOut,
   Sparkles,
   Lock,
-  Globe,
   Loader2,
   AlertCircle,
   ExternalLink,
@@ -27,12 +26,6 @@ import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth/AuthContext';
 
-const LANGUAGES = [
-  { code: 'en', label: 'English', native: 'English' },
-  { code: 'si', label: 'Sinhala', native: 'සිංහල' },
-  { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
-];
-
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isAdmin, logout, updateProfile } = useAuth();
@@ -40,7 +33,6 @@ export default function ProfilePage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  const [language, setLanguage] = useState('en');
 
   const [isSaving, setIsSaving] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
@@ -53,7 +45,6 @@ export default function ProfilePage() {
       setFirstName(user.first_name || '');
       setLastName(user.last_name || '');
       setPhone(user.phone_number || '');
-      setLanguage(user.preferred_language || 'en');
     }
   }, [user]);
 
@@ -77,7 +68,6 @@ export default function ProfilePage() {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         phone_number: phone.trim(),
-        preferred_language: language,
       });
       setSaveSuccess(true);
       setDirty(false);
@@ -95,7 +85,6 @@ export default function ProfilePage() {
       setFirstName(user.first_name || '');
       setLastName(user.last_name || '');
       setPhone(user.phone_number || '');
-      setLanguage(user.preferred_language || 'en');
       setDirty(false);
       setSaveError(null);
     }
@@ -310,30 +299,6 @@ export default function ProfilePage() {
               placeholder="+94771234567"
               helperText="Used exclusively for automated delay and missed connection SMS notifications."
             />
-
-            <div className="space-y-1.5">
-              <label htmlFor="profile-lang" className="block text-sm font-medium text-ink">
-                Preferred Assistance Language
-              </label>
-              <select
-                id="profile-lang"
-                value={language}
-                onChange={(e) => {
-                  setLanguage(e.target.value);
-                  setDirty(true);
-                }}
-                className="h-12 w-full rounded-xl border border-ink/15 bg-sand-50 px-4 text-base text-ink focus:border-ink focus:outline-none transition-colors"
-              >
-                {LANGUAGES.map((l) => (
-                  <option key={l.code} value={l.code}>
-                    {l.native} ({l.label})
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-ink-soft">
-                Journey explanations and compensation guidance will be phrased in this language.
-              </p>
-            </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-ink/10">
               <p className="text-xs text-ink-muted">
