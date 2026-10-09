@@ -46,6 +46,7 @@ export interface AskQuestionResponse {
     relevance_score?: number;
   }>;
   chunks: ScoredChunk[];
+  source_type?: 'rag' | 'web_search' | 'hybrid';
   latency_ms: number;
 }
 
