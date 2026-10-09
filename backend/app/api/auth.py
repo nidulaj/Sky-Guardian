@@ -21,6 +21,7 @@ pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # Bearer token security scheme
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 # User Roles
 class UserRole(str, Enum):
@@ -56,6 +57,12 @@ class UserProfile(BaseModel):
     role: UserRole
     preferred_language: str = "en"
     created_at: Optional[str] = None
+
+class UpdateProfileRequest(BaseModel):
+    first_name: Optional[str] = Field(None, min_length=1, max_length=50)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=50)
+    phone_number: Optional[str] = Field(None, min_length=7, max_length=25)
+    preferred_language: Optional[str] = Field(None, example="en")
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -127,6 +134,16 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         "role": role or "PASSENGER",
         "preferred_language": payload.get("preferred_language", "en")
     }
+
+# Dependency: Get Optional User (Does not raise 401 if unauthenticated)
+async def get_optional_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security)) -> Optional[Dict[str, Any]]:
+    if not credentials or not credentials.credentials:
+        return None
+    try:
+        return await get_current_user(credentials)
+    except Exception as e:
+        logger.debug(f"Optional authentication skipped: {e}")
+        return None
 
 # Dependency: Require Role Guard
 def require_role(*allowed_roles: UserRole):
@@ -297,5 +314,45 @@ async def get_me(current_user: Dict[str, Any] = Depends(get_current_user)):
         last_name=current_user.get("last_name", ""),
         phone_number=current_user.get("phone_number"),
         role=UserRole(current_user["role"]),
-        preferred_language=current_user.get("preferred_language", "en")
+        preferred_language=current_user.get("preferred_language", "en"),
+        created_at=current_user.get("created_at")
     )
+
+@router.put("/me", response_model=UserProfile)
+async def update_me(
+    payload: UpdateProfileRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Updates the current user's profile details and returns the updated profile.
+    """
+    user_id = current_user["user_id"]
+    update_data: Dict[str, Any] = {}
+    if payload.first_name is not None:
+        update_data["first_name"] = payload.first_name.strip()
+    if payload.last_name is not None:
+        update_data["last_name"] = payload.last_name.strip()
+    if payload.phone_number is not None:
+        update_data["phone_number"] = payload.phone_number.strip()
+    if payload.preferred_language is not None:
+        update_data["preferred_language"] = payload.preferred_language.strip()
+
+    if update_data:
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        try:
+            sb = get_supabase()
+            sb.table("users").update(update_data).eq("id", user_id).execute()
+        except Exception as e:
+            logger.warning(f"Could not update user in Supabase ({e}). Updating locally.")
+
+    return UserProfile(
+        user_id=user_id,
+        email=current_user["email"],
+        first_name=update_data.get("first_name", current_user.get("first_name", "")),
+        last_name=update_data.get("last_name", current_user.get("last_name", "")),
+        phone_number=update_data.get("phone_number", current_user.get("phone_number")),
+        role=UserRole(current_user["role"]),
+        preferred_language=update_data.get("preferred_language", current_user.get("preferred_language", "en")),
+        created_at=current_user.get("created_at")
+    )
+

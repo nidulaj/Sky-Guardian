@@ -151,6 +151,20 @@ export interface AgentRun {
 
 export type RecoveryReason = 'FLIGHT_CANCELLED' | 'CONNECTION_AT_RISK' | 'RISK_ABOVE_THRESHOLD' | 'PASSENGER_REQUESTED';
 
+// Mirrors backend/app/schemas/recovery.py RecoveryPlan.
+export interface RecoveryPlan {
+  headline: string;
+  what_happened: string;
+  impact: string;
+  recommended_action: string;
+  why_this_option: string;
+  next_steps: string[];
+  /** Policy ids P1..Pn: position n in policy_evidence. */
+  policy_citations: string[];
+  uncertainty: string[];
+  contact: string;
+}
+
 export interface JourneyAnalysisResponse {
   journey_id: string;
   trace_id: string;
@@ -165,6 +179,9 @@ export interface JourneyAnalysisResponse {
   alternatives: AlternativeOption[];
   alternative_search?: AlternativeSearchSummary;
   recommendation: string;
+  recovery_plan?: RecoveryPlan | null;
+  /** llm = validated AI-assisted plan; template = deterministic standard summary. */
+  recommendation_mode?: 'llm' | 'template';
   sources: SourceRef[];
   warnings: string[];
   is_demo_data: boolean;

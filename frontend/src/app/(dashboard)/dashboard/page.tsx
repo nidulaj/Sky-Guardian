@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowRight, HelpCircle, Plane, RotateCcw, Search, ShieldCheck } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { AlertTriangle, ArrowRight, HelpCircle, Lock, Plane, RotateCcw, Search, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { analyzeJourney } from '@/lib/api/client';
 import type { FlightLegInput, JourneyAnalysisResponse } from '@/types/journey';
@@ -20,7 +21,7 @@ import AgentWorkflowProgress from '@/components/journey/AgentWorkflowProgress';
 import ExplainabilityDrawer from '@/components/journey/ExplainabilityDrawer';
 import FlightStatusCard from '@/components/journey/FlightStatusCard';
 import ConnectionCard from '@/components/journey/ConnectionCard';
-import SafeRichText from '@/components/journey/SafeRichText';
+import RecommendationCard from '@/components/journey/RecommendationCard';
 import { AlternativesList, PolicyEvidenceList, SourcesList } from '@/components/journey/JourneyDetails';
 import JourneyWeatherPanel from '@/components/journey/JourneyWeatherPanel';
 import PassengerPolicyAssistant from '@/components/dashboard/PassengerPolicyAssistant';
@@ -92,7 +93,8 @@ function SectionTitle({ n, label, id }: { n: number; label: string; id?: string 
 }
 
 export default function DashboardPage() {
-  const { user, isAdmin } = useAuth();
+  const router = useRouter();
+  const { user, isAdmin, isAuthenticated, isLoading: authLoading, token } = useAuth();
 
   const [legs, setLegs] = useState<FlightLegInput[]>(() =>
     Array.from({ length: 2 }, () => ({ flight_number: '', origin: '', destination: '', travel_date: DEFAULT_TRAVEL_DATE })),
@@ -119,6 +121,32 @@ export default function DashboardPage() {
     if (!el) return;
     const top = el.getBoundingClientRect().top;
     if (top < 64 || top > window.innerHeight * 0.6) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  // Redirect unauthenticated visitors to login immediately
+  useEffect(() => {
+    if (!authLoading && (!isAuthenticated || !user)) {
+      router.replace('/login?redirect=/dashboard');
+    }
+  }, [authLoading, isAuthenticated, user, router]);
+
+  // Check for prefilled journey legs passed from History page "Check again"
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('skyguardian_recheck_legs');
+      if (saved) {
+        sessionStorage.removeItem('skyguardian_recheck_legs');
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLegs(parsed);
+          window.setTimeout(() => {
+            runCheck(parsed);
+          }, 150);
+        }
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
   }, []);
 
   // Once a result arrives, move focus to its heading so screen-reader and keyboard users land on it.
@@ -160,10 +188,98 @@ export default function DashboardPage() {
 
     const id = ++requestId.current;
     try {
-      const res = await analyzeJourney(normalised, language);
+      const res = await analyzeJourney(normalised, language, false, token);
       if (id === requestId.current) {
         analyzedJourney.current = { legs: normalised, language };
         setResult(res);
+
+        // Save check optimistically to local cache for instant History tab availability
+        if (user?.user_id) {
+          try {
+            const origin = normalised[0]?.origin || '';
+            const destination = normalised[normalised.length - 1]?.destination || '';
+            let via_airport: string | null = null;
+            if (normalised.length === 2) {
+              via_airport = normalised[0].destination || normalised[1].origin;
+            } else if (normalised.length > 2) {
+              via_airport = normalised.slice(0, -1).map((l) => l.destination).filter(Boolean).join(', ');
+            }
+            const places = via_airport ? `${origin} to ${destination} via ${via_airport}` : `${origin} to ${destination}, direct`;
+            const flights_str = normalised.map((l) => l.flight_number).filter(Boolean).join(' · ');
+
+            let status_code = 'ON_TIME';
+            if (res.connection && ['LIKELY_MISSED', 'MISSED', 'HIGH_RISK', 'MODERATE_RISK'].includes(res.connection.status)) {
+              status_code = res.connection.status;
+            } else if (res.risk && ['VERY_HIGH', 'HIGH'].includes(res.risk.level)) {
+              status_code = 'HIGH_RISK';
+            } else if (res.risk && res.risk.level === 'MODERATE') {
+              status_code = 'MODERATE_RISK';
+            }
+
+            const status_labels: Record<string, string> = {
+              LIKELY_MISSED: 'Connection likely missed',
+              MISSED: 'Connection missed',
+              HIGH_RISK: 'High risk',
+              MODERATE_RISK: 'Moderate risk',
+              ON_TIME: 'Connection OK',
+              SAFE: 'All clear',
+              CANCELLED: 'Flight cancelled',
+              DELAYED: 'Flight delayed',
+            };
+            const status_label = status_labels[status_code] || status_code.replace(/_/g, ' ');
+
+            const outcome: 'attention' | 'clear' =
+              ['LIKELY_MISSED', 'MISSED', 'HIGH_RISK', 'MODERATE_RISK', 'CANCELLED'].includes(status_code) ||
+              (res.risk && ['HIGH', 'VERY_HIGH', 'MODERATE'].includes(res.risk.level))
+                ? 'attention'
+                : 'clear';
+
+            const finding =
+              res.primary_issue && res.primary_issue !== 'No critical disruption identified.'
+                ? res.primary_issue
+                : res.risk?.explanation?.[0] || 'All flights assessed with no critical disruption.';
+
+            const next_step = res.recommendation || 'No action needed. Check again on the day of travel.';
+
+            const historyItem = {
+              id: res.journey_id || String(Date.now()),
+              user_id: user.user_id,
+              journey_id: res.journey_id,
+              trace_id: res.trace_id,
+              created_at: new Date().toISOString(),
+              travel_date: normalised[0]?.travel_date || '',
+              from_airport: origin,
+              via_airport,
+              to_airport: destination,
+              places,
+              flights: flights_str,
+              status: status_code,
+              status_label,
+              outcome,
+              finding,
+              next_step,
+              risk_score: res.risk?.score,
+              risk_level: res.risk?.level,
+              legs: normalised,
+              analysis_data: {
+                journey_status: res.journey_status,
+                primary_issue: res.primary_issue,
+                recommendation: res.recommendation,
+              },
+            };
+
+            const storageKey = `skyguardian_journey_history_${user.user_id}`;
+            const existingStr = localStorage.getItem(storageKey);
+            const existing = existingStr ? JSON.parse(existingStr) : [];
+            const updated = [
+              historyItem,
+              ...existing.filter((item: any) => item.journey_id !== res.journey_id && item.id !== historyItem.id),
+            ].slice(0, 50);
+            localStorage.setItem(storageKey, JSON.stringify(updated));
+          } catch (storageErr) {
+            console.warn('Could not cache check to localStorage:', storageErr);
+          }
+        }
       }
     } catch (err: any) {
       if (id === requestId.current) {
@@ -215,6 +331,72 @@ export default function DashboardPage() {
   const flights = result?.flight_statuses ?? [];
   const airport = connectionAirport(flights);
   const updated = formatDateTimeUtc(result?.last_updated);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center">
+        <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-sand-100 border border-ink/10 shadow-sm">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-coral border-r-transparent" />
+        </div>
+        <div className="space-y-1">
+          <p className="eyebrow text-ink-muted">Security Verification</p>
+          <p className="text-sm font-medium text-ink">Verifying passenger credentials...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="relative mx-auto my-8 sm:my-14 max-w-xl overflow-hidden rounded-3xl border border-ink/15 bg-sand-50/95 p-8 sm:p-12 text-center shadow-[0_25px_60px_-15px_rgba(26,23,20,0.15)] backdrop-blur-xl">
+        <div className="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-status-caution/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-coral/10 blur-3xl" />
+
+        <div className="relative space-y-6">
+          <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-status-caution-bg border border-status-caution/30 text-status-caution shadow-inner">
+            <ShieldAlert className="h-8 w-8 stroke-[2.2]" />
+            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-caution opacity-75" />
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-status-caution" />
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <span className="font-mono text-[10px] tracking-widest uppercase font-bold text-status-caution">
+              Restricted Area · Authentication Required
+            </span>
+            <h1 className="font-sans font-semibold text-2xl sm:text-3xl text-ink leading-tight">
+              Passenger Sign-In Required
+            </h1>
+            <p className="text-sm text-ink-soft max-w-md mx-auto leading-relaxed">
+              You must be signed in with a registered passenger account to access real-time journey risk analysis, flight tracking, and disruption compensation engines.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Link
+              href="/login?redirect=/dashboard"
+              className="inline-flex h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-ink px-6 text-sm font-medium text-sand-50 transition-colors hover:bg-ink-soft shadow-md shadow-ink/10"
+            >
+              <span>Sign in as Passenger</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/register"
+              className="inline-flex h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-ink/20 px-6 text-sm font-medium text-ink transition-colors hover:border-ink/40 hover:bg-sand-100"
+            >
+              Create Passenger Account
+            </Link>
+          </div>
+
+          <div className="pt-2 border-t border-ink/10 flex items-center justify-center gap-2 text-xs font-mono text-ink-muted">
+            <Lock className="h-3 w-3 text-ink-muted" />
+            <span>Protected by SkyGuardian Security Clearance Protocol</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-12 sm:space-y-16">
@@ -369,7 +551,12 @@ export default function DashboardPage() {
                 <section className="space-y-6">
                   <SectionTitle n={3} label="What to do now" />
                   <div className="rounded-3xl border border-ink/10 bg-sand-50 p-5 sm:p-8">
-                    <SafeRichText text={result.recommendation} className="text-base sm:text-lg text-ink-soft leading-relaxed" />
+                    <RecommendationCard
+                      plan={result.recovery_plan}
+                      mode={result.recommendation_mode}
+                      fallbackText={result.recommendation}
+                      policyEvidence={result.policy_evidence}
+                    />
                     <div className="mt-6 flex flex-col gap-4 border-t border-ink/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-sm text-ink-muted">
                         Confirm flight changes and rebooking with your airline.

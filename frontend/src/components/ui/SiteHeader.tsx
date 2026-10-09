@@ -17,7 +17,6 @@ const MARKETING_LINKS = [
 const BASE_APP_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/history', label: 'History' },
-  { href: '/settings', label: 'Settings' },
 ];
 
 interface SiteHeaderProps {
@@ -97,38 +96,47 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
 
         <div className="hidden xl:flex items-center gap-4">
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-3">
-              {/* User badge */}
-              <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${
-                overlay
-                  ? 'border-white/20 bg-white/10 text-white'
-                  : 'border-ink/15 bg-sand-50 text-ink'
-              }`}>
-                {isAdmin ? (
-                  <ShieldCheck className="h-3.5 w-3.5 text-coral" aria-hidden="true" />
-                ) : (
-                  <User className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />
-                )}
-                <span>{user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.email}</span>
-                <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase font-bold tracking-wider ${
+            <div className="flex items-center gap-2.5">
+              {/* User interactive badge */}
+              <Link
+                href="/profile"
+                className={`group flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
+                  pathname === '/profile'
+                    ? 'border-coral bg-coral-soft/30 text-ink'
+                    : overlay
+                      ? 'border-white/20 bg-white/10 text-white hover:bg-white/20 hover:border-white/40'
+                      : 'border-ink/15 bg-sand-50 text-ink hover:border-ink/35 hover:bg-sand-100 shadow-xs'
+                }`}
+                title="View passenger profile"
+                aria-label="Open passenger profile"
+              >
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-coral to-coral-deep text-white text-[10px] font-bold shadow-xs">
+                  {user.first_name ? user.first_name[0].toUpperCase() : (user.email[0]?.toUpperCase() || 'U')}
+                </div>
+                <span className="max-w-[130px] truncate font-medium">
+                  {user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.email}
+                </span>
+                <span className={`rounded px-1.5 py-0.5 font-mono text-[9px] uppercase font-bold tracking-wider ${
                   isAdmin
                     ? 'bg-coral-deep text-white'
                     : 'bg-sand-200 text-ink-soft'
                 }`}>
                   {user.role}
                 </span>
-              </div>
+              </Link>
 
               {isAdmin && (
                 <Link
                   href="/admin"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-coral px-3.5 text-xs font-medium text-white transition-colors hover:bg-coral-deep"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-coral px-3 text-xs font-medium text-white transition-colors hover:bg-coral-deep"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Admin
                 </Link>
               )}
 
+
+              {/* Logout button */}
               <button
                 type="button"
                 onClick={handleLogout}
@@ -140,7 +148,7 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
                 title="Sign out"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                Sign out
+                <span>Sign out</span>
               </button>
             </div>
           ) : (
@@ -176,15 +184,27 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
         <div id="mobile-menu" className="xl:hidden border-t border-ink/10 bg-sand-50 text-ink shadow-xl">
           <nav aria-label="Mobile" className="mx-auto flex max-w-7xl flex-col px-5 py-4">
             {isAuthenticated && user && (
-              <div className="flex items-center justify-between border-b border-ink/10 pb-4 mb-2">
-                <div className="flex items-center gap-2">
-                  {isAdmin ? <ShieldCheck className="h-4 w-4 text-coral" /> : <User className="h-4 w-4 text-ink-muted" />}
-                  <span className="font-medium text-sm">{user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.email}</span>
+              <Link
+                href="/profile"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center justify-between border-b border-ink/10 pb-4 mb-2 text-left hover:bg-sand-100/60 p-2 rounded-2xl transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-coral to-coral-deep text-white text-xs font-bold shadow-xs">
+                    {user.first_name ? user.first_name[0].toUpperCase() : (user.email[0]?.toUpperCase() || 'U')}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-sm text-ink block">{user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.email}</span>
+                    <span className="text-xs text-coral font-medium flex items-center gap-1">
+                      View profile & safeguards
+                      <ArrowRight className="h-3 w-3" />
+                    </span>
+                  </div>
                 </div>
                 <span className="rounded bg-coral-deep px-2 py-0.5 font-mono text-[10px] uppercase font-bold text-white">
                   {user.role}
                 </span>
-              </div>
+              </Link>
             )}
 
             {[...appLinks, ...MARKETING_LINKS].map((link) => (
@@ -201,14 +221,24 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
 
             <div className="flex gap-3 pt-4">
               {isAuthenticated ? (
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-ink/20 text-sm font-medium"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </button>
+                <>
+                  <Link
+                    href="/profile"
+                    onClick={() => setOpen(false)}
+                    className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-ink/20 text-sm font-medium hover:bg-sand-100"
+                  >
+                    <User className="h-4 w-4 text-coral" />
+                    Profile
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-ink/20 text-sm font-medium hover:bg-sand-100"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </button>
+                </>
               ) : (
                 <>
                   <Link href="/login" className="flex-1 inline-flex h-11 items-center justify-center rounded-full border border-ink/20 text-sm">
@@ -223,6 +253,8 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
           </nav>
         </div>
       )}
+
+      {/* End mobile menu */}
     </header>
   );
 }

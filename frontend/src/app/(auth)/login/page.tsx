@@ -121,11 +121,18 @@ export default function LoginPage() {
         password,
       });
 
-      // Role-based redirect
+      // Role-based redirect (honoring redirect query parameter if valid)
+      const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const redirectParam = searchParams?.get('redirect');
+
       if (user.role === 'ADMIN') {
-        router.push('/admin');
+        router.push(redirectParam && redirectParam.startsWith('/admin') ? redirectParam : '/admin');
       } else {
-        router.push('/dashboard');
+        router.push(
+          redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')
+            ? redirectParam
+            : '/dashboard'
+        );
       }
     } catch (err: any) {
       setServerError(err.message || 'Invalid email or password. Please try again.');

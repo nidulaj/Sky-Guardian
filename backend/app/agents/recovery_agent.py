@@ -1,111 +1,84 @@
 import logging
-from typing import Dict, Any, List
+from typing import List, Optional, Tuple
+
+from pydantic import ValidationError
+
 from app.agents.base import BaseAgent
+from app.agents.recovery_facts import RecoveryFacts, build_fact_sheet
+from app.agents.recovery_prompt import build_system_prompt, build_user_message
+from app.agents.recovery_template import render_markdown, render_template
+from app.agents.recovery_validation import validate_plan
+from app.llm import LLMError
 from app.orchestrator.state import JourneyState
 from app.schemas.journey import AgentResultSchema
+from app.schemas.recovery import RECOVERY_PLAN_SCHEMA, RecoveryPlan
 
 logger = logging.getLogger(__name__)
+
+LLM_FALLBACK_WARNING = "AI explanation unavailable; showing standard summary."
+
 
 class RecoveryAgent(BaseAgent):
     """
     Passenger Recovery Recommendation Agent.
-    Synthesizes outputs from flight, connection, weather, risk, and policy RAG agents
-    into an explainable, strictly grounded passenger recovery plan.
+    Builds a deterministic fact sheet from the flight, connection, weather, risk, policy and
+    alternative results. With an LLM provider configured, it asks for a plan grounded only in
+    those facts and keeps it if it validates; otherwise (or on any failure) it renders the
+    deterministic template.
     """
     def __init__(self, llm_provider=None):
         super().__init__(name="recovery_agent")
         self.llm_provider = llm_provider
 
+    async def _llm_plan(self, facts: RecoveryFacts, trace_id: str) -> Tuple[Optional[RecoveryPlan], List[str]]:
+        """Return (plan, errors). plan is None when the LLM output cannot be used."""
+        try:
+            raw = await self.llm_provider.generate_json(
+                build_system_prompt(facts), build_user_message(facts), RECOVERY_PLAN_SCHEMA)
+            plan = RecoveryPlan.model_validate(raw)
+            errors = validate_plan(plan, facts)
+            if not errors:
+                return plan, []
+        except LLMError as exc:
+            errors = [str(exc)]
+        except ValidationError as exc:
+            errors = [f"schema: {err['loc']} {err['msg']}" for err in exc.errors()][:5]
+        except Exception as exc:  # provider bug: never let it break the recommendation
+            errors = [f"unexpected {type(exc).__name__}"]
+        logger.warning("Recovery LLM output rejected for trace_id=%s: %s", trace_id, errors)
+        return None, errors
+
     async def execute(self, state: JourneyState) -> AgentResultSchema:
-        # 1. Extract dynamic facts from shared state
-        first_leg = state.flight_results[0] if state.flight_results else {}
-        flight_num = first_leg.get("flight_number", "Your flight")
-        flight_delay = first_leg.get("delay_minutes", 0)
-        origin_apt = first_leg.get("origin", "origin")
-        dest_apt = first_leg.get("destination", "destination")
+        facts = build_fact_sheet(state)
+        plan, mode, errors, warnings = None, "template", [], []
 
-        conn_res = state.connection_results[0] if state.connection_results else {}
-        avail_mins = conn_res.get("available_connection_minutes", 0)
-        req_mins = conn_res.get("minimum_required_minutes", 60)
-        transfer_airport = conn_res.get("airport", dest_apt)
-        conn_status = conn_res.get("status", "SAFE")
+        if self.llm_provider is not None:
+            plan, errors = await self._llm_plan(facts, state.trace_id)
+            if plan is not None:
+                mode = "llm"
+            else:
+                warnings.append(LLM_FALLBACK_WARNING)
+                state.warnings.append(LLM_FALLBACK_WARNING)
+        if plan is None:
+            plan = render_template(facts)
 
-        risk_data = state.risk_analysis or {}
-        # score is None (level UNKNOWN) when the Risk Agent had no usable flight, connection or weather data.
-        risk_score = risk_data.get("score")
-        risk_level = risk_data.get("level", "UNKNOWN" if risk_score is None else "LOW")
-
-        best_alt = None
-        if state.recommended_option:
-            best_alt = state.recommended_option.get("route_summary", best_alt)
-        elif state.alternative_options:
-            best_alt = state.alternative_options[0].get("route_summary", best_alt)
-
-        # 2. Extract grounded policy evidence retrieved via RAG
-        policy_evidence: List[Dict[str, Any]] = state.policy_evidence or []
-        policy_points: List[str] = []
-        counsel_airline = "the operating carrier"
-
-        for p in policy_evidence:
-            airline_name = p.get("airline", "Airline")
-            p_title = p.get("title", "")
-            p_type = p.get("policy_type", "")
-            snippet = p.get("snippet", "")
-            
-            if "srilankan" in airline_name.lower():
-                counsel_airline = "SriLankan Airlines"
-            elif "malaysia" in airline_name.lower() and counsel_airline == "the operating carrier":
-                counsel_airline = "Malaysia Airlines"
-
-            policy_points.append(f"- **{airline_name}** ({p_title}): {snippet[:180]}...")
-
-        # Alternatives are schedules, not confirmed seats, fares or ticket-specific entitlements.
-        alternative_advice = (
-            f"The top-ranked schedule option is {best_alt}. Confirm seats, price, ticket eligibility and your departure airport with {counsel_airline} before acting."
-            if best_alt else f"No feasible alternative was verified. Ask {counsel_airline} for current rebooking options."
-        )
-        if state.recommended_option and state.recommended_option.get("data_mode") == "demo":
-            alternative_advice = "The alternatives below are DEMO DATA, not bookable flights. " + alternative_advice
-
-        # 3. Grounded Synthesis
-        if risk_score is None and conn_status not in ["LIKELY_MISSED", "MISSED", "HIGH_RISK"]:
-            explanation = (
-                "SkyGuardian could not assess the disruption risk for this journey because the flight, connection "
-                "and weather information needed was unavailable. Please check your flight status directly with your airline."
-            )
-        elif conn_status in ["LIKELY_MISSED", "MISSED", "HIGH_RISK"] or (risk_score is not None and risk_score >= 60):
-            delay_phrase = f"is currently delayed by {flight_delay} minutes" if flight_delay > 0 else "is experiencing schedule disruption"
-            
-            explanation_parts = [
-                f"Your first flight ({flight_num} from {origin_apt} to {dest_apt}) {delay_phrase}. "
-                f"As a result, your remaining connection window at {transfer_airport} is estimated at {avail_mins} minutes, "
-                f"which is below the airport's minimum required connection time of {req_mins} minutes. "
-                f"Consequently, your connection is classified as **{conn_status.replace('_', ' ')}** with an Estimated Journey Disruption Risk Score of **{risk_score}/100 ({risk_level} RISK)**.\n\n"
-                f"**Recommended Recovery Option:**\n"
-                f"{alternative_advice}\n\n"
-                f"**Suggested Next Steps:**\n"
-                f"1. Proceed to the {counsel_airline} transit transfer desk upon arrival at {transfer_airport}.\n"
-                f"2. Present your boarding pass and ask which rebooking rules apply to your ticket.\n"
-                f"3. Ask whether any fees, meals or accommodation apply; none are guaranteed by this assessment."
-            ]
-            explanation = "".join(explanation_parts)
-        else:
-            explanation = (
-                f"Your journey ({origin_apt} to {dest_apt}) is operating with an Estimated Journey Disruption Risk Score "
-                f"of {risk_score}/100 ({risk_level} RISK). No critical schedule disruption has been identified. "
-                f"Your connection window at {transfer_airport} remains sufficient."
-            )
-
-        state.recommendation_text = explanation
+        state.recovery_plan = plan.model_dump()
+        state.recommendation_mode = mode
+        state.recommendation_text = render_markdown(plan, facts)
 
         return self.create_result(
             status="success",
             data={
-                "recommendation": explanation,
-                "grounded_policy_count": len(policy_evidence),
-                "risk_score": risk_score,
-                "conn_status": conn_status
+                "recommendation": state.recommendation_text,
+                "recovery_plan": state.recovery_plan,
+                "generation_mode": mode,
+                "model": getattr(self.llm_provider, "model", None) if self.llm_provider else None,
+                "validation_errors": errors,
+                "grounded_policy_count": len(facts.policies),
+                "risk_score": facts.risk.score,
+                "conn_status": facts.primary_connection.status if facts.primary_connection else None,
             },
             trace_id=state.trace_id,
-            confidence="high" if policy_evidence else "medium"
+            confidence="high" if facts.policies else "medium",
+            warnings=warnings,
         )

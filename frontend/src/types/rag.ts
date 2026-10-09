@@ -6,6 +6,8 @@ export interface RAGDocument {
   airport?: string | null;
   policy_type?: string | null;
   source_url?: string | null;
+  jurisdiction?: string | null;
+  effective_date?: string | null;
   storage_path?: string | null;
   file_name?: string | null;
   mime_type?: string | null;

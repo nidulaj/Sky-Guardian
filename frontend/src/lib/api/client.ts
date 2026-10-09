@@ -80,15 +80,47 @@ async function handleResponse<T>(res: Response, fallbackMessage: string): Promis
 }
 
 /* ============================================================
-   JOURNEY API
+   JOURNEY API & HISTORY
 ============================================================ */
 
-export async function analyzeJourney(legs: FlightLegInput[], language = 'en', requestAlternatives = false): Promise<JourneyAnalysisResponse> {
+export interface HistoryRecord {
+  id: string;
+  user_id?: string;
+  journey_id?: string;
+  trace_id?: string;
+  created_at: string;
+  travel_date: string;
+  from_airport: string;
+  via_airport?: string | null;
+  to_airport: string;
+  places: string;
+  flights: string;
+  status: string;
+  status_label: string;
+  outcome: 'attention' | 'clear';
+  finding: string;
+  next_step: string;
+  risk_score?: number | null;
+  risk_level?: string | null;
+  legs?: FlightLegInput[];
+  analysis_data?: any;
+}
+
+export async function analyzeJourney(
+  legs: FlightLegInput[],
+  language = 'en',
+  requestAlternatives = false,
+  token?: string | null
+): Promise<JourneyAnalysisResponse> {
   let response: Response;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
   try {
     response = await fetch(`${API_BASE_URL}/api/journeys/analyze`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ language, legs, ...(requestAlternatives ? { request_alternatives: true } : {}) }),
     });
   } catch {
@@ -96,6 +128,50 @@ export async function analyzeJourney(legs: FlightLegInput[], language = 'en', re
   }
 
   return handleResponse<JourneyAnalysisResponse>(response, 'Failed to analyze journey.');
+}
+
+export async function getJourneyHistory(token: string): Promise<HistoryRecord[]> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/journeys/history`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  } catch {
+    throw new ApiError('Cannot connect to history service.');
+  }
+  return handleResponse<HistoryRecord[]>(response, 'Failed to fetch journey history.');
+}
+
+export async function deleteJourneyHistoryItem(id: string, token: string): Promise<{ status: string; message: string }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/journeys/history/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  } catch {
+    throw new ApiError('Failed to delete history record.');
+  }
+  return handleResponse(response, 'Failed to delete history record.');
+}
+
+export async function clearJourneyHistory(token: string): Promise<{ status: string; message: string }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/journeys/history`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  } catch {
+    throw new ApiError('Failed to clear journey history.');
+  }
+  return handleResponse(response, 'Failed to clear journey history.');
 }
 
 export async function checkBackendHealth() {
@@ -147,6 +223,31 @@ export async function getMeApi(token: string): Promise<UserProfile> {
     throw new ApiError('Cannot verify user session.');
   }
   return handleResponse<UserProfile>(response, 'Failed to fetch user profile.');
+}
+
+export async function updateMeApi(
+  token: string,
+  payload: {
+    first_name?: string;
+    last_name?: string;
+    phone_number?: string;
+    preferred_language?: string;
+  }
+): Promise<UserProfile> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new ApiError('Cannot connect to authentication service to update profile.');
+  }
+  return handleResponse<UserProfile>(response, 'Failed to update user profile.');
 }
 
 /* ============================================================
