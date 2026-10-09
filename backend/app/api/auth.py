@@ -21,6 +21,7 @@ pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # Bearer token security scheme
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 # User Roles
 class UserRole(str, Enum):
@@ -133,6 +134,16 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         "role": role or "PASSENGER",
         "preferred_language": payload.get("preferred_language", "en")
     }
+
+# Dependency: Get Optional User (Does not raise 401 if unauthenticated)
+async def get_optional_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security)) -> Optional[Dict[str, Any]]:
+    if not credentials or not credentials.credentials:
+        return None
+    try:
+        return await get_current_user(credentials)
+    except Exception as e:
+        logger.debug(f"Optional authentication skipped: {e}")
+        return None
 
 # Dependency: Require Role Guard
 def require_role(*allowed_roles: UserRole):

@@ -50,7 +50,7 @@ function SectionTitle({ n, label, id }: { n: number; label: string; id?: string 
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isAdmin, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAdmin, isAuthenticated, isLoading: authLoading, token } = useAuth();
 
   const [legs, setLegs] = useState<FlightLegInput[]>(() =>
     Array.from({ length: 2 }, () => ({ flight_number: '', origin: '', destination: '', travel_date: DEFAULT_TRAVEL_DATE })),
@@ -86,6 +86,24 @@ export default function DashboardPage() {
     }
   }, [authLoading, isAuthenticated, user, router]);
 
+  // Check for prefilled journey legs passed from History page "Check again"
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('skyguardian_recheck_legs');
+      if (saved) {
+        sessionStorage.removeItem('skyguardian_recheck_legs');
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLegs(parsed);
+          window.setTimeout(() => {
+            runCheck(parsed);
+          }, 150);
+        }
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }, []);
 
   // Once a result arrives, move focus to its heading so screen-reader and keyboard users land on it.
   useEffect(() => {
@@ -126,10 +144,98 @@ export default function DashboardPage() {
 
     const id = ++requestId.current;
     try {
-      const res = await analyzeJourney(normalised, language);
+      const res = await analyzeJourney(normalised, language, false, token);
       if (id === requestId.current) {
         analyzedJourney.current = { legs: normalised, language };
         setResult(res);
+
+        // Save check optimistically to local cache for instant History tab availability
+        if (user?.user_id) {
+          try {
+            const origin = normalised[0]?.origin || '';
+            const destination = normalised[normalised.length - 1]?.destination || '';
+            let via_airport: string | null = null;
+            if (normalised.length === 2) {
+              via_airport = normalised[0].destination || normalised[1].origin;
+            } else if (normalised.length > 2) {
+              via_airport = normalised.slice(0, -1).map((l) => l.destination).filter(Boolean).join(', ');
+            }
+            const places = via_airport ? `${origin} to ${destination} via ${via_airport}` : `${origin} to ${destination}, direct`;
+            const flights_str = normalised.map((l) => l.flight_number).filter(Boolean).join(' · ');
+
+            let status_code = 'ON_TIME';
+            if (res.connection && ['LIKELY_MISSED', 'MISSED', 'HIGH_RISK', 'MODERATE_RISK'].includes(res.connection.status)) {
+              status_code = res.connection.status;
+            } else if (res.risk && ['VERY_HIGH', 'HIGH'].includes(res.risk.level)) {
+              status_code = 'HIGH_RISK';
+            } else if (res.risk && res.risk.level === 'MODERATE') {
+              status_code = 'MODERATE_RISK';
+            }
+
+            const status_labels: Record<string, string> = {
+              LIKELY_MISSED: 'Connection likely missed',
+              MISSED: 'Connection missed',
+              HIGH_RISK: 'High risk',
+              MODERATE_RISK: 'Moderate risk',
+              ON_TIME: 'Connection OK',
+              SAFE: 'All clear',
+              CANCELLED: 'Flight cancelled',
+              DELAYED: 'Flight delayed',
+            };
+            const status_label = status_labels[status_code] || status_code.replace(/_/g, ' ');
+
+            const outcome: 'attention' | 'clear' =
+              ['LIKELY_MISSED', 'MISSED', 'HIGH_RISK', 'MODERATE_RISK', 'CANCELLED'].includes(status_code) ||
+              (res.risk && ['HIGH', 'VERY_HIGH', 'MODERATE'].includes(res.risk.level))
+                ? 'attention'
+                : 'clear';
+
+            const finding =
+              res.primary_issue && res.primary_issue !== 'No critical disruption identified.'
+                ? res.primary_issue
+                : res.risk?.explanation?.[0] || 'All flights assessed with no critical disruption.';
+
+            const next_step = res.recommendation || 'No action needed. Check again on the day of travel.';
+
+            const historyItem = {
+              id: res.journey_id || String(Date.now()),
+              user_id: user.user_id,
+              journey_id: res.journey_id,
+              trace_id: res.trace_id,
+              created_at: new Date().toISOString(),
+              travel_date: normalised[0]?.travel_date || '',
+              from_airport: origin,
+              via_airport,
+              to_airport: destination,
+              places,
+              flights: flights_str,
+              status: status_code,
+              status_label,
+              outcome,
+              finding,
+              next_step,
+              risk_score: res.risk?.score,
+              risk_level: res.risk?.level,
+              legs: normalised,
+              analysis_data: {
+                journey_status: res.journey_status,
+                primary_issue: res.primary_issue,
+                recommendation: res.recommendation,
+              },
+            };
+
+            const storageKey = `skyguardian_journey_history_${user.user_id}`;
+            const existingStr = localStorage.getItem(storageKey);
+            const existing = existingStr ? JSON.parse(existingStr) : [];
+            const updated = [
+              historyItem,
+              ...existing.filter((item: any) => item.journey_id !== res.journey_id && item.id !== historyItem.id),
+            ].slice(0, 50);
+            localStorage.setItem(storageKey, JSON.stringify(updated));
+          } catch (storageErr) {
+            console.warn('Could not cache check to localStorage:', storageErr);
+          }
+        }
       }
     } catch (err: any) {
       if (id === requestId.current) {
