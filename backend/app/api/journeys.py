@@ -1,15 +1,50 @@
-from fastapi import APIRouter, HTTPException
+import uuid
+import logging
+from typing import Optional, Dict, Any, List
+from datetime import datetime, timezone
+from fastapi import APIRouter, HTTPException, Depends
+
 from app.schemas.journey import JourneyAnalyzeRequest, JourneyAnalysisResponse, RiskSummary, ConnectionSummary
 from app.orchestrator.state import JourneyState
 from app.orchestrator.graph import SupervisorOrchestrator
-from datetime import datetime
+from app.api.auth import get_current_user, get_optional_user, get_supabase
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/journeys", tags=["Journeys"])
 
 orchestrator = SupervisorOrchestrator()
 
+# In-memory history fallback (user_id -> list of records) in case Supabase table is not yet migrated
+_IN_MEMORY_HISTORY: Dict[str, List[Dict[str, Any]]] = {}
+
+def _save_to_history(record: Dict[str, Any]):
+    user_id = record.get("user_id")
+    if not user_id:
+        return
+
+    # 1. Update in-memory cache for immediate responsiveness
+    if user_id not in _IN_MEMORY_HISTORY:
+        _IN_MEMORY_HISTORY[user_id] = []
+    _IN_MEMORY_HISTORY[user_id].insert(0, record)
+    _IN_MEMORY_HISTORY[user_id] = _IN_MEMORY_HISTORY[user_id][:50]
+
+    # 2. Persist to Supabase
+    try:
+        sb = get_supabase()
+        sb.table("journey_history").insert(record).execute()
+        logger.info(f"Journey check saved to Supabase for passenger user_id={user_id}")
+    except Exception as e:
+        logger.warning(
+            f"Could not persist journey history to Supabase table 'journey_history' ({e}). "
+            "Data kept safely in session memory. (Ensure migration SQL has been executed in Supabase)"
+        )
+
 @router.post("/analyze", response_model=JourneyAnalysisResponse)
-async def analyze_journey(request: JourneyAnalyzeRequest):
+async def analyze_journey(
+    request: JourneyAnalyzeRequest,
+    current_user: Optional[Dict[str, Any]] = Depends(get_optional_user),
+):
     # Initialize Journey State from request legs
     legs_data = [leg.dict() for leg in request.legs]
     origin = legs_data[0]["origin"] if legs_data else ""
@@ -53,7 +88,7 @@ async def analyze_journey(request: JourneyAnalyzeRequest):
 
     primary_issue = "Connection time may be insufficient." if connection_summary and connection_summary.status in ["HIGH_RISK", "LIKELY_MISSED", "MISSED"] else "No critical disruption identified."
 
-    return JourneyAnalysisResponse(
+    response = JourneyAnalysisResponse(
         journey_id=final_state.journey_id,
         trace_id=final_state.trace_id,
         journey_status="INSUFFICIENT_DATA" if risk_summary.level == "UNKNOWN" else risk_summary.level + "_RISK",
@@ -78,6 +113,159 @@ async def analyze_journey(request: JourneyAnalyzeRequest):
         recovery_reasons=final_state.recovery_reasons,
     )
 
+    # If the request is from an authenticated passenger, record in journey history
+    if current_user and current_user.get("user_id"):
+        user_id = current_user["user_id"]
+
+        # Determine via airport
+        via_airport = None
+        if len(legs_data) == 2:
+            via_airport = legs_data[0].get("destination") or legs_data[1].get("origin")
+        elif len(legs_data) > 2:
+            via_airport = ", ".join([l.get("destination", "") for l in legs_data[:-1] if l.get("destination")])
+
+        # Formulate human-readable description
+        if via_airport:
+            places = f"{origin} to {destination} via {via_airport}"
+        else:
+            places = f"{origin} to {destination}, direct"
+
+        flights_str = " · ".join([l.get("flight_number", "") for l in legs_data if l.get("flight_number")])
+        travel_date = legs_data[0].get("travel_date", "") if legs_data else ""
+
+        # Determine status code and status label
+        if connection_summary and connection_summary.status in ["LIKELY_MISSED", "MISSED", "HIGH_RISK", "MODERATE_RISK"]:
+            status_code = connection_summary.status
+        elif risk_summary.level in ["VERY_HIGH", "HIGH"]:
+            status_code = "HIGH_RISK"
+        elif risk_summary.level == "MODERATE":
+            status_code = "MODERATE_RISK"
+        else:
+            status_code = "ON_TIME"
+
+        status_label_map = {
+            "LIKELY_MISSED": "Connection likely missed",
+            "MISSED": "Connection missed",
+            "HIGH_RISK": "High risk",
+            "MODERATE_RISK": "Moderate risk",
+            "ON_TIME": "Connection OK",
+            "SAFE": "All clear",
+            "CANCELLED": "Flight cancelled",
+            "DELAYED": "Flight delayed",
+            "UNKNOWN": "Status unknown",
+        }
+        status_label = status_label_map.get(status_code, status_code.replace("_", " ").title())
+
+        # Determine outcome: 'attention' vs 'clear'
+        outcome = (
+            "attention"
+            if status_code in ["LIKELY_MISSED", "MISSED", "HIGH_RISK", "MODERATE_RISK", "CANCELLED"]
+            or risk_summary.level in ["HIGH", "VERY_HIGH", "MODERATE"]
+            else "clear"
+        )
+
+        # Determine finding text
+        if primary_issue and primary_issue != "No critical disruption identified.":
+            finding = primary_issue
+        elif risk_summary.explanation and len(risk_summary.explanation) > 0:
+            finding = risk_summary.explanation[0]
+        else:
+            finding = "All flights assessed with no critical disruption."
+
+        next_step = final_state.recommendation_text or "No action needed. Check again on the day of travel."
+
+        history_record = {
+            "id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "journey_id": final_state.journey_id,
+            "trace_id": final_state.trace_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "travel_date": travel_date,
+            "from_airport": origin,
+            "via_airport": via_airport,
+            "to_airport": destination,
+            "places": places,
+            "flights": flights_str,
+            "status": status_code,
+            "status_label": status_label,
+            "outcome": outcome,
+            "finding": finding,
+            "next_step": next_step,
+            "risk_score": risk_summary.score,
+            "risk_level": risk_summary.level,
+            "legs": legs_data,
+            "analysis_data": {
+                "journey_status": response.journey_status,
+                "primary_issue": response.primary_issue,
+                "recommendation": response.recommendation,
+                "risk": risk_summary.dict(),
+            }
+        }
+
+        _save_to_history(history_record)
+
+    return response
+
+@router.get("/history", response_model=List[Dict[str, Any]])
+async def get_journey_history(current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Fetch history of journey checks performed by the authenticated passenger."""
+    user_id = current_user["user_id"]
+
+    # 1. Try Supabase
+    try:
+        sb = get_supabase()
+        res = (
+            sb.table("journey_history")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .limit(50)
+            .execute()
+        )
+        if res.data is not None and len(res.data) > 0:
+            return res.data
+    except Exception as e:
+        logger.warning(f"Failed to query Supabase journey_history ({e}), falling back to session cache.")
+
+    # 2. Fallback to in-memory cache
+    return _IN_MEMORY_HISTORY.get(user_id, [])
+
+@router.delete("/history/{item_id}")
+async def delete_journey_history_item(item_id: str, current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Delete a single history record for the authenticated passenger."""
+    user_id = current_user["user_id"]
+
+    # Delete from Supabase
+    try:
+        sb = get_supabase()
+        sb.table("journey_history").delete().eq("id", item_id).eq("user_id", user_id).execute()
+    except Exception as e:
+        logger.warning(f"Failed to delete item from Supabase journey_history ({e})")
+
+    # Delete from in-memory cache
+    if user_id in _IN_MEMORY_HISTORY:
+        _IN_MEMORY_HISTORY[user_id] = [h for h in _IN_MEMORY_HISTORY[user_id] if h.get("id") != item_id]
+
+    return {"status": "success", "message": "History item deleted successfully."}
+
+@router.delete("/history")
+async def clear_journey_history(current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Clear all journey checks for the authenticated passenger."""
+    user_id = current_user["user_id"]
+
+    # Clear from Supabase
+    try:
+        sb = get_supabase()
+        sb.table("journey_history").delete().eq("user_id", user_id).execute()
+    except Exception as e:
+        logger.warning(f"Failed to clear history from Supabase ({e})")
+
+    # Clear from in-memory cache
+    if user_id in _IN_MEMORY_HISTORY:
+        _IN_MEMORY_HISTORY[user_id] = []
+
+    return {"status": "success", "message": "All journey history cleared successfully."}
+
 @router.get("/{journey_id}")
 async def get_journey(journey_id: str):
     # Endpoint stub for journey retrieval by ID
@@ -86,3 +274,4 @@ async def get_journey(journey_id: str):
         "status": "COMPLETED",
         "message": "Journey details fetched successfully."
     }
+
