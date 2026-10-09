@@ -141,11 +141,14 @@ export default function ProfilePage() {
               <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-coral via-coral-deep to-ink text-white font-sans text-2xl font-bold tracking-tight shadow-lg ring-4 ring-coral-soft/60">
                 {initials}
               </div>
-              <div className="absolute -bottom-1.5 -right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-sand-50 shadow-md">
+              <div
+                className="absolute -bottom-1.5 -right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-sand-50 shadow-md"
+                title={isAdmin ? 'Administrator' : 'Verified Passenger'}
+              >
                 {isAdmin ? (
-                  <ShieldCheck className="h-4 w-4 text-coral" title="Administrator" />
+                  <ShieldCheck className="h-4 w-4 text-coral" aria-label="Administrator" />
                 ) : (
-                  <Sparkles className="h-4 w-4 text-status-safe" title="Verified Passenger" />
+                  <Sparkles className="h-4 w-4 text-status-safe" aria-label="Verified Passenger" />
                 )}
               </div>
             </div>

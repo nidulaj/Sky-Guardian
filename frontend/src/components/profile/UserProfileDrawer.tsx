@@ -171,11 +171,14 @@ export default function UserProfileDrawer({ isOpen, onClose }: UserProfileDrawer
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-coral via-coral-deep to-ink text-white font-sans text-xl font-bold tracking-tight shadow-md ring-4 ring-coral-soft/50">
                     {initials}
                   </div>
-                  <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-sand-50 shadow">
+                  <div
+                    className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-sand-50 shadow"
+                    title={isAdmin ? 'Administrator' : 'Verified Passenger'}
+                  >
                     {isAdmin ? (
-                      <ShieldCheck className="h-4 w-4 text-coral" title="Administrator" />
+                      <ShieldCheck className="h-4 w-4 text-coral" aria-label="Administrator" />
                     ) : (
-                      <Sparkles className="h-3.5 w-3.5 text-status-safe" title="Verified Passenger" />
+                      <Sparkles className="h-3.5 w-3.5 text-status-safe" aria-label="Verified Passenger" />
                     )}
                   </div>
                 </div>
@@ -292,6 +295,13 @@ export default function UserProfileDrawer({ isOpen, onClose }: UserProfileDrawer
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+94771234567"
                     helperText="Used for automated high-risk flight disruption notifications."
+                  />
+
+                  <div className="flex items-center justify-end gap-2.5 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
                         setIsEditing(false);
                         setFirstName(user.first_name || '');

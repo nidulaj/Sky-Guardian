@@ -134,22 +134,6 @@ export default function SiteHeader({ variant = 'solid', section = 'app' }: SiteH
                 </Link>
               )}
 
-              {/* Dedicated Profile button near logout */}
-              <Link
-                href="/profile"
-                className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all ${
-                  pathname === '/profile'
-                    ? 'border-coral bg-coral-soft/40 text-coral-deep font-semibold shadow-xs'
-                    : overlay
-                      ? 'border-white/30 text-white hover:bg-white/10'
-                      : 'border-ink/15 text-ink hover:bg-sand-100'
-                }`}
-                title="View & Edit Profile"
-                aria-label="User Profile"
-              >
-                <User className="h-3.5 w-3.5 text-coral" />
-                <span>Profile</span>
-              </Link>
 
               {/* Logout button */}
               <button
